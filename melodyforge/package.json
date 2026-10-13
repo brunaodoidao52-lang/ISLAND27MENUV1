@@ -1,0 +1,14 @@
+{
+  "name": "melodyforge-island27",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MelodyForge — ISLAND27 edition: idea generator with MIDI export",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/e2e.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}
