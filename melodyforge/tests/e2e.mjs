@@ -19,6 +19,7 @@ const check = (ok, what, extra = '') => {
 const browser = await chromium.launch({ executablePath, args: ['--autoplay-policy=no-user-gesture-required'] });
 const context = await browser.newContext({ acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
 const page = await context.newPage();
+page.on('dialog', d => d.accept());   // "discard your edits?" confirmations
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -181,6 +182,116 @@ check(await page.locator('.saved-genome-item').count() === 0, 'delete removes th
 await page.click('#randomizeBtn');
 check(await page.evaluate(() => Object.keys({ ambient: 1, dance: 1, jazz: 1, classical: 1, lofi: 1, electronic: 1, experimental: 1 })
       .includes(document.getElementById('environmentSelect').value)), 'Randomize picks a valid environment');
+
+
+// ---------------------------------------------------------------- phase 2: seeds, limits, editor
+const seedRun = async seed => {
+    await page.fill('#sessionSeed', String(seed));
+    await page.click('#applySeed');
+    return page.evaluate(() => JSON.stringify(melodyForge.population.map(x => x.genome)));
+};
+const s1 = await seedRun(12345), s2 = await seedRun(999), s3 = await seedRun(12345);
+check(s1 === s3 && s1 !== s2, 'same session seed recreates the same candidates');
+
+await page.fill('#maxNotesPerBar', '3');
+await page.dispatchEvent('#maxNotesPerBar', 'change');
+await page.selectOption('#melodyLow', '72');
+await page.selectOption('#melodyHigh', '84');
+const limits = await page.evaluate(() => {
+    const p = melodyForge.pattern, counts = new Array(p.bars).fill(0);
+    p.tracks.melody.forEach(n => counts[Math.floor(n.start / 1920)]++);
+    const all = melodyForge.population.map(x => MFCore.render(x.genome, melodyForge.settings()));
+    return { maxPerBar: Math.max(...counts), lo: Math.min(...all.flatMap(q => q.tracks.melody.map(n => n.pitch))),
+             hi: Math.max(...all.flatMap(q => q.tracks.melody.map(n => n.pitch))) };
+});
+check(limits.maxPerBar <= 3, 'max melody notes per bar is respected', String(limits.maxPerBar));
+check(limits.lo >= 72 && limits.hi <= 84, 'melody range limit is respected', limits.lo + '..' + limits.hi);
+await page.fill('#maxNotesPerBar', '8');
+await page.dispatchEvent('#maxNotesPerBar', 'change');
+
+// click on the piano roll: add then remove a note
+await page.locator('#pianoRoll').scrollIntoViewIfNeeded();
+const cell = await page.evaluate(() => {
+    const app = melodyForge, geo = app.rollGeometry(), rect = app.roll.getBoundingClientRect();
+    const taken = new Set(app.pattern.tracks.melody.flatMap(n => {
+        const out = [];
+        for (let t = n.start; t < n.start + n.length; t += 120) out.push(Math.floor(t / 120) + ':' + n.pitch);
+        return out;
+    }));
+    for (let step = 0; step < geo.totalSteps; step++) for (let pitch = geo.lo + 3; pitch < geo.hi - 3; pitch++) {
+        if (!taken.has(step + ':' + pitch)) {
+            const x = (geo.gutter + (step + 0.5) * geo.stepW) * rect.width / app.roll.width + rect.left;
+            const y = ((geo.hi - pitch + 0.5) * geo.rowH) * rect.height / app.roll.height + rect.top;
+            return { x, y, step, pitch, before: app.pattern.tracks.melody.length };
+        }
+    }
+});
+await page.mouse.click(cell.x, cell.y);
+const afterAdd = await page.evaluate(c => {
+    const n = melodyForge.pattern.tracks.melody.find(n => n.pitch === c.pitch && n.start === c.step * 120);
+    return { count: melodyForge.pattern.tracks.melody.length, found: !!n, edited: melodyForge.isEdited(),
+             badge: document.getElementById('editorSection').classList.contains('edited') };
+}, cell);
+check(afterAdd.count === cell.before + 1 && afterAdd.found && afterAdd.edited && afterAdd.badge, 'clicking the piano roll adds a note and marks the idea edited');
+const evolvedKeepsEdit = await page.evaluate(() => {
+    const before = JSON.stringify(melodyForge.pattern);
+    melodyForge.evolveOnce();
+    return JSON.stringify(melodyForge.pattern) === before && melodyForge.current === -1;
+});
+check(evolvedKeepsEdit, 'evolution never overwrites an idea being edited');
+const midAfterEdit = await page.evaluate(() => {
+    const bytes = MFCore.toMidi(melodyForge.pattern);
+    let ons = 0;
+    for (let i = 0; i < bytes.length - 2; i++) if ((bytes[i] & 0xF0) === 0x90 && bytes[i - 1] !== 0xFF) ons++;
+    return { ons, notes: MFCore.TRACKS.reduce((a, t) => a + melodyForge.pattern.tracks[t].length, 0) };
+});
+check(midAfterEdit.ons >= midAfterEdit.notes, 'MIDI export includes the edited notes');
+await page.mouse.click(cell.x, cell.y);
+check(await page.evaluate(c => melodyForge.pattern.tracks.melody.length === c.before, cell), 'clicking a note removes it');
+
+// save an edited idea and load it back
+await page.mouse.click(cell.x, cell.y);
+const editedJson = await page.evaluate(() => JSON.stringify(melodyForge.pattern.tracks));
+await page.fill('#genomeName', 'edited idea');
+await page.click('#saveBtn');
+await page.click('#nextCandidate');
+await page.locator('.saved-genome-item').last().click();
+check(await page.evaluate(() => JSON.stringify(melodyForge.pattern.tracks)) === editedJson, 'saved edited idea loads with its edits');
+await page.locator('.delete-btn').last().click();
+
+// revert, transpose, re-roll a layer, change a chord
+await page.click('#revertEdits');
+check(await page.evaluate(() => !melodyForge.isEdited()), 'Revert discards the edits');
+await page.click('#trackTabs button[data-track="bass"]');
+const bassBefore = await page.evaluate(() => melodyForge.pattern.tracks.bass.map(n => n.pitch));
+await page.click('#transposeUp');
+check(await page.evaluate(b => melodyForge.pattern.tracks.bass.every((n, i) => n.pitch === b[i] + 1), bassBefore), 'transpose moves only the selected layer');
+await page.click('#revertEdits');
+await page.click('#trackTabs button[data-track="melody"]');
+const reroll = await page.evaluate(() => {
+    const p = melodyForge.pattern;
+    document.getElementById('rerollLayer').click();
+    const q = melodyForge.pattern;
+    return { bass: JSON.stringify(p.tracks.bass) === JSON.stringify(q.tracks.bass),
+             chords: JSON.stringify(p.tracks.chords) === JSON.stringify(q.tracks.chords),
+             melody: JSON.stringify(p.tracks.melody) !== JSON.stringify(q.tracks.melody) };
+});
+check(reroll.bass && reroll.chords && reroll.melody, 'New variation re-rolls only the selected layer');
+const chordChange = await page.evaluate(() => {
+    const sel = document.querySelectorAll('#chordRow select')[1];
+    const target = (Number(sel.value) + 2) % 7;
+    sel.value = target;
+    sel.dispatchEvent(new Event('change'));
+    return { degree: melodyForge.pattern.chords[1].degree, target, first: melodyForge.pattern.chords[0].degree };
+});
+check(chordChange.degree === chordChange.target, 'chord selector changes the chord of that bar');
+
+// locks
+await page.selectOption('#keySelect', '7');
+await page.selectOption('#scaleSelect', '1');
+const locked = await page.evaluate(() => { for (let i = 0; i < 5; i++) melodyForge.evolveOnce();
+    return melodyForge.population.every(x => x.genome.key === 7 && x.genome.scale === 1) && melodyForge.genome.key === 7; });
+check(locked, 'locked key and scale hold across generations');
 
 check(errors.length === 0, 'no console errors during the whole session', errors.join(' | '));
 console.log(`\n${failures === 0 ? 'ALL PASSED' : failures + ' FAILURE(S)'} — files in ${outDir}`);

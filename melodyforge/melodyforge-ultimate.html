@@ -683,6 +683,44 @@
             animation: spin 1s linear infinite;
         }
 
+
+        /* ---------- Idea editor & generator panel (ISLAND27 blue/black) ---------- */
+        .editor-section { margin-bottom: 25px; }
+        .editor-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .editor-header h2 { margin: 0 auto 0 0; }
+        .tabs { display: flex; gap: 6px; }
+        .tabs button, .mini {
+            flex: none; padding: 7px 12px; font-size: 0.85em; border-radius: 999px;
+            background: transparent; color: #F2F4F8; border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+        .tabs button.active { background: linear-gradient(45deg, #2AA9E0, #4dc0f0); color: #04141c; border-color: transparent; }
+        .mini:hover:not(:disabled), .tabs button:hover:not(.active) { border-color: #7FE3FF; color: #7FE3FF; transform: none; box-shadow: none; }
+        .editor-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+        .edited-badge { display: none; font-size: 0.75em; padding: 3px 10px; border-radius: 999px;
+            background: rgba(127, 227, 255, 0.14); color: #7FE3FF; border: 1px solid rgba(127, 227, 255, 0.35); }
+        .edited .edited-badge { display: inline-block; }
+        .chord-row { display: grid; gap: 6px; margin-bottom: 8px; }
+        .chord-row select { padding: 6px 8px; font-size: 0.85em; border-radius: 8px; }
+        #pianoRoll { width: 100%; height: 260px; display: block; border-radius: 12px; background: #0c0e13;
+            border: 1px solid rgba(255, 255, 255, 0.08); cursor: crosshair; }
+        .editor-hint { font-size: 0.8em; color: #9AA1AE; margin-top: 8px; }
+        .candidate-nav { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.9em; color: #C7CCD6; }
+        .candidate-nav .mini { padding: 4px 10px; }
+        .seed-info { font-family: Consolas, monospace; font-size: 0.8em; color: #9AA1AE; margin-left: auto; }
+        .generator-panel { margin-bottom: 25px; }
+        .generator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 16px; }
+        .field { display: flex; flex-direction: column; gap: 5px; font-size: 0.85em; color: #C7CCD6; }
+        .field input[type="number"], .field input[type="text"], .field select {
+            padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(0, 0, 0, 0.3); color: #F2F4F8; font-size: 0.95em; width: 100%;
+        }
+        .field .inline { display: flex; gap: 6px; align-items: center; }
+        .field .inline select, .field .inline input { flex: 1; min-width: 0; }
+        .lock { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85em; color: #9AA1AE; white-space: nowrap; }
+        .seed-row { display: flex; gap: 6px; align-items: center; }
+        .seed-row input { flex: 1; min-width: 0; }
+        .seed-row button { flex: none; padding: 8px 12px; }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -736,6 +774,69 @@
             </div>
             <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
         </div>
+
+
+        <section class="control-group editor-section" id="editorSection">
+            <div class="editor-header">
+                <h2>🎹 Idea Editor</h2>
+                <span class="edited-badge">edited</span>
+                <div class="tabs" id="trackTabs">
+                    <button class="active" data-track="melody">Melody</button>
+                    <button data-track="bass">Bass</button>
+                    <button data-track="chords">Chords</button>
+                </div>
+                <div class="editor-tools">
+                    <button class="mini" id="transposeDown" title="Transpose this layer down a semitone">−1</button>
+                    <button class="mini" id="transposeUp" title="Transpose this layer up a semitone">+1</button>
+                    <button class="mini" id="octaveDown" title="Move this layer down an octave">−8va</button>
+                    <button class="mini" id="octaveUp" title="Move this layer up an octave">+8va</button>
+                    <button class="mini" id="rerollLayer" title="New variation of this layer, keeping the others">🎲 New variation</button>
+                    <button class="mini" id="revertEdits" title="Discard your edits and go back to the generated idea">↺ Revert</button>
+                </div>
+            </div>
+            <div class="chord-row" id="chordRow"></div>
+            <canvas id="pianoRoll" width="1100" height="260" aria-label="Piano roll editor"></canvas>
+            <p class="editor-hint">Click an empty cell to add a 16th note (Shift+click for an 8th), click a note to remove it. Chords can be changed per bar above.</p>
+            <div class="candidate-nav">
+                <button class="mini" id="prevCandidate" title="Previous candidate">◀</button>
+                <span id="candidateLabel">Candidate 1 / 20</span>
+                <button class="mini" id="nextCandidate" title="Next candidate">▶</button>
+                <span class="seed-info" id="seedInfo"></span>
+            </div>
+        </section>
+
+        <section class="control-group generator-panel" id="generatorPanel">
+            <h2>⚙️ Generator</h2>
+            <div class="generator-grid">
+                <label class="field">Session seed
+                    <span class="seed-row"><input type="text" id="sessionSeed" inputmode="numeric" title="Same seed + same settings = same candidates"><button class="mini" id="applySeed">Apply</button></span>
+                </label>
+                <label class="field">Bars
+                    <select id="barsSelect"><option>1</option><option>2</option><option selected>4</option><option>8</option></select>
+                </label>
+                <label class="field">Candidates per generation
+                    <input type="number" id="populationSize" min="4" max="32" value="20">
+                </label>
+                <label class="field">Max melody notes per bar
+                    <input type="number" id="maxNotesPerBar" min="2" max="16" value="8">
+                </label>
+                <label class="field">Melody range
+                    <span class="inline"><select id="melodyLow"></select><span>to</span><select id="melodyHigh"></select></span>
+                </label>
+                <label class="field">Key
+                    <span class="inline"><select id="keySelect"></select><span class="lock"><input type="checkbox" id="lockKey"> lock</span></span>
+                </label>
+                <label class="field">Scale
+                    <span class="inline"><select id="scaleSelect"></select><span class="lock"><input type="checkbox" id="lockScale"> lock</span></span>
+                </label>
+                <label class="field">Progression
+                    <span class="inline"><select id="progressionSelect"></select><span class="lock"><input type="checkbox" id="lockProgression"> lock</span></span>
+                </label>
+                <label class="field">Tempo
+                    <span class="inline"><span id="lockBpmValue">120 BPM</span><span class="lock"><input type="checkbox" id="lockBpm"> lock</span></span>
+                </label>
+            </div>
+        </section>
 
         <div class="evolution-controls">
             <div class="control-group">
