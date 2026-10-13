@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <map>
+#include <set>
 
 using namespace mfplug;
 
@@ -78,6 +79,15 @@ int main (int argc, char** argv)
     proc.prepareToPlay (sr, block);
     proc.newPopulation (2024);
     check (proc.population.size() == 12 && proc.pattern.bars == 4, "processor starts with 12 candidates and a 4-bar idea");
+
+    // ---- by default the DAW transport does NOT start MelodyForge
+    {
+        check (! proc.syncsWithHost(), "'Tocar junto com o projeto' is off by default");
+        auto silent = run (proc, host, mf::BAR, sr, block);
+        check (silent.empty(), "host playing + sync off = no notes (MelodyForge stays separate)");
+        host.ppq = 0;
+        *proc.apvts.getRawParameterValue ("syncHost") = 1.0f;
+    }
 
     // ---- MIDI out matches the pattern, note for note, within one sample
     *proc.apvts.getRawParameterValue ("preview") = 0.0f;
@@ -190,7 +200,15 @@ int main (int argc, char** argv)
     check (proc.pattern.bpm == 97 && proc.genome.bpm == 97, "tempo follows the host / setTempo");
 
     // ---- MIDI export bytes = core writer
-    check (proc.midiFor ({ 0, 1, 2 }) == mf::toMidi (proc.pattern), "exported .mid bytes come from the shared core");
+    {
+        static const char* names[] = { "Melodia", "Baixo", "Acordes" };
+        auto bytes = proc.midiFor ({ 0, 1, 2 });
+        check (bytes == mf::toMidi (proc.pattern, { 0, 1, 2 }, "MelodyForge ISLAND27", names), "exported .mid bytes come from the shared core");
+        std::string str (bytes.begin(), bytes.end());
+        check (str.find ("Melodia") != std::string::npos && str.find ("Acordes") != std::string::npos, "MIDI track names are in Portuguese");
+        check (proc.fileBaseName().contains ("-menor-") || proc.fileBaseName().contains ("-maior-") || proc.fileBaseName().contains ("-"),
+               "file name", proc.fileBaseName().toStdString());
+    }
 
     // ---- state round trip
     juce::MemoryBlock state;
@@ -228,25 +246,146 @@ int main (int argc, char** argv)
     check (restored2.style == 1 && restored2.mood == 2 && restored2.advancedMode && restored2.settings.bpmLo == 130,
            "style, mood and mode are saved with the project");
 
-    // ---- editor renders
+    // ---- real instruments (SoundFont)
     {
-        std::unique_ptr<juce::AudioProcessorEditor> ed (proc.createEditor());
-        ed->setSize (1040, 700);
-        for (bool adv : { false, true })
+        for (int i = 0; i < 400 && proc.getBankState() == MelodyForgeProcessor::BankState::Loading; ++i) juce::Thread::sleep (25);
+        auto bank = proc.currentBank();
+        check (proc.getBankState() == MelodyForgeProcessor::BankState::Ready && bank != nullptr && bank->getPresets().size() >= 50,
+               "default bank of real instruments loads", proc.getBankMessage().toStdString());
+        if (bank != nullptr)
         {
-            proc.advancedMode = adv;
-            delete ed.release();
-            ed.reset (proc.createEditor());
+            // every instrument sounds, without NaNs or clipping
+            Sampler s;
+            s.prepare (sr);
+            s.setBank (bank);
+            int silentPresets = 0, badPresets = 0;
+            std::string names;
+            for (const auto& pr : bank->getPresets())
+            {
+                s.instrument[0] = instruments::code (pr.bank, pr.program);
+                juce::AudioBuffer<float> b (2, 24000);
+                b.clear();
+                juce::MidiBuffer m;
+                m.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 100), 0);
+                m.addEvent (juce::MidiMessage::noteOff (1, 60), 12000);
+                s.renderMidi (b, m);
+                float mag = b.getMagnitude (0, 24000);
+                bool finite = true;
+                for (int i = 0; i < 24000; ++i) finite = finite && std::isfinite (b.getSample (0, i));
+                if (mag < 0.005f) { ++silentPresets; names += pr.name.toStdString() + " "; }
+                if (! finite || mag > 2.5f) { ++badPresets; names += "!" + pr.name.toStdString() + " "; }
+                s.allNotesOff (true);
+            }
+            check (silentPresets == 0 && badPresets == 0, "all " + std::to_string (bank->getPresets().size()) + " instruments are audible and sane", names);
+
+            // tuning: piano A4 is 440 Hz (period from autocorrelation)
+            auto measure = [&] (int code, int note)
+            {
+                s.instrument[0] = code;
+                juce::AudioBuffer<float> b (2, 48000);
+                b.clear();
+                juce::MidiBuffer m;
+                m.addEvent (juce::MidiMessage::noteOn (1, note, (juce::uint8) 110), 0);
+                s.renderMidi (b, m);
+                s.allNotesOff (true);
+                const float* x = b.getReadPointer (0) + 4800;
+                const int n = 8192;
+                const double expected = juce::MidiMessage::getMidiNoteInHertz (note);
+                auto corr = [&] (int lag) { double acc = 0; for (int i = 0; i < n; ++i) acc += x[i] * x[i + lag]; return acc; };
+                int bestLag = 0; double best = -1e9;
+                for (int lag = (int) (sr / (expected * 1.2)); lag <= (int) (sr / (expected / 1.2)); ++lag)
+                    if (double acc = corr (lag); acc > best) { best = acc; bestLag = lag; }
+                if (bestLag <= 1) return 0.0;
+                const double l = corr (bestLag - 1), c = best, r = corr (bestLag + 1);   // parabolic peak
+                const double shift = 0.5 * (l - r) / (l - 2.0 * c + r);
+                return sr / (bestLag + shift);
+            };
+            double a4 = measure (instruments::code (0, 0), 69);
+            check (std::abs (a4 - 440.0) < 440.0 * 0.01, "piano A4 sounds at 440 Hz", std::to_string (a4));
+            double flute = measure (instruments::code (0, 73), 76);
+            check (std::abs (flute - 659.26) < 659.26 * 0.01, "flute E5 in tune", std::to_string (flute));
+            double b808 = measure (instruments::builtin808, 36);
+            check (std::abs (b808 - 65.4) < 65.4 * 0.03, "built-in 808 in tune", std::to_string (b808));
+        }
+
+        // instrument choice per layer is saved; style picks matching instruments
+        proc.setStyle (1, true);   // Trap
+        check (proc.instrumentOf (mf::Bass) == instruments::builtin808, "Trap style picks the 808 bass");
+        proc.setInstrument (mf::Melody, instruments::code (0, 11), false);
+        juce::MemoryBlock st;
+        proc.getStateInformation (st);
+        MelodyForgeProcessor r3;
+        r3.setStateInformation (st.getData(), (int) st.getSize());
+        check (r3.instrumentOf (mf::Melody) == instruments::code (0, 11) && r3.instrumentOf (mf::Bass) == instruments::builtin808,
+               "instruments per layer are saved with the project");
+
+        // internal playback with real instruments is audible while the host is stopped
+        host.playing = false;
+        *proc.apvts.getRawParameterValue ("preview") = 1.0f;
+        proc.internalPlay = true;
+        juce::AudioBuffer<float> b (2, block);
+        juce::MidiBuffer m;
+        float pk = 0;
+        for (int i = 0; i < 300; ++i) { m.clear(); proc.processBlock (b, m); pk = std::max (pk, b.getMagnitude (0, block)); }
+        proc.internalPlay = false;
+        for (int i = 0; i < 50; ++i) { m.clear(); proc.processBlock (b, m); }
+        check (pk > 0.02f && pk <= 1.0f, "Play button sounds with real instruments (DAW stopped)", std::to_string (pk));
+
+        // solo: only that layer sends notes
+        proc.setSolo (mf::Bass);
+        proc.internalPlay = true;
+        std::set<int> channels;
+        for (int i = 0; i < 400; ++i) { m.clear(); proc.processBlock (b, m); for (const auto e : m) if (e.getMessage().isNoteOn()) channels.insert (e.getMessage().getChannel()); }
+        proc.internalPlay = false;
+        proc.setSolo (-1);
+        for (int i = 0; i < 5; ++i) { m.clear(); proc.processBlock (b, m); }
+        check (channels == std::set<int> { 2 }, "'Ouvir só' plays only that layer");
+
+        // picking an instrument plays a short preview
+        proc.setInstrument (mf::Chords, instruments::code (0, 48));
+        pk = 0;
+        for (int i = 0; i < 40; ++i) { m.clear(); proc.processBlock (b, m); pk = std::max (pk, b.getMagnitude (0, block)); }
+        check (pk > 0.01f, "choosing an instrument plays a preview", std::to_string (pk));
+        host.playing = true;
+    }
+
+    // ---- editor renders (beginner, advanced, full screen)
+    {
+        proc.advancedMode = false;
+        std::unique_ptr<juce::AudioProcessorEditor> ed (proc.createEditor());
+        auto* mfEd = dynamic_cast<MelodyForgeEditor*> (ed.get());
+        for (int i = 0; i < 400 && proc.getBankState() == MelodyForgeProcessor::BankState::Loading; ++i) juce::Thread::sleep (25);
+        auto shot = [&] (const char* tag, int w, int h)
+        {
+            ed->setSize (w, h);
             auto img = ed->createComponentSnapshot (ed->getLocalBounds());
-            check (img.isValid() && img.getWidth() == 1040, std::string ("editor renders in ") + (adv ? "advanced" : "beginner") + " mode");
+            check (img.isValid() && img.getWidth() == w, std::string ("editor renders: ") + tag);
             if (argc > 1)
             {
-                juce::File f (juce::String (argv[1]).replace (".png", adv ? "-advanced.png" : "-beginner.png"));
+                juce::File f (juce::String (argv[1]).replace (".png", juce::String ("-") + tag + ".png"));
                 f.deleteFile();
                 juce::FileOutputStream out (f);
                 juce::PNGImageFormat().writeImageToStream (img, out);
             }
-        }
+        };
+        proc.internalPlay = true;   // show the playing state (playhead, glowing notes)
+        juce::AudioBuffer<float> b (2, block);
+        juce::MidiBuffer m;
+        for (int i = 0; i < 60; ++i) { m.clear(); proc.processBlock (b, m); }
+        shot ("beginner", 1180, 760);
+        proc.advancedMode = true;
+        ed.reset (proc.createEditor());
+        mfEd = dynamic_cast<MelodyForgeEditor*> (ed.get());
+        shot ("advanced", 1180, 760);
+        proc.internalPlay = false;
+        ed->setSize (1180, 760);
+        mfEd->toggleFullScreen();
+        check (mfEd->isFullScreenMode() && ed->getWidth() > 1180, "full screen grows the window", std::to_string (ed->getWidth()) + "x" + std::to_string (ed->getHeight()));
+        mfEd->toggleFullScreen();
+        check (! mfEd->isFullScreenMode() && ed->getWidth() == 1180 && ed->getHeight() == 760, "normal size restores the window");
+        proc.advancedMode = false;
+        ed.reset (proc.createEditor());
+        shot ("fullscreen", 1920, 1050);
     }
 
     std::cout << (failures == 0 ? "ALL PASSED" : std::to_string (failures) + " FAILURE(S)") << "\n";

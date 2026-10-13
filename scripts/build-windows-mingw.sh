@@ -88,6 +88,10 @@ chmod +x "$FAKEBIN/attrib"
 export PATH="$FAKEBIN:$PATH"
 
 # --- plugin -------------------------------------------------------------------
+if [[ "$PROJECT" == melodyforge && ! -f "$SRC/Resources/MelodyForge-Timbres.sf2" ]]; then
+    # real instruments: subset of the Fluid R3 GM SoundFont (apt install fluid-soundfont-gm)
+    python3 "$ROOT/melodyforge/tools/make_soundbank.py" || echo "warning: no SoundFont, the plugin will use synthesized sounds"
+fi
 JUCE_CONFIG="$(dpkg -L juce-modules-source juce-tools 2>/dev/null | grep -m1 '/JUCEConfig.cmake$')"
 CMAKE_OPTS[2]="${CMAKE_OPTS[2]}$PREFIX"
 cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -100,4 +104,7 @@ x86_64-w64-mingw32-strip -o "$OUT/$PRODUCT.exe" "$ART/Standalone/$PRODUCT.exe"
 rm -rf "$OUT/$PRODUCT.vst3"
 cp -r "$ART/VST3/$PRODUCT.vst3" "$OUT/"
 x86_64-w64-mingw32-strip "$OUT/$PRODUCT.vst3/Contents/x86_64-win/$PRODUCT.vst3"
+# the .exe finds the SoundFont inside the .vst3 bundle next to it (no second copy)
+rm -f "$OUT/"*.sf2
+[[ -f "$SRC/LEIA-ME.txt" ]] && cp "$SRC/LEIA-ME.txt" "$OUT/"
 echo "Windows build ready in $OUT"

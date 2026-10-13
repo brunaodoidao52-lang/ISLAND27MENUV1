@@ -8,3 +8,7 @@ CMakeUserPresets.json
 dist/windows/
 node_modules/
 **/dist/windows/
+
+# SoundFont gerado por melodyforge/tools/make_soundbank.py (vai no zip de distribuição)
+melodyforge/plugin/Resources/*.sf2
+melodyforge/tools/__pycache__/

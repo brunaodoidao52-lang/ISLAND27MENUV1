@@ -863,7 +863,8 @@ inline Bytes trackChunk (const std::string& name, int channel, const std::vector
 
 // Standard MIDI File, format 1: a tempo/meta track plus one track per selected layer.
 inline Bytes toMidi (const Pattern& p, const std::vector<int>& layers = { Melody, Bass, Chords },
-                     const std::string& title = "MelodyForge ISLAND27")
+                     const std::string& title = "MelodyForge ISLAND27",
+                     const char* const* trackNames = nullptr)   // optional display names (e.g. translated)
 {
     uint32_t usPerQuarter = (uint32_t) (60000000 / p.bpm);
     const auto& sc = scales()[(size_t) p.scale];
@@ -882,7 +883,7 @@ inline Bytes toMidi (const Pattern& p, const std::vector<int>& layers = { Melody
     appendChunk (out, "MTrk", meta);
     for (int l : layers)
     {
-        Bytes t = trackChunk (trackName (l), l, p.tracks[(size_t) l]);
+        Bytes t = trackChunk (trackNames != nullptr ? trackNames[l] : trackName (l), l, p.tracks[(size_t) l]);
         out.insert (out.end(), t.begin(), t.end());
     }
     return out;

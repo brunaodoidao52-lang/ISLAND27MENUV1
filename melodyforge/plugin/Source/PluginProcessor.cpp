@@ -8,39 +8,6 @@
 namespace mfplug
 {
 
-// ============================================================================ preview voice
-void PreviewVoice::startNote (int note, float velocity, juce::SynthesiserSound*, int)
-{
-    double hz = juce::MidiMessage::getMidiNoteInHertz (note);
-    delta = juce::MathConstants<double>::twoPi * hz / getSampleRate();
-    phase = 0;
-    level = 0.16f * velocity;
-    adsr.setSampleRate (getSampleRate());
-    adsr.setParameters ({ 0.005f, 0.25f, 0.55f, 0.18f });
-    adsr.noteOn();
-}
-
-void PreviewVoice::stopNote (float, bool allowTailOff)
-{
-    if (allowTailOff) adsr.noteOff();
-    else { adsr.reset(); clearCurrentNote(); }
-}
-
-void PreviewVoice::renderNextBlock (juce::AudioBuffer<float>& out, int startSample, int numSamples)
-{
-    if (! isVoiceActive()) return;
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float env = adsr.getNextSample();
-        // sine with a touch of 2nd harmonic: soft, readable, not a "synth"
-        float v = (float) (std::sin (phase) + 0.18 * std::sin (2.0 * phase)) * level * env;
-        phase += delta;
-        if (phase > juce::MathConstants<double>::twoPi) phase -= juce::MathConstants<double>::twoPi;
-        for (int ch = 0; ch < out.getNumChannels(); ++ch) out.addSample (ch, startSample + i, v);
-        if (! adsr.isActive()) { clearCurrentNote(); break; }
-    }
-}
-
 // ============================================================================ serialisation helpers
 static juce::String exact (double v)
 {
@@ -147,12 +114,87 @@ static bool patternFromString (const juce::String& text, mf::Pattern& p)
 juce::AudioProcessorValueTreeState::ParameterLayout MelodyForgeProcessor::createLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> p;
-    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "preview", 1 }, "Preview sound", true));
-    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "midiOut", 1 }, "Send MIDI out", true));
-    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "hostTempo", 1 }, "Follow host tempo", true));
-    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volume", 1 }, "Preview volume",
-                                                              juce::NormalisableRange<float> (-36.0f, 0.0f, 0.1f), -9.0f));
+    auto db = [] (float lo, float hi) { return juce::NormalisableRange<float> (lo, hi, 0.1f); };
+    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "preview", 1 }, pt ("Som interno"), true));
+    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "midiOut", 1 }, pt ("Enviar MIDI"), true));
+    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "hostTempo", 1 }, pt ("Seguir o andamento do projeto"), true));
+    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volume", 1 }, pt ("Volume geral"), db (-36.0f, 6.0f), -6.0f));
+    // off by default: pressing play in the DAW must not start MelodyForge
+    p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "syncHost", 2 }, pt ("Tocar junto com o projeto"), false));
+    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "reverb", 2 }, pt ("Reverberação"),
+                                                              juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volMelody", 2 }, pt ("Volume da melodia"), db (-30.0f, 6.0f), 0.0f));
+    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volBass", 2 }, pt ("Volume do baixo"), db (-30.0f, 6.0f), -2.0f));
+    p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volChords", 2 }, pt ("Volume dos acordes"), db (-30.0f, 6.0f), -5.0f));
     return { p.begin(), p.end() };
+}
+
+// Loads a SoundFont off the message and audio threads.
+struct MelodyForgeProcessor::Loader : public juce::Thread
+{
+    Loader (MelodyForgeProcessor& p, juce::File f) : juce::Thread ("MelodyForge bank loader"), owner (p), file (std::move (f)) {}
+    void run() override
+    {
+        juce::String error;
+        auto bank = file.existsAsFile() ? SoundBank::loadShared (file, error, [this] { return threadShouldExit(); }) : nullptr;
+        if (threadShouldExit()) return;
+        {
+            std::lock_guard<std::mutex> g (owner.bankLock);
+            if (bank != nullptr)
+            {
+                owner.keptBanks.push_back (bank);
+                owner.bankMessage = bank->getName() + " - " + juce::String ((int) bank->getPresets().size()) + " instrumentos";
+            }
+            else if (! file.existsAsFile())
+                owner.bankMessage = pt ("Banco de timbres não encontrado - usando sons sintetizados");
+            else
+                owner.bankMessage = pt ("Não foi possível carregar ") + file.getFileName() + ": " + error;
+        }
+        if (bank != nullptr) owner.sampler.setBank (bank);
+        owner.bankState = bank != nullptr ? BankState::Ready : (file.existsAsFile() ? BankState::Failed : BankState::Missing);
+        owner.sendChangeMessage();
+    }
+    MelodyForgeProcessor& owner;
+    juce::File file;
+};
+
+juce::File MelodyForgeProcessor::findDefaultBank()
+{
+    const juce::String name ("MelodyForge-Timbres.sf2");
+    juce::Array<juce::File> candidates;
+    if (auto env = juce::SystemStats::getEnvironmentVariable ("MELODYFORGE_SF2", {}); env.isNotEmpty())
+        candidates.add (juce::File (env));
+    auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    candidates.add (exe.getSiblingFile (name));                                                   // next to the .exe
+    candidates.add (exe.getParentDirectory().getSiblingFile ("Resources").getChildFile (name));   // inside the .vst3 bundle
+    candidates.add (exe.getParentDirectory().getParentDirectory().getSiblingFile (name));         // next to the .vst3 bundle
+    const juce::String inBundle ("MelodyForge ISLAND27.vst3/Contents/Resources/" + name);
+    candidates.add (exe.getSiblingFile (inBundle));                                               // .exe next to the .vst3 (zip layout)
+   #if JUCE_WINDOWS
+    candidates.add (juce::File::getSpecialLocation (juce::File::globalApplicationsDirectory).getChildFile ("Common Files/VST3/" + inBundle));
+   #endif
+    for (auto where : { juce::File::userDocumentsDirectory, juce::File::commonApplicationDataDirectory, juce::File::userApplicationDataDirectory })
+        candidates.add (juce::File::getSpecialLocation (where).getChildFile ("MelodyForge ISLAND27").getChildFile (name));
+   #ifdef MELODYFORGE_DEV_BANK
+    candidates.add (juce::File (MELODYFORGE_DEV_BANK));
+   #endif
+    for (auto& f : candidates)
+        if (f.existsAsFile()) return f;
+    return {};
+}
+
+void MelodyForgeProcessor::loadBank (const juce::File& file)
+{
+    if (loader != nullptr) loader->stopThread (10000);
+    userBank = file;
+    auto target = file.existsAsFile() ? file : findDefaultBank();
+    bankState = BankState::Loading;
+    {
+        std::lock_guard<std::mutex> g (bankLock);
+        bankMessage = pt ("Carregando timbres...");
+    }
+    loader = std::make_unique<Loader> (*this, target);
+    loader->startThread();
 }
 
 MelodyForgeProcessor::MelodyForgeProcessor()
@@ -162,12 +204,21 @@ MelodyForgeProcessor::MelodyForgeProcessor()
     previewParam = apvts.getRawParameterValue ("preview");
     midiOutParam = apvts.getRawParameterValue ("midiOut");
     volumeParam = apvts.getRawParameterValue ("volume");
-    for (int i = 0; i < 16; ++i) synth.addVoice (new PreviewVoice());
-    synth.addSound (new PreviewSound());
+    syncParam = apvts.getRawParameterValue ("syncHost");
+    reverbParam = apvts.getRawParameterValue ("reverb");
+    layerVolParam = { apvts.getRawParameterValue ("volMelody"), apvts.getRawParameterValue ("volBass"), apvts.getRawParameterValue ("volChords") };
+    auditionNotes.reserve (32);
 
     settings.populationSize = 12;
     presets::apply (settings, style, mood);
     newPopulation ((uint32_t) juce::Time::currentTimeMillis());
+    applyStyleInstruments();
+    loadBank ({});
+}
+
+MelodyForgeProcessor::~MelodyForgeProcessor()
+{
+    if (loader != nullptr) loader->stopThread (10000);
 }
 
 bool MelodyForgeProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -176,10 +227,13 @@ bool MelodyForgeProcessor::isBusesLayoutSupported (const BusesLayout& layouts) c
     return out == juce::AudioChannelSet::mono() || out == juce::AudioChannelSet::stereo();
 }
 
-void MelodyForgeProcessor::prepareToPlay (double sr, int)
+void MelodyForgeProcessor::prepareToPlay (double sr, int samplesPerBlock)
 {
     sampleRate = sr;
-    synth.setCurrentPlaybackSampleRate (sr);
+    sampler.prepare (sr);
+    reverb.setSampleRate (sr);
+    reverb.reset();
+    wet.setSize (2, juce::jmax (512, samplesPerBlock * 2));
     gain.reset (sr, 0.05);
     gain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (volumeParam->load()));
     lastTicks = -1.0;
@@ -230,6 +284,38 @@ void MelodyForgeProcessor::emitRange (double a, double b, double tps, int blockS
     }
 }
 
+void MelodyForgeProcessor::layerGainsFromParams()
+{
+    for (int t = 0; t < mf::NUM_TRACKS; ++t)
+        sampler.layerGain[(size_t) t] = juce::Decibels::decibelsToGain (layerVolParam[(size_t) t]->load(), -30.0f);
+}
+
+// Plays the first notes of a layer once (instrument preview), only while nothing else plays.
+void MelodyForgeProcessor::startAudition (const PlaybackData& data, juce::MidiBuffer& out)
+{
+    const int t = auditionLayer.exchange (-1);
+    if (t < 0 || t >= mf::NUM_TRACKS) return;
+    for (int n : auditionNotes) out.addEvent (juce::MidiMessage::noteOff (auditionTrack + 1, n), 0);
+    auditionNotes.clear();
+    const auto& notes = data.tracks[(size_t) t];
+    int first = std::numeric_limits<int>::max();
+    for (const auto& n : notes) first = std::min (first, n.start);
+    for (const auto& n : notes)
+        if (n.start == first && auditionNotes.size() < auditionNotes.capacity())
+        {
+            out.addEvent (juce::MidiMessage::noteOn (t + 1, n.pitch, (juce::uint8) juce::jmax (90, n.velocity)), 0);
+            auditionNotes.push_back (n.pitch);
+        }
+    if (auditionNotes.empty())
+    {
+        const int fallback = t == mf::Bass ? 40 : (t == mf::Chords ? 60 : 72);
+        out.addEvent (juce::MidiMessage::noteOn (t + 1, fallback, (juce::uint8) 100), 0);
+        auditionNotes.push_back (fallback);
+    }
+    auditionTrack = t;
+    auditionSamplesLeft = (int) (sampleRate * 0.9);
+}
+
 void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -240,6 +326,9 @@ void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     auto data = std::atomic_load (&playback);
     if (data == nullptr || n == 0) return;
 
+    // The DAW transport only drives MelodyForge when "Tocar junto com o projeto" is on;
+    // otherwise only the plugin's own Play button does.
+    const bool followHost = syncParam->load() > 0.5f;
     bool playing = false;
     double bpm = data->bpm, startTicks = 0;
     bool hostIsPlaying = false;
@@ -249,7 +338,7 @@ void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         {
             if (auto b = pos->getBpm()) hostBpm = *b;
             hostIsPlaying = pos->getIsPlaying();
-            if (hostIsPlaying)
+            if (hostIsPlaying && followHost)
             {
                 if (auto ppq = pos->getPpqPosition())
                 {
@@ -282,6 +371,7 @@ void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         emitRange (from, to, (to - from) / n, n, *data, generated);
         lastTicks = to;
         playheadTicks = std::fmod (startTicks, (double) data->loopTicks);
+        auditionLayer = -1;
     }
     else
     {
@@ -290,15 +380,47 @@ void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     }
     wasPlaying = playing;
 
+    // instrument preview (when a timbre is picked while stopped)
+    juce::MidiBuffer audition;
+    if (! playing) startAudition (*data, audition);
+    if (auditionSamplesLeft > 0)
+    {
+        auditionSamplesLeft -= n;
+        if (auditionSamplesLeft <= 0 || playing)
+        {
+            for (int note : auditionNotes) audition.addEvent (juce::MidiMessage::noteOff (auditionTrack + 1, note), 0);
+            auditionNotes.clear();
+            auditionSamplesLeft = 0;
+        }
+    }
+
     if (previewParam->load() > 0.5f)
     {
-        synth.renderNextBlock (buffer, generated, 0, n);
+        layerGainsFromParams();
+        juce::MidiBuffer forSampler (generated);
+        forSampler.addEvents (audition, 0, n, 0);
+        sampler.renderMidi (buffer, forSampler);
+
+        if (const float amount = reverbParam->load(); amount > 0.001f && buffer.getNumChannels() >= 1)
+        {
+            juce::Reverb::Parameters rp;
+            rp.roomSize = 0.55f; rp.damping = 0.45f; rp.width = 1.0f;
+            rp.wetLevel = 0.42f * amount; rp.dryLevel = 1.0f; rp.freezeMode = 0.0f;
+            reverb.setParameters (rp);
+            if (buffer.getNumChannels() >= 2) reverb.processStereo (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
+            else reverb.processMono (buffer.getWritePointer (0), n);
+        }
         gain.setTargetValue (juce::Decibels::decibelsToGain (volumeParam->load()));
         gain.applyGain (buffer, n);
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)   // gentle safety saturation
+        {
+            auto* d = buffer.getWritePointer (ch);
+            for (int i = 0; i < n; ++i) d[i] = std::tanh (d[i]);
+        }
     }
     else
     {
-        synth.allNotesOff (0, false);
+        sampler.allNotesOff (true);
     }
     if (midiOutParam->load() > 0.5f) midi.swapWith (generated);
 }
@@ -308,7 +430,8 @@ void MelodyForgeProcessor::publish()
 {
     auto d = std::make_shared<PlaybackData>();
     d->tracks = pattern.tracks;
-    d->enabled = layerOn;
+    for (int t = 0; t < mf::NUM_TRACKS; ++t)
+        d->enabled[(size_t) t] = layerOn[(size_t) t] && (soloLayer < 0 || soloLayer == t);
     d->loopTicks = pattern.bars * mf::BAR;
     d->bpm = pattern.bpm;
     std::atomic_store (&playback, std::shared_ptr<const PlaybackData> (d));
@@ -414,22 +537,65 @@ void MelodyForgeProcessor::applySliders()
     showGenome (g);
 }
 
+void MelodyForgeProcessor::setSolo (int track)
+{
+    soloLayer = juce::jlimit (-1, mf::NUM_TRACKS - 1, track);
+    publish();
+}
+
+void MelodyForgeProcessor::setStyle (int newStyle, bool withInstruments)
+{
+    style = juce::jlimit (0, (int) presets::styles().size() - 1, newStyle);
+    presets::apply (settings, style, mood);
+    applySettings (true);
+    if (withInstruments) applyStyleInstruments();
+}
+
+void MelodyForgeProcessor::setMood (int newMood)
+{
+    mood = juce::jlimit (0, (int) presets::moods().size() - 1, newMood);
+    presets::apply (settings, style, mood);
+    applySettings (true);
+}
+
+void MelodyForgeProcessor::setInstrument (int track, int code, bool withAudition)
+{
+    if (track < 0 || track >= mf::NUM_TRACKS) return;
+    sampler.instrument[(size_t) track] = code;
+    if (withAudition) audition (track);
+    sendChangeMessage();
+}
+
+void MelodyForgeProcessor::applyStyleInstruments()
+{
+    auto d = instruments::defaultsForStyle (style);
+    for (int t = 0; t < mf::NUM_TRACKS; ++t) setInstrument (t, d[(size_t) t], false);
+}
+
+juce::String MelodyForgeProcessor::layerName (int track)
+{
+    static const char* n[] = { "Melodia", "Baixo", "Acordes" };
+    return n[juce::jlimit (0, 2, track)];
+}
+
 mf::Bytes MelodyForgeProcessor::midiFor (const std::vector<int>& layers) const
 {
-    return mf::toMidi (pattern, layers);
+    static const char* names[] = { "Melodia", "Baixo", "Acordes" };
+    return mf::toMidi (pattern, layers, "MelodyForge ISLAND27", names);
 }
 
 juce::String MelodyForgeProcessor::fileBaseName() const
 {
     juce::String key = juce::String (mf::noteNameOf (pattern.key)).replace ("#", "s");
-    return "MelodyForge-" + key + "-" + mf::scales()[(size_t) pattern.scale].id + "-" + juce::String (pattern.bpm) + "bpm";
+    static const char* scaleIds[] = { "maior", "menor", "dorico", "mixolidio", "menor-harmonica", "pentatonica-maior", "pentatonica-menor", "blues" };
+    return "MelodyForge-" + key + "-" + scaleIds[juce::jlimit (0, 7, pattern.scale)] + "-" + juce::String (pattern.bpm) + "bpm";
 }
 
 // ============================================================================ state
 void MelodyForgeProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
     juce::XmlElement root ("MelodyForge");
-    root.setAttribute ("version", 2);
+    root.setAttribute ("version", 3);
     root.setAttribute ("seed", juce::String ((juce::int64) sessionSeed));
     root.setAttribute ("generation", generation);
     root.setAttribute ("current", current);
@@ -439,6 +605,8 @@ void MelodyForgeProcessor::getStateInformation (juce::MemoryBlock& dest)
     root.setAttribute ("mood", mood);
     root.setAttribute ("advanced", advancedMode ? 1 : 0);
     root.setAttribute ("layers", juce::String (layerOn[0] ? "1" : "0") + (layerOn[1] ? "1" : "0") + (layerOn[2] ? "1" : "0"));
+    root.setAttribute ("instruments", juce::String (instrumentOf (0)) + "," + juce::String (instrumentOf (1)) + "," + juce::String (instrumentOf (2)));
+    if (userBank != juce::File()) root.setAttribute ("bank", userBank.getFullPathName());
     auto* s = root.createNewChildElement ("Settings");
     s->setAttribute ("bars", settings.bars); s->setAttribute ("pop", settings.populationSize);
     s->setAttribute ("maxNotes", settings.maxNotesPerBar); s->setAttribute ("low", settings.melodyLow); s->setAttribute ("high", settings.melodyHigh);
@@ -482,6 +650,15 @@ void MelodyForgeProcessor::setStateInformation (const void* data, int size)
     harmony = xml->getIntAttribute ("harmony", 5);
     auto layers = xml->getStringAttribute ("layers", "111");
     for (int t = 0; t < 3; ++t) layerOn[(size_t) t] = layers[t] != '0';
+    if (xml->hasAttribute ("instruments"))
+    {
+        auto codes = juce::StringArray::fromTokens (xml->getStringAttribute ("instruments"), ",", "");
+        for (int t = 0; t < 3 && t < codes.size(); ++t) setInstrument (t, codes[t].getIntValue(), false);
+    }
+    else
+        applyStyleInstruments();
+    if (juce::File bankFile (xml->getStringAttribute ("bank")); xml->hasAttribute ("bank") && bankFile != userBank)
+        loadBank (bankFile);
     population.clear();
     if (auto* pop = xml->getChildByName ("Population"))
         for (auto* g : pop->getChildIterator())

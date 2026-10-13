@@ -10,6 +10,7 @@ option(MELODYFORGE_BUILD_TESTS "Build the C++ core golden test" ON)
 option(MELODYFORGE_FETCH_JUCE "Download JUCE if it is not installed" ON)
 
 set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(MF_BANK ${CMAKE_CURRENT_SOURCE_DIR}/Resources/MelodyForge-Timbres.sf2)
 
 if(MELODYFORGE_BUILD_TESTS)
     enable_testing()
@@ -69,7 +70,8 @@ if(MELODYFORGE_BUILD_PLUGIN)
 
     target_sources(MelodyForge PRIVATE
         Source/PluginProcessor.cpp
-        Source/PluginEditor.cpp)
+        Source/PluginEditor.cpp
+        Source/Sampler.cpp)
     target_include_directories(MelodyForge PRIVATE Source ${REPO_ROOT}/src/plugin)
 
     target_compile_definitions(MelodyForge PUBLIC
@@ -77,6 +79,26 @@ if(MELODYFORGE_BUILD_PLUGIN)
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0)
+    if(NOT CMAKE_CROSSCOMPILING)
+        target_compile_definitions(MelodyForge PRIVATE MELODYFORGE_DEV_BANK="${MF_BANK}")
+    endif()
+
+    # Real instruments: tools/make_soundbank.py writes Resources/MelodyForge-Timbres.sf2.
+    # It goes inside the .vst3 bundle (Contents/Resources) and next to the standalone app.
+    if(EXISTS "${MF_BANK}")
+        if(TARGET MelodyForge_VST3)
+            get_target_property(mf_vst3_dir MelodyForge_VST3 JUCE_PLUGIN_ARTEFACT_FILE)
+            add_custom_command(TARGET MelodyForge_VST3 POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${mf_vst3_dir}/Contents/Resources"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MF_BANK}" "${mf_vst3_dir}/Contents/Resources/")
+        endif()
+        if(TARGET MelodyForge_Standalone)
+            add_custom_command(TARGET MelodyForge_Standalone POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MF_BANK}" "$<TARGET_FILE_DIR:MelodyForge_Standalone>/")
+        endif()
+    else()
+        message(STATUS "MelodyForge: ${MF_BANK} not found - run tools/make_soundbank.py for real instruments")
+    endif()
 
     # Distribution JUCE packages without the bundled zlib/libpng/libjpeg (see
     # scripts/build-windows-mingw.sh) can point this at static builds of them.
@@ -105,10 +127,11 @@ endif()
 # Functional test of the processor with a simulated host (native builds only).
 if(MELODYFORGE_BUILD_PLUGIN AND MELODYFORGE_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     juce_add_console_app(mf_processor_test PRODUCT_NAME "mf_processor_test")
-    target_sources(mf_processor_test PRIVATE tests/processor_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp)
+    target_sources(mf_processor_test PRIVATE tests/processor_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/Sampler.cpp)
     target_include_directories(mf_processor_test PRIVATE Source ${REPO_ROOT}/src/plugin)
     target_compile_definitions(mf_processor_test PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_FLAC=0 JUCE_USE_OGGVORBIS=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JucePlugin_Name="MelodyForge ISLAND27")
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_FLAC=0 JUCE_USE_OGGVORBIS=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JucePlugin_Name="MelodyForge ISLAND27"
+        MELODYFORGE_DEV_BANK="${MF_BANK}")
     target_link_libraries(mf_processor_test PRIVATE
         MelodyForgeAssets juce::juce_audio_utils juce::juce_recommended_config_flags)
     add_test(NAME mf_processor_test COMMAND mf_processor_test)

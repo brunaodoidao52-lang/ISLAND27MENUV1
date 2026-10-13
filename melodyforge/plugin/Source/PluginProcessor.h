@@ -4,6 +4,9 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include "MelodyCore.h"
+#include "Sampler.h"
+
+#include <mutex>
 
 namespace mfplug
 {
@@ -17,35 +20,12 @@ struct PlaybackData
     int bpm = 120;
 };
 
-// Very small preview sound (sine + soft envelope) so ideas can be heard without routing MIDI.
-class PreviewVoice : public juce::SynthesiserVoice
-{
-public:
-    bool canPlaySound (juce::SynthesiserSound*) override { return true; }
-    void startNote (int note, float velocity, juce::SynthesiserSound*, int) override;
-    void stopNote (float, bool allowTailOff) override;
-    void pitchWheelMoved (int) override {}
-    void controllerMoved (int, int) override {}
-    void renderNextBlock (juce::AudioBuffer<float>&, int startSample, int numSamples) override;
-
-private:
-    double phase = 0, delta = 0;
-    float level = 0;
-    juce::ADSR adsr;
-};
-
-struct PreviewSound : public juce::SynthesiserSound
-{
-    bool appliesToNote (int) override { return true; }
-    bool appliesToChannel (int) override { return true; }
-};
-
 class MelodyForgeProcessor : public juce::AudioProcessor,
                              public juce::ChangeBroadcaster
 {
 public:
     MelodyForgeProcessor();
-    ~MelodyForgeProcessor() override = default;
+    ~MelodyForgeProcessor() override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
 
@@ -82,6 +62,7 @@ public:
     int complexity = 5, harmony = 5;   // 1..10 user sliders
     int style = 0, mood = 0;           // presets (see Presets.h)
     bool advancedMode = false;         // beginner (false) or advanced editor layout
+    int soloLayer = -1;                // "listen to this layer only" (not saved)
 
     void newPopulation (uint32_t seed);
     void evolveOnce();
@@ -99,14 +80,34 @@ public:
     mf::Fitness currentFitness() const { return mf::evaluate (pattern, &genome, settings); }
     bool isEdited() const { return pattern.edited; }
 
+    void setSolo (int track);                         // -1 = all layers
+    void setStyle (int newStyle, bool withInstruments);
+    void setMood (int newMood);
+
     mf::Bytes midiFor (const std::vector<int>& layers) const;
     juce::String fileBaseName() const;
+    static juce::String layerName (int track);        // "Melodia", "Baixo", "Acordes"
+
+    // ------------------------------------------------------------------ instruments
+    Sampler sampler;
+    int instrumentOf (int track) const { return sampler.instrument[(size_t) track].load(); }
+    void setInstrument (int track, int code, bool audition = true);
+    void applyStyleInstruments();
+    void loadBank (const juce::File& file);           // async; empty file = default bank
+    std::shared_ptr<const SoundBank> currentBank() const { return sampler.getBank(); }
+    enum class BankState { Idle, Loading, Ready, Missing, Failed };
+    BankState getBankState() const { return bankState.load(); }
+    juce::String getBankMessage() const { std::lock_guard<std::mutex> g (bankLock); return bankMessage; }
+    juce::File getUserBankFile() const { return userBank; }
+    static juce::File findDefaultBank();
+    void audition (int track) { auditionLayer = track; }
 
     // transport / preview
     std::atomic<bool> internalPlay { false };
     std::atomic<double> hostBpm { 0.0 };
     std::atomic<bool> hostPlaying { false };
     std::atomic<double> playheadTicks { -1.0 };
+    bool syncsWithHost() const { return syncParam->load() > 0.5f; }
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -117,8 +118,10 @@ private:
                     const PlaybackData& data, juce::MidiBuffer& out);
     void allNotesOff (juce::MidiBuffer& out, int sample);
 
+    void startAudition (const PlaybackData& data, juce::MidiBuffer& out);
+    void layerGainsFromParams();
+
     std::shared_ptr<const PlaybackData> playback;   // read with std::atomic_load
-    juce::Synthesiser synth;
     double sampleRate = 44100.0;
     double internalTicks = 0.0;
     double lastTicks = -1.0;
@@ -127,7 +130,25 @@ private:
     std::atomic<float>* previewParam = nullptr;
     std::atomic<float>* midiOutParam = nullptr;
     std::atomic<float>* volumeParam = nullptr;
+    std::atomic<float>* syncParam = nullptr;
+    std::atomic<float>* reverbParam = nullptr;
+    std::array<std::atomic<float>*, mf::NUM_TRACKS> layerVolParam {};
     juce::SmoothedValue<float> gain;
+    juce::Reverb reverb;
+    juce::AudioBuffer<float> wet;
+    std::atomic<int> auditionLayer { -1 };
+    int auditionSamplesLeft = 0, auditionTrack = -1;
+    std::vector<int> auditionNotes;
+
+    // bank loading (background thread); every loaded bank stays alive until destruction so
+    // the audio thread never frees one
+    struct Loader;
+    std::unique_ptr<Loader> loader;
+    mutable std::mutex bankLock;
+    std::vector<std::shared_ptr<const SoundBank>> keptBanks;
+    juce::String bankMessage;
+    std::atomic<BankState> bankState { BankState::Idle };
+    juce::File userBank;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MelodyForgeProcessor)
 };
