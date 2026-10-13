@@ -1,0 +1,234 @@
+// Functional test of the MelodyForge plugin processor with a simulated host.
+// Usage: mf_processor_test [editor-snapshot.png]
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+
+#include "../Source/PluginProcessor.h"
+#include "../Source/PluginEditor.h"
+
+#include <iostream>
+#include <cstdlib>
+#include <map>
+
+using namespace mfplug;
+
+static int failures = 0;
+static void check (bool ok, const std::string& what, const std::string& extra = {})
+{
+    std::cout << (ok ? "ok   " : "FAIL ") << what << (extra.empty() ? "" : " - " + extra) << "\n";
+    if (! ok) ++failures;
+}
+
+struct FakeHost : public juce::AudioPlayHead
+{
+    double bpm = 120, ppq = 0;
+    bool playing = true;
+    juce::Optional<PositionInfo> getPosition() const override
+    {
+        PositionInfo p;
+        p.setBpm (bpm);
+        p.setIsPlaying (playing);
+        p.setPpqPosition (ppq);
+        p.setTimeSignature (juce::AudioPlayHead::TimeSignature { 4, 4 });
+        return p;
+    }
+};
+
+struct Event { int channel, pitch, velocity; double tick; bool on; };
+
+// Runs the processor for `ticks` worth of host time and returns the MIDI it produced.
+static std::vector<Event> run (MelodyForgeProcessor& proc, FakeHost& host, double ticks, double sr, int block, float* peak = nullptr)
+{
+    std::vector<Event> events;
+    const double windowStart = host.ppq * mf::PPQ;
+    juce::AudioBuffer<float> buffer (2, block);
+    juce::MidiBuffer midi;
+    double tps = host.bpm * mf::PPQ / 60.0 / sr;
+    double startTick = host.ppq * mf::PPQ;
+    while (host.ppq * mf::PPQ < startTick + ticks)
+    {
+        midi.clear();
+        proc.processBlock (buffer, midi);
+        if (peak != nullptr) *peak = std::max (*peak, buffer.getMagnitude (0, block));
+        for (const auto meta : midi)
+        {
+            auto m = meta.getMessage();
+            double tick = host.ppq * mf::PPQ + meta.samplePosition * tps;
+            if (m.isNoteOnOrOff() && host.playing && tick >= windowStart + ticks - 0.5) continue;   // belongs to the next window
+            if (m.isNoteOnOrOff())
+                events.push_back ({ m.getChannel(), m.getNoteNumber(), m.getVelocity(),
+                                    host.ppq * mf::PPQ + meta.samplePosition * tps, m.isNoteOn() });
+        }
+        if (host.playing) host.ppq += block * tps / mf::PPQ;
+        else break;
+    }
+    return events;
+}
+
+int main (int argc, char** argv)
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    const double sr = 48000.0;
+    const int block = 480;
+
+    MelodyForgeProcessor proc;
+    FakeHost host;
+    proc.setPlayHead (&host);
+    proc.prepareToPlay (sr, block);
+    proc.newPopulation (2024);
+    check (proc.population.size() == 12 && proc.pattern.bars == 4, "processor starts with 12 candidates and a 4-bar idea");
+
+    // ---- MIDI out matches the pattern, note for note, within one sample
+    *proc.apvts.getRawParameterValue ("preview") = 0.0f;
+    const double loop = proc.pattern.bars * mf::BAR;
+    auto events = run (proc, host, loop, sr, block);
+    std::map<int, std::vector<Event>> onsByChannel;
+    for (auto& e : events) if (e.on) onsByChannel[e.channel].push_back (e);
+    bool exact = true;
+    std::string detail;
+    for (int t = 0; t < mf::NUM_TRACKS; ++t)
+    {
+        auto expected = proc.pattern.tracks[(size_t) t];
+        auto& got = onsByChannel[t + 1];
+        if (got.size() != expected.size() && std::getenv ("MF_DEBUG"))
+        {
+            for (auto& e : got) std::cout << "  got " << mf::trackId (t) << " " << e.pitch << " @" << e.tick << "\n";
+            for (auto& e : expected) std::cout << "  exp " << mf::trackId (t) << " " << e.pitch << " @" << e.start << "\n";
+        }
+        if (got.size() != expected.size()) { exact = false; detail += std::string (mf::trackId (t)) + " count " + std::to_string (got.size()) + "/" + std::to_string (expected.size()) + " "; continue; }
+        std::sort (expected.begin(), expected.end(), [] (const mf::Note& a, const mf::Note& b) { return a.start < b.start || (a.start == b.start && a.pitch < b.pitch); });
+        std::sort (got.begin(), got.end(), [] (const Event& a, const Event& b) { return a.tick < b.tick - 0.5 || (std::abs (a.tick - b.tick) <= 0.5 && a.pitch < b.pitch); });
+        for (size_t i = 0; i < got.size(); ++i)
+            if (got[i].pitch != expected[i].pitch || std::abs (got[i].tick - expected[i].start) > 1.0 || got[i].velocity != expected[i].velocity)
+                { exact = false; detail += std::string (mf::trackId (t)) + " note " + std::to_string (i) + " "; break; }
+    }
+    check (exact, "MIDI out = pattern notes (pitch, position within 1 tick, velocity) on channels 1-3", detail);
+    int ons = 0, offs = 0;
+    for (auto& e : events) (e.on ? ons : offs)++;
+    auto tail = run (proc, host, 10, sr, block);   // the last notes end at the loop point
+    for (auto& e : tail) if (! e.on) ++offs;
+    check (offs >= ons, "every note-on is followed by a note-off", std::to_string (ons) + " on / " + std::to_string (offs) + " off");
+
+    // ---- loops seamlessly
+    auto second = run (proc, host, loop, sr, block);
+    int secondOns = 0;
+    for (auto& e : second) if (e.on) ++secondOns;
+    check (secondOns == ons, "pattern loops (same notes in the second pass)");
+
+    // ---- tempo follows the host
+    host.bpm = 90;
+    host.ppq = 0;
+    auto slow = run (proc, host, mf::BAR, sr, block);
+    bool onGrid = true;
+    for (auto& e : slow) if (e.on && e.channel == 3 && std::fmod (e.tick, (double) mf::BAR) > 1.0 && std::fmod (e.tick, (double) mf::BAR) < mf::BAR - 1.0
+                             && proc.settings.chordRhythm == mf::Sustain) onGrid = false;
+    check (onGrid && ! slow.empty(), "playback stays on the host's beat grid at 90 BPM");
+    host.bpm = 120;
+
+    // ---- layer toggle
+    proc.setLayerEnabled (mf::Melody, false);
+    host.ppq = 0;
+    auto noMelody = run (proc, host, loop, sr, block);
+    bool none = std::none_of (noMelody.begin(), noMelody.end(), [] (const Event& e) { return e.on && e.channel == 1; });
+    check (none, "disabled layer sends no notes");
+    proc.setLayerEnabled (mf::Melody, true);
+
+    // ---- stop sends note-offs
+    host.playing = false;
+    auto stopped = run (proc, host, 1, sr, block);
+    check (std::all_of (stopped.begin(), stopped.end(), [] (const Event& e) { return ! e.on; }), "stopping the host releases all notes");
+    host.playing = true;
+
+    // ---- preview sound
+    *proc.apvts.getRawParameterValue ("preview") = 1.0f;
+    float peak = 0;
+    host.ppq = 0;
+    run (proc, host, mf::BAR, sr, block, &peak);
+    check (peak > 0.01f && peak < 1.0f, "preview sound is audible and not clipping", std::to_string (peak));
+    *proc.apvts.getRawParameterValue ("preview") = 0.0f;
+    peak = 0;
+    host.ppq = 0;
+    run (proc, host, mf::BAR, sr, block, &peak);
+    check (peak == 0.0f, "preview off = silent output");
+
+    // ---- internal play (DAW stopped)
+    host.playing = false;
+    proc.internalPlay = true;
+    juce::AudioBuffer<float> buf (2, block);
+    juce::MidiBuffer midi;
+    int internalOns = 0;
+    for (int i = 0; i < 400; ++i) { midi.clear(); proc.processBlock (buf, midi); for (const auto m : midi) if (m.getMessage().isNoteOn()) ++internalOns; }
+    proc.internalPlay = false;
+    check (internalOns > 0, "Play button previews the idea while the DAW is stopped");
+    host.playing = true;
+
+    // ---- actions
+    auto before = proc.genome;
+    proc.evolveOnce();
+    check (proc.generation == 1 && proc.population.size() == 12, "Evolve creates a new generation");
+    double f0 = proc.population[(size_t) proc.current].fitness;
+    proc.like();
+    check (proc.population[(size_t) proc.current].fitness > f0, "Like raises the fitness");
+    int idx = proc.current;
+    proc.skip();
+    check (proc.current != idx, "Skip moves to another candidate");
+    proc.setChord (1, 5);
+    check (proc.pattern.chords[1].degree == 5, "chord of bar 2 can be changed");
+    auto bass = proc.pattern.tracks[mf::Bass];
+    auto chords = proc.pattern.tracks[mf::Chords];
+    proc.rerollLayer (mf::Melody);
+    check (proc.pattern.tracks[mf::Bass] == bass && proc.pattern.tracks[mf::Chords] == chords, "New variation changes only the melody");
+    proc.transposeLayer (mf::Bass, 12);
+    check (proc.isEdited() && proc.pattern.tracks[mf::Bass][0].pitch == bass[0].pitch + 12, "transpose edits a layer");
+    proc.settings.key = 2; proc.settings.lockKey = true;
+    proc.applySettings (false);
+    proc.evolveOnce(); proc.evolveOnce();
+    check (std::all_of (proc.population.begin(), proc.population.end(), [] (const mf::Entry& e) { return e.genome.key == 2; }), "locked key holds across generations");
+    proc.revertEdits();
+    proc.setTempo (97);
+    check (proc.pattern.bpm == 97 && proc.genome.bpm == 97, "tempo follows the host / setTempo");
+
+    // ---- MIDI export bytes = core writer
+    check (proc.midiFor ({ 0, 1, 2 }) == mf::toMidi (proc.pattern), "exported .mid bytes come from the shared core");
+
+    // ---- state round trip
+    juce::MemoryBlock state;
+    proc.transposeLayer (mf::Melody, -2);
+    proc.getStateInformation (state);
+    MelodyForgeProcessor restored;
+    restored.setStateInformation (state.getData(), (int) state.getSize());
+    bool sameTracks = restored.pattern.tracks == proc.pattern.tracks && restored.pattern.bpm == proc.pattern.bpm;
+    bool samePop = restored.population.size() == proc.population.size();
+    for (size_t i = 0; samePop && i < proc.population.size(); ++i)
+        samePop = restored.population[i].genome.seedMelody == proc.population[i].genome.seedMelody
+               && restored.population[i].genome.genes == proc.population[i].genome.genes;
+    check (sameTracks && restored.isEdited(), "saved project restores the edited idea");
+    check (samePop && restored.sessionSeed == proc.sessionSeed && restored.generation == proc.generation, "saved project restores population, seed and generation",
+           "pop " + std::to_string (samePop) + " seed " + std::to_string (restored.sessionSeed) + "/" + std::to_string (proc.sessionSeed)
+           + " gen " + std::to_string (restored.generation) + "/" + std::to_string (proc.generation)
+           + " size " + std::to_string (restored.population.size()) + "/" + std::to_string (proc.population.size()));
+
+    // ---- editor renders
+    {
+        std::unique_ptr<juce::AudioProcessorEditor> ed (proc.createEditor());
+        ed->setSize (1040, 700);
+        for (bool adv : { false, true })
+        {
+            proc.advancedMode = adv;
+            delete ed.release();
+            ed.reset (proc.createEditor());
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds());
+            check (img.isValid() && img.getWidth() == 1040, std::string ("editor renders in ") + (adv ? "advanced" : "beginner") + " mode");
+            if (argc > 1)
+            {
+                juce::File f (juce::String (argv[1]).replace (".png", adv ? "-advanced.png" : "-beginner.png"));
+                f.deleteFile();
+                juce::FileOutputStream out (f);
+                juce::PNGImageFormat().writeImageToStream (img, out);
+            }
+        }
+    }
+
+    std::cout << (failures == 0 ? "ALL PASSED" : std::to_string (failures) + " FAILURE(S)") << "\n";
+    return failures == 0 ? 0 : 1;
+}

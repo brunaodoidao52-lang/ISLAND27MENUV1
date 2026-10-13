@@ -5,11 +5,24 @@
 # Debian/Ubuntu's JUCE strips the bundled zlib/libpng/libjpeg, so static
 # Windows builds of them are made from the Ubuntu source packages first.
 #
-# Usage: scripts/build-windows-mingw.sh [output-dir]   (default: dist/windows)
+# Usage: scripts/build-windows-mingw.sh [eq|melodyforge] [output-dir]
+#   eq           Island Parametric EQ   (default output: dist/windows)
+#   melodyforge  MelodyForge ISLAND27   (default output: melodyforge/dist/windows)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="${1:-$ROOT/dist/windows}"
+PROJECT="${1:-eq}"
+case "$PROJECT" in
+    eq)
+        SRC="$ROOT"; BUILD="$ROOT/build-win"; TARGET="IslandParametricEQ"; PRODUCT="Island Parametric EQ"
+        CMAKE_OPTS=(-DISLANDEQ_FETCH_JUCE=OFF -DISLANDEQ_BUILD_TESTS=OFF -DISLANDEQ_EXTERNAL_LIBS_PREFIX=)
+        OUT="${2:-$ROOT/dist/windows}" ;;
+    melodyforge)
+        SRC="$ROOT/melodyforge/plugin"; BUILD="$ROOT/melodyforge/plugin/build-win"; TARGET="MelodyForge"; PRODUCT="MelodyForge ISLAND27"
+        CMAKE_OPTS=(-DMELODYFORGE_FETCH_JUCE=OFF -DMELODYFORGE_BUILD_TESTS=OFF -DMELODYFORGE_EXTERNAL_LIBS_PREFIX=)
+        OUT="${2:-$ROOT/melodyforge/dist/windows}" ;;
+    *) echo "unknown project '$PROJECT' (use eq or melodyforge)"; exit 1 ;;
+esac
 WORK="$ROOT/build-win-deps"
 TC="$ROOT/cmake/mingw-w64-x86_64.cmake"
 PREFIX="$WORK/prefix"
@@ -76,16 +89,15 @@ export PATH="$FAKEBIN:$PATH"
 
 # --- plugin -------------------------------------------------------------------
 JUCE_CONFIG="$(dpkg -L juce-modules-source juce-tools 2>/dev/null | grep -m1 '/JUCEConfig.cmake$')"
-cmake -S "$ROOT" -B "$ROOT/build-win" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE="$TC" -DISLANDEQ_FETCH_JUCE=OFF -DISLANDEQ_BUILD_TESTS=OFF \
-    -DJUCE_DIR="$(dirname "$JUCE_CONFIG")" \
-    -DISLANDEQ_EXTERNAL_LIBS_PREFIX="$PREFIX"
-cmake --build "$ROOT/build-win" --target IslandParametricEQ_Standalone IslandParametricEQ_VST3
+CMAKE_OPTS[2]="${CMAKE_OPTS[2]}$PREFIX"
+cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE="$TC" -DJUCE_DIR="$(dirname "$JUCE_CONFIG")" "${CMAKE_OPTS[@]}"
+cmake --build "$BUILD" --target "${TARGET}_Standalone" "${TARGET}_VST3"
 
-ART="$ROOT/build-win/IslandParametricEQ_artefacts/Release"
+ART="$BUILD/${TARGET}_artefacts/Release"
 mkdir -p "$OUT"
-x86_64-w64-mingw32-strip -o "$OUT/Island Parametric EQ.exe" "$ART/Standalone/Island Parametric EQ.exe"
-rm -rf "$OUT/Island Parametric EQ.vst3"
-cp -r "$ART/VST3/Island Parametric EQ.vst3" "$OUT/"
-x86_64-w64-mingw32-strip "$OUT/Island Parametric EQ.vst3/Contents/x86_64-win/Island Parametric EQ.vst3"
+x86_64-w64-mingw32-strip -o "$OUT/$PRODUCT.exe" "$ART/Standalone/$PRODUCT.exe"
+rm -rf "$OUT/$PRODUCT.vst3"
+cp -r "$ART/VST3/$PRODUCT.vst3" "$OUT/"
+x86_64-w64-mingw32-strip "$OUT/$PRODUCT.vst3/Contents/x86_64-win/$PRODUCT.vst3"
 echo "Windows build ready in $OUT"
