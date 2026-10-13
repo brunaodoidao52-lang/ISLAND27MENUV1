@@ -6,3 +6,4 @@ build-win-deps/
 *.user
 CMakeUserPresets.json
 dist/windows/
+node_modules/
