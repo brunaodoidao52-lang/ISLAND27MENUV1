@@ -189,7 +189,10 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     fitnessLabel.setFont (lnf.bodyFont (12.5f));
     fitnessLabel.setColour (juce::Label::textColourId, B::muted);
     fitnessLabel.setJustificationType (juce::Justification::centredRight);
-    for (auto* c : { &candidateLabel, &statusLabel, &fitnessLabel }) addAndMakeVisible (c);
+    hintLabel.setFont (lnf.bodyFont (12.5f));
+    hintLabel.setColour (juce::Label::textColourId, B::muted);
+    hintLabel.setJustificationType (juce::Justification::centredLeft);
+    for (auto* c : { &candidateLabel, &statusLabel, &fitnessLabel, &hintLabel }) addAndMakeVisible (c);
 
     prevBtn.setTooltip ("Previous candidate");
     nextBtn.setTooltip ("Next candidate");
@@ -239,6 +242,7 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     addAndMakeVisible (revertBtn);
 
     // generator controls
+    keyBox.addItem ("Any key", 100);
     for (int k = 0; k < 12; ++k) keyBox.addItem (mf::noteNameOf (k), k + 1);
     for (size_t i = 0; i < mf::scales().size(); ++i) scaleBox.addItem (mf::scales()[i].name, (int) i + 1);
     for (size_t i = 0; i < mf::progressions().size(); ++i) progressionBox.addItem (mf::progressions()[i].name, (int) i + 1);
@@ -247,7 +251,7 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     auto lockChange = [this]
     {
         if (updating) return;
-        proc.settings.key = keyBox.getSelectedItemIndex();
+        proc.settings.key = juce::jmax (0, keyBox.getSelectedId() - 1);
         proc.settings.scale = scaleBox.getSelectedItemIndex();
         proc.settings.progression = progressionBox.getSelectedItemIndex();
         proc.settings.lockKey = lockKey.getToggleState();
@@ -255,7 +259,12 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
         proc.settings.lockProgression = lockProgression.getToggleState();
         proc.applySettings (false);
     };
-    keyBox.onChange = [this, lockChange] { if (! updating) { lockKey.setToggleState (true, juce::dontSendNotification); lockChange(); } };
+    keyBox.onChange = [this, lockChange]
+    {
+        if (updating) return;
+        lockKey.setToggleState (keyBox.getSelectedId() != 100, juce::dontSendNotification);   // "Any key" unlocks
+        lockChange();
+    };
     scaleBox.onChange = [this, lockChange] { if (! updating) { lockScale.setToggleState (true, juce::dontSendNotification); lockChange(); } };
     progressionBox.onChange = [this, lockChange] { if (! updating) { lockProgression.setToggleState (true, juce::dontSendNotification); lockChange(); } };
     for (auto* l : { &lockKey, &lockScale, &lockProgression }) { l->onClick = lockChange; l->setTooltip ("Keep this fixed while evolving"); }
@@ -398,7 +407,7 @@ void MelodyForgeEditor::refresh()
         viewBtn[(size_t) t].setToggleState (view.selectedTrack == t, juce::dontSendNotification);
     }
     revertBtn.setEnabled (proc.isEdited());
-    keyBox.setSelectedItemIndex (proc.settings.lockKey ? proc.settings.key : proc.genome.key, juce::dontSendNotification);
+    keyBox.setSelectedId (proc.settings.lockKey ? proc.settings.key + 1 : 100, juce::dontSendNotification);
     scaleBox.setSelectedItemIndex (proc.settings.lockScale ? proc.settings.scale : proc.genome.scale, juce::dontSendNotification);
     progressionBox.setSelectedItemIndex (proc.settings.lockProgression ? proc.settings.progression : proc.genome.progression, juce::dontSendNotification);
     lockKey.setToggleState (proc.settings.lockKey, juce::dontSendNotification);
@@ -410,6 +419,12 @@ void MelodyForgeEditor::refresh()
     harmonySlider.setValue (proc.harmony, juce::dontSendNotification);
     if (! seedEditor.hasKeyboardFocus (true)) seedEditor.setText (juce::String ((juce::int64) proc.sessionSeed), false);
     styleBox.setSelectedItemIndex (proc.style, juce::dontSendNotification);
+    {
+        juce::String hint = juce::String (presets::styles()[(size_t) proc.style].hint) + "  -  " + presets::moods()[(size_t) proc.mood].hint;
+        if (! proc.advancedMode)
+            hint = "1. Pick a style and mood   2. Generate ideas + Play   3. Like / Skip   4. Drag the MIDI into FL Studio      (" + hint + ")";
+        hintLabel.setText (hint, juce::dontSendNotification);
+    }
     moodBox.setSelectedItemIndex (proc.mood, juce::dontSendNotification);
     buildChordBoxes();
     view.repaint();
@@ -458,6 +473,7 @@ void MelodyForgeEditor::applyModeVisibility()
                                                            &progressionLabel, &barsLabel, &popLabel, &harmonyLabel, &seedLabel,
                                                            &midiOutToggle, &hostTempoToggle };
     for (auto* c : advancedOnly) c->setVisible (adv);
+    if (! updating) refresh();
     for (int t = 0; t < mf::NUM_TRACKS; ++t)
         for (auto* b : { &downBtn[(size_t) t], &upBtn[(size_t) t], &viewBtn[(size_t) t] }) b->setVisible (adv);
     for (auto* b : chordBoxes) b->setVisible (adv);
@@ -511,7 +527,9 @@ void MelodyForgeEditor::resized()
         h.removeFromRight (8);
         styleBox.setBounds (h.removeFromRight (150).withSizeKeepingCentre (150, 30));
     }
-    r.reduce (14, 12);
+    r.reduce (14, 10);
+    hintLabel.setBounds (r.removeFromTop (20));
+    r.removeFromTop (6);
     exportArea = r.removeFromBottom (64);
     r.removeFromBottom (10);
     controlsArea = r.removeFromRight (330);

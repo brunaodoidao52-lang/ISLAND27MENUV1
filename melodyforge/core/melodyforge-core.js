@@ -92,12 +92,24 @@
             // fixed values used when locked, and the defaults for new genomes
             key: 0, scale: 0, progression: 0, bpm: 120,
             bpmRange: [70, 150],     // range new genomes draw their tempo from
+            scalePool: null,         // scale indices new genomes may use (null = all)
+            progressionPool: null,   // progression indices new genomes may use (null = all)
             locks: { key: false, scale: false, progression: false, bpm: false },
             // style targets used by the fitness function
             targets: { density: 4, stepwise: 0.7, span: 12, syncopation: 0.2, repetition: 0.6 },
             // gene bias: preset ranges new genomes are drawn from
             geneRanges: {}
         };
+    }
+
+    function validPool(pool, n) {
+        var out = [];
+        if (pool) for (var i = 0; i < pool.length; i++) {
+            var v = Math.floor(pool[i]);
+            if (v >= 0 && v < n && out.indexOf(v) < 0) out.push(v);
+        }
+        if (!out.length) for (var j = 0; j < n; j++) out.push(j);
+        return out;
     }
 
     function normalizeSettings(s) {
@@ -110,6 +122,8 @@
         out.targets = {};
         for (k in d.targets) out.targets[k] = (s && s.targets && s.targets[k] !== undefined) ? s.targets[k] : d.targets[k];
         out.geneRanges = (s && s.geneRanges) || {};
+        out.scalePool = validPool(s && s.scalePool, SCALES.length);
+        out.progressionPool = validPool(s && s.progressionPool, PROGRESSIONS.length);
         var br = (s && s.bpmRange) || d.bpmRange;
         var bLo = clamp(Math.floor(br[0]), 60, 180);
         out.bpmRange = [bLo, clamp(Math.floor(br[1]), bLo, 180)];
@@ -139,8 +153,8 @@
         var s = normalizeSettings(settings);
         var g = {
             key: s.locks.key ? s.key : rng.int(12),
-            scale: s.locks.scale ? s.scale : rng.int(SCALES.length),
-            progression: s.locks.progression ? s.progression : rng.int(PROGRESSIONS.length),
+            scale: s.locks.scale ? s.scale : s.scalePool[rng.int(s.scalePool.length)],
+            progression: s.locks.progression ? s.progression : s.progressionPool[rng.int(s.progressionPool.length)],
             bpm: s.locks.bpm ? s.bpm : s.bpmRange[0] + rng.int(s.bpmRange[1] - s.bpmRange[0] + 1),
             seeds: { melody: rng.next(), bass: rng.next(), chords: rng.next() },
             chordOverrides: [],
@@ -576,8 +590,8 @@
         }
         if (!s.locks.bpm && rng.float() < rate) g.bpm = clamp(g.bpm + rng.int(17) - 8, 60, 180);
         if (!s.locks.key && rng.float() < rate * 0.5) g.key = mod12(g.key + (rng.float() < 0.5 ? 7 : 5));
-        if (!s.locks.scale && rng.float() < rate * 0.5) g.scale = rng.int(SCALES.length);
-        if (!s.locks.progression && rng.float() < rate * 0.5) g.progression = rng.int(PROGRESSIONS.length);
+        if (!s.locks.scale && rng.float() < rate * 0.5) g.scale = s.scalePool[rng.int(s.scalePool.length)];
+        if (!s.locks.progression && rng.float() < rate * 0.5) g.progression = s.progressionPool[rng.int(s.progressionPool.length)];
         if (rng.float() < rate) g.seeds.melody = rng.next();
         if (rng.float() < rate * 0.5) g.seeds.bass = rng.next();
         if (rng.float() < rate * 0.5) g.seeds.chords = rng.next();
@@ -693,6 +707,71 @@
         return g;
     }
 
+
+    // ---------------------------------------------------------------- presets
+    // Styles set tempo, rhythm and harmony targets; moods choose scales,
+    // progressions, melodic shape and energy. Mirrored in plugin/Source/Presets.h.
+    var STYLES = [
+        { id: 'free', name: 'Free', hint: 'No style bias', bpmRange: [70, 150], chordRhythm: 'sustain',
+          targets: { density: 4, stepwise: 0.7, span: 12, syncopation: 0.2, repetition: 0.6 }, geneRanges: {} },
+        { id: 'trap', name: 'Trap', hint: '130-160 BPM, syncopated melodies, long bass notes', bpmRange: [130, 160], chordRhythm: 'sustain',
+          targets: { density: 5, stepwise: 0.6, span: 12, syncopation: 0.45, repetition: 0.75 },
+          geneRanges: { syncopation: [0.5, 1], density: [0.4, 0.9], bassMovement: [0, 0.4], swing: [0, 0.15], chordComplexity: [0.2, 0.6] } },
+        { id: 'lofi', name: 'Lo-fi', hint: '70-90 BPM, jazzy seventh chords, lazy swing', bpmRange: [70, 90], chordRhythm: 'sustain',
+          targets: { density: 3, stepwise: 0.75, span: 10, syncopation: 0.3, repetition: 0.7 },
+          geneRanges: { chordComplexity: [0.7, 1], swing: [0.4, 0.8], density: [0.2, 0.55], bassMovement: [0.33, 0.66] } },
+        { id: 'pop', name: 'Pop', hint: '95-128 BPM, catchy repeated hooks, simple triads', bpmRange: [95, 128], chordRhythm: 'half',
+          targets: { density: 4, stepwise: 0.75, span: 12, syncopation: 0.25, repetition: 0.8 },
+          geneRanges: { repetition: [0.6, 1], chordComplexity: [0, 0.35], syncopation: [0.2, 0.5], swing: [0, 0.1] } },
+        { id: 'rnb', name: 'R&B', hint: '65-95 BPM, rich chords, soulful syncopation', bpmRange: [65, 95], chordRhythm: 'sustain',
+          targets: { density: 4, stepwise: 0.65, span: 14, syncopation: 0.4, repetition: 0.6 },
+          geneRanges: { chordComplexity: [0.7, 1], swing: [0.2, 0.6], syncopation: [0.4, 0.8] } },
+        { id: 'funk', name: 'Funk BR', hint: '128-150 BPM, short stabs, very repetitive riffs', bpmRange: [128, 150], chordRhythm: 'stabs',
+          targets: { density: 6, stepwise: 0.55, span: 10, syncopation: 0.5, repetition: 0.85 },
+          geneRanges: { syncopation: [0.5, 1], repetition: [0.7, 1], bassMovement: [0.66, 1], chordComplexity: [0, 0.3] } },
+        { id: 'reggaeton', name: 'Reggaeton', hint: '88-100 BPM, dembow-friendly stabs and hooks', bpmRange: [88, 100], chordRhythm: 'stabs',
+          targets: { density: 5, stepwise: 0.65, span: 10, syncopation: 0.45, repetition: 0.8 },
+          geneRanges: { syncopation: [0.4, 0.8], repetition: [0.6, 1], chordComplexity: [0.1, 0.5] } },
+        { id: 'house', name: 'House', hint: '120-128 BPM, chord stabs, moving bass', bpmRange: [120, 128], chordRhythm: 'stabs',
+          targets: { density: 5, stepwise: 0.6, span: 12, syncopation: 0.4, repetition: 0.8 },
+          geneRanges: { bassMovement: [0.66, 1], chordComplexity: [0.4, 0.8], syncopation: [0.3, 0.7] } },
+        { id: 'ambient', name: 'Ambient', hint: '60-90 BPM, few long notes, spacious pads', bpmRange: [60, 90], chordRhythm: 'sustain',
+          targets: { density: 2, stepwise: 0.85, span: 10, syncopation: 0.05, repetition: 0.7 },
+          geneRanges: { density: [0, 0.3], swing: [0, 0.05], bassMovement: [0, 0.33], chordComplexity: [0.5, 1] } },
+        { id: 'jazz', name: 'Jazz', hint: '90-160 BPM, swing, sevenths, walking bass', bpmRange: [90, 160], chordRhythm: 'half',
+          targets: { density: 5, stepwise: 0.55, span: 14, syncopation: 0.4, repetition: 0.4 },
+          geneRanges: { chordComplexity: [0.75, 1], swing: [0.5, 1], bassMovement: [0.66, 1] } }
+    ];
+
+    var MOODS = [
+        { id: 'neutral', name: 'Neutral', hint: 'Any scale or progression', scales: null, progressions: null, geneRanges: {} },
+        { id: 'happy', name: 'Happy', hint: 'Major scales, rising melodies', scales: [0, 3, 5], progressions: [0, 1, 3, 7],
+          geneRanges: { contour: [0.5, 1], dynamics: [0.4, 0.8], range: [0.4, 0.9] } },
+        { id: 'sad', name: 'Sad', hint: 'Minor scales, falling melodies, soft', scales: [1, 2, 4], progressions: [2, 5, 6],
+          geneRanges: { contour: [0, 0.5], dynamics: [0.1, 0.5], range: [0.2, 0.6] } },
+        { id: 'dark', name: 'Dark', hint: 'Minor / harmonic minor, low and narrow', scales: [1, 4, 6], progressions: [5, 6],
+          geneRanges: { contour: [0, 0.4], dynamics: [0.3, 0.7], range: [0.1, 0.5] } },
+        { id: 'dreamy', name: 'Dreamy', hint: 'Open scales, wide and gentle melodies', scales: [0, 2, 5], progressions: [1, 2, 7],
+          geneRanges: { contour: [0.3, 0.7], dynamics: [0, 0.4], range: [0.5, 1] } },
+        { id: 'energetic', name: 'Energetic', hint: 'Driving progressions, strong accents', scales: [1, 3, 6], progressions: [0, 1, 2, 5],
+          geneRanges: { contour: [0.4, 0.9], dynamics: [0.6, 1], range: [0.5, 1] } },
+        { id: 'chill', name: 'Chill', hint: 'Dorian / major, relaxed and soft', scales: [2, 0, 6], progressions: [1, 3, 4],
+          geneRanges: { contour: [0.3, 0.6], dynamics: [0.1, 0.4], range: [0.2, 0.6] } }
+    ];
+
+    // Returns the preset part of the settings (merge it into your own settings).
+    function presetSettings(styleIdx, moodIdx) {
+        var st = STYLES[clamp(Math.floor(styleIdx) || 0, 0, STYLES.length - 1)];
+        var md = MOODS[clamp(Math.floor(moodIdx) || 0, 0, MOODS.length - 1)];
+        var ranges = {}, k;
+        for (k in st.geneRanges) ranges[k] = st.geneRanges[k].slice();
+        for (k in md.geneRanges) ranges[k] = md.geneRanges[k].slice();
+        var targets = {};
+        for (k in st.targets) targets[k] = st.targets[k];
+        return { bpmRange: st.bpmRange.slice(), chordRhythm: st.chordRhythm, targets: targets, geneRanges: ranges,
+                 scalePool: md.scales ? md.scales.slice() : null, progressionPool: md.progressions ? md.progressions.slice() : null };
+    }
+
     // ---------------------------------------------------------------- MIDI
     function vlq(value) {
         var bytes = [value & 0x7F];
@@ -763,7 +842,7 @@
     return {
         PPQ: PPQ, STEP: STEP, BAR: BAR, STEPS_PER_BAR: STEPS_PER_BAR,
         NOTE_NAMES: NOTE_NAMES, SCALES: SCALES, PROGRESSIONS: PROGRESSIONS, CHORD_RHYTHMS: CHORD_RHYTHMS,
-        CONTINUOUS_GENES: CONTINUOUS_GENES, TRACKS: TRACKS,
+        CONTINUOUS_GENES: CONTINUOUS_GENES, TRACKS: TRACKS, STYLES: STYLES, MOODS: MOODS, presetSettings: presetSettings,
         createRng: createRng, mixSeed: mixSeed,
         defaultSettings: defaultSettings, normalizeSettings: normalizeSettings,
         randomGenome: randomGenome, cloneGenome: cloneGenome, applyLocks: applyLocks,

@@ -103,7 +103,17 @@ struct Settings
     bool lockKey = false, lockScale = false, lockProgression = false, lockBpm = false;
     Targets targets;
     std::array<GeneRange, NUM_GENES> geneRanges {};
+    std::vector<int> scalePool, progressionPool;   // empty = all
 };
+
+inline std::vector<int> validPool (const std::vector<int>& pool, int n)
+{
+    std::vector<int> out;
+    for (int v : pool)
+        if (v >= 0 && v < n && std::find (out.begin(), out.end(), v) == out.end()) out.push_back (v);
+    if (out.empty()) for (int j = 0; j < n; ++j) out.push_back (j);
+    return out;
+}
 
 inline Settings normalize (Settings s)
 {
@@ -122,6 +132,8 @@ inline Settings normalize (Settings s)
     s.bpmHi = clampv (s.bpmHi, s.bpmLo, 180);
     s.chordRhythm = clampv (s.chordRhythm, 0, 2);
     s.focus = clampv (s.focus, 0, 3);
+    s.scalePool = validPool (s.scalePool, (int) scales().size());
+    s.progressionPool = validPool (s.progressionPool, (int) progressions().size());
     return s;
 }
 
@@ -166,8 +178,8 @@ inline Genome randomGenome (Rng& rng, const Settings& settings)
     Settings s = normalize (settings);
     Genome g;
     g.key = s.lockKey ? s.key : rng.integer (12);
-    g.scale = s.lockScale ? s.scale : rng.integer ((int) scales().size());
-    g.progression = s.lockProgression ? s.progression : rng.integer ((int) progressions().size());
+    g.scale = s.lockScale ? s.scale : s.scalePool[(size_t) rng.integer ((int) s.scalePool.size())];
+    g.progression = s.lockProgression ? s.progression : s.progressionPool[(size_t) rng.integer ((int) s.progressionPool.size())];
     g.bpm = s.lockBpm ? s.bpm : s.bpmLo + rng.integer (s.bpmHi - s.bpmLo + 1);
     g.seedMelody = rng.next();
     g.seedBass = rng.next();
@@ -685,12 +697,12 @@ inline Genome& mutate (Genome& g, const Settings& s, Rng& rng)
     if (! s.lockScale)
     {
         double r = rng.real();
-        if (r < rate * 0.5) g.scale = rng.integer ((int) scales().size());
+        if (r < rate * 0.5) g.scale = s.scalePool[(size_t) rng.integer ((int) s.scalePool.size())];
     }
     if (! s.lockProgression)
     {
         double r = rng.real();
-        if (r < rate * 0.5) g.progression = rng.integer ((int) progressions().size());
+        if (r < rate * 0.5) g.progression = s.progressionPool[(size_t) rng.integer ((int) s.progressionPool.size())];
     }
     { double r = rng.real(); if (r < rate) g.seedMelody = rng.next(); }
     { double r = rng.real(); if (r < rate * 0.5) g.seedBass = rng.next(); }

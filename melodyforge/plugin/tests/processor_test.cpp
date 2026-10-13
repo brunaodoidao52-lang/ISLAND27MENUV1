@@ -5,6 +5,7 @@
 
 #include "../Source/PluginProcessor.h"
 #include "../Source/PluginEditor.h"
+#include "../Source/Presets.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -207,6 +208,25 @@ int main (int argc, char** argv)
            "pop " + std::to_string (samePop) + " seed " + std::to_string (restored.sessionSeed) + "/" + std::to_string (proc.sessionSeed)
            + " gen " + std::to_string (restored.generation) + "/" + std::to_string (proc.generation)
            + " size " + std::to_string (restored.population.size()) + "/" + std::to_string (proc.population.size()));
+
+    // ---- presets
+    proc.settings.lockKey = false;
+    proc.style = 1; proc.mood = 2;            // Trap + Sad
+    mfplug::presets::apply (proc.settings, proc.style, proc.mood);
+    proc.applySettings (true);
+    bool presetOk = std::all_of (proc.population.begin(), proc.population.end(), [] (const mf::Entry& e)
+        { return e.genome.bpm >= 130 && e.genome.bpm <= 160 && (e.genome.scale == 1 || e.genome.scale == 2 || e.genome.scale == 4); });
+    for (int i = 0; i < 6; ++i) proc.evolveOnce();
+    presetOk = presetOk && std::all_of (proc.population.begin(), proc.population.end(), [] (const mf::Entry& e)
+        { return e.genome.scale == 1 || e.genome.scale == 2 || e.genome.scale == 4; });
+    check (presetOk, "Trap + Sad presets: 130-160 BPM and minor-family scales, also after evolving");
+    juce::MemoryBlock presetState;
+    proc.advancedMode = true;
+    proc.getStateInformation (presetState);
+    MelodyForgeProcessor restored2;
+    restored2.setStateInformation (presetState.getData(), (int) presetState.getSize());
+    check (restored2.style == 1 && restored2.mood == 2 && restored2.advancedMode && restored2.settings.bpmLo == 130,
+           "style, mood and mode are saved with the project");
 
     // ---- editor renders
     {

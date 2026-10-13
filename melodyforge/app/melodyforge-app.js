@@ -15,28 +15,17 @@
         el.addEventListener(event, handler);
     }
 
-    // Environments: fitness targets + the gene ranges new candidates are drawn from.
-    var ENVIRONMENTS = {
-        ambient:      { targets: { density: 2, stepwise: 0.85, span: 10, syncopation: 0.05, repetition: 0.7 }, chordRhythm: 'sustain',
-                        bpmRange: [70, 100], geneRanges: { density: [0, 0.35], swing: [0, 0.1], chordComplexity: [0.4, 1], bassMovement: [0, 0.33] } },
-        dance:        { targets: { density: 6, stepwise: 0.6, span: 12, syncopation: 0.35, repetition: 0.7 }, chordRhythm: 'stabs',
-                        bpmRange: [118, 130], geneRanges: { density: [0.5, 1], syncopation: [0.3, 0.8], bassMovement: [0.66, 1], swing: [0, 0.15] } },
-        jazz:         { targets: { density: 5, stepwise: 0.55, span: 14, syncopation: 0.4, repetition: 0.4 }, chordRhythm: 'half',
-                        bpmRange: [90, 160], geneRanges: { chordComplexity: [0.7, 1], swing: [0.5, 1], bassMovement: [0.66, 1] } },
-        classical:    { targets: { density: 4, stepwise: 0.8, span: 14, syncopation: 0.1, repetition: 0.6 }, chordRhythm: 'half',
-                        bpmRange: [70, 130], geneRanges: { swing: [0, 0], chordComplexity: [0, 0.4], syncopation: [0, 0.3] } },
-        lofi:         { targets: { density: 3, stepwise: 0.75, span: 10, syncopation: 0.3, repetition: 0.7 }, chordRhythm: 'sustain',
-                        bpmRange: [70, 92], geneRanges: { chordComplexity: [0.6, 1], swing: [0.4, 0.8], density: [0.2, 0.6] } },
-        electronic:   { targets: { density: 6, stepwise: 0.5, span: 12, syncopation: 0.45, repetition: 0.75 }, chordRhythm: 'stabs',
-                        bpmRange: [120, 150], geneRanges: { syncopation: [0.4, 1], bassMovement: [0.5, 1], swing: [0, 0.1] } },
-        experimental: { targets: { density: 5, stepwise: 0.4, span: 18, syncopation: 0.5, repetition: 0.3 }, chordRhythm: 'half',
-                        bpmRange: [60, 180], geneRanges: {} }
-    };
-
     var STORAGE_KEY = 'melodyForgeIsland27Genomes';
+    var MODE_KEY = 'melodyForgeIsland27Mode';
+
+    function readMode() {
+        try { return localStorage.getItem(MODE_KEY) === 'advanced' ? 'advanced' : 'beginner'; } catch (e) { return 'beginner'; }
+    }
 
     function MelodyForgeApp() {
-        this.environment = 'ambient';
+        this.style = 0;            // index into MFCore.STYLES
+        this.mood = 0;             // index into MFCore.MOODS
+        this.mode = readMode();
         this.focus = 'harmony';
         this.mutationRate = 0.1;
         this.complexity = 5;
@@ -64,6 +53,7 @@
 
         this.setupVisualizer();
         this.setupGeneratorPanel();
+        this.setupQuickStart();
         this.bindEvents();
         this.bindEditor();
         this.setupAudioUnlock();
@@ -78,17 +68,13 @@
 
     // ------------------------------------------------------------ settings
     P.settings = function () {
-        var env = ENVIRONMENTS[this.environment] || ENVIRONMENTS.ambient;
-        var c = (this.complexity - 1) / 9, h = (this.harmonic - 1) / 9;
-        var ranges = {};
-        for (var k in env.geneRanges) ranges[k] = env.geneRanges[k];
-        ranges.density = ranges.density || [Math.max(0, c - 0.2), Math.min(1, c + 0.2)];
-        ranges.chordComplexity = ranges.chordComplexity || [Math.max(0, h - 0.2), Math.min(1, h + 0.2)];
+        var preset = C.presetSettings(this.style, this.mood);
         return C.normalizeSettings({
             bars: this.bars, populationSize: this.populationSize, eliteRatio: 0.3, mutationRate: this.mutationRate,
             maxNotesPerBar: this.maxNotesPerBar, melodyLow: this.melodyLow, melodyHigh: this.melodyHigh,
-            focus: this.focus, chordRhythm: env.chordRhythm, targets: env.targets,
-            bpmRange: env.bpmRange, geneRanges: ranges,
+            focus: this.focus, chordRhythm: preset.chordRhythm, targets: preset.targets,
+            bpmRange: preset.bpmRange, geneRanges: preset.geneRanges,
+            scalePool: preset.scalePool, progressionPool: preset.progressionPool,
             key: this.fixed.key, scale: this.fixed.scale, progression: this.fixed.progression, bpm: this.fixed.bpm,
             locks: this.locks
         });
@@ -466,7 +452,7 @@
         var g = this.currentGenome();
         if (!g) return;
         var data = { format: 'MelodyForge ISLAND27 genome', version: 2, genome: g, settings: this.settings(),
-                     seed: this.seed, pattern: this.pattern, fitness: C.evaluate(this.pattern, g, this.settings()) };
+                     seed: this.seed, style: C.STYLES[this.style].id, mood: C.MOODS[this.mood].id, pattern: this.pattern, fitness: C.evaluate(this.pattern, g, this.settings()) };
         download(this.fileBase() + '.json', JSON.stringify(data, null, 2), 'application/json');
     };
 
@@ -483,7 +469,7 @@
     P.share = function () {
         var g = this.currentGenome();
         if (!g) return;
-        var code = btoa(JSON.stringify({ v: 2, g: g, env: this.environment }));
+        var code = btoa(JSON.stringify({ v: 3, g: g, style: this.style, mood: this.mood }));
         var url = location.origin + location.pathname + '?g=' + encodeURIComponent(code);
         this.copyText(url, 'Share link copied to clipboard');
     };
@@ -495,7 +481,7 @@
         try {
             var data = JSON.parse(atob(code));
             if (!data.g || !data.g.seeds) throw new Error('invalid genome');
-            if (ENVIRONMENTS[data.env]) { this.environment = data.env; $('environmentSelect').value = data.env; }
+            if (data.style !== undefined) this.setPreset(data.style, data.mood || 0);
             this.population.unshift(C.scoreGenome(data.g, this.settings()));
             this.population.length = Math.min(this.population.length, this.populationSize);
             this.selectCandidate(0, true);
@@ -513,11 +499,9 @@
         set('harmonicDensity', rand(1, 10));
         set('mutationRate', (rand(5, 30) / 100).toFixed(2));
         set('reverbAmount', rand(10, 60));
-        var envs = Object.keys(ENVIRONMENTS);
-        var sel = $('environmentSelect');
-        sel.value = envs[rand(0, envs.length - 1)];
-        sel.dispatchEvent(new Event('change'));
-        this.notify('Parameters randomized');
+        this.setPreset(rand(1, C.STYLES.length - 1), rand(0, C.MOODS.length - 1));
+        this.resetPopulation((Math.random() * 4294967296) >>> 0);
+        this.notify('Randomized: ' + C.STYLES[this.style].name + ' + ' + C.MOODS[this.mood].name);
     };
 
     // ------------------------------------------------------------ library
@@ -538,7 +522,7 @@
         if (!name) { this.notify('Please enter a name for the idea', 'warning'); return; }
         var g = this.currentGenome();
         if (!g) return;
-        this.savedGenomes.push({ name: name, genome: C.cloneGenome(g), environment: this.environment,
+        this.savedGenomes.push({ name: name, genome: C.cloneGenome(g), style: this.style, mood: this.mood,
                                  pattern: this.isEdited() ? C.clonePattern(this.pattern) : null,
                                  generation: this.generation, timestamp: Date.now() });
         this.persist();
@@ -551,7 +535,7 @@
         var item = this.savedGenomes[index];
         if (!item) return;
         if (!this.confirmDiscard()) return;
-        if (ENVIRONMENTS[item.environment]) { this.environment = item.environment; $('environmentSelect').value = item.environment; }
+        if (item.style !== undefined) this.setPreset(item.style, item.mood || 0);
         this.current = -1;
         this.genome = C.cloneGenome(item.genome);
         this.pattern = item.pattern ? C.clonePattern(item.pattern) : C.render(this.genome, this.settings());
@@ -615,11 +599,6 @@
             self.pauseEvolution();
             self.resetPopulation();
             self.notify('New population created (seed ' + self.seed + ')');
-        });
-        on('environmentSelect', 'change', function (e) {
-            self.environment = e.target.value;
-            self.rescore();
-            self.notify('Environment: ' + e.target.options[e.target.selectedIndex].text);
         });
         on('melodicComplexity', 'input', function (e) {
             self.complexity = Number(e.target.value);
@@ -688,6 +667,68 @@
         this.replaceCurrent(copy);
     };
 
+
+
+    // ------------------------------------------------------------ quick start / presets / modes
+    P.setupQuickStart = function () {
+        var self = this;
+        var fill = function (id, items) {
+            var sel = $(id);
+            items.forEach(function (label, value) {
+                var o = document.createElement('option');
+                o.value = value;
+                o.textContent = label;
+                sel.appendChild(o);
+            });
+        };
+        fill('styleSelect', C.STYLES.map(function (x) { return x.name; }));
+        fill('moodSelect', C.MOODS.map(function (x) { return x.name; }));
+        fill('quickKey', ['Any key'].concat(C.NOTE_NAMES));
+        this.setPreset(this.style, this.mood);
+        this.applyMode(this.mode);
+
+        var changePreset = function () {
+            var style = Number($('styleSelect').value), mood = Number($('moodSelect').value);
+            if (!self.confirmDiscard()) { self.setPreset(self.style, self.mood); return; }
+            self.setPreset(style, mood);
+            self.pauseEvolution();
+            self.resetPopulation(self.seed);
+            self.notify(C.STYLES[style].name + ' + ' + C.MOODS[mood].name + ': new ideas ready');
+        };
+        on('styleSelect', 'change', changePreset);
+        on('moodSelect', 'change', changePreset);
+        on('quickKey', 'change', function (e) {
+            var v = Number(e.target.value);
+            $('keySelect').value = Math.max(0, v - 1);
+            $('lockKey').checked = v > 0;
+            $('lockKey').dispatchEvent(new Event('change'));
+        });
+        on('generateBtn', 'click', function () {
+            if (!self.confirmDiscard()) return;
+            self.pauseEvolution();
+            self.resetPopulation((Math.random() * 4294967296) >>> 0);
+            self.notify('New ideas: ' + C.STYLES[self.style].name + ' + ' + C.MOODS[self.mood].name);
+        });
+        on('modeBeginner', 'click', function () { self.applyMode('beginner'); });
+        on('modeAdvanced', 'click', function () { self.applyMode('advanced'); });
+    };
+
+    P.setPreset = function (style, mood) {
+        this.style = Math.max(0, Math.min(C.STYLES.length - 1, style | 0));
+        this.mood = Math.max(0, Math.min(C.MOODS.length - 1, mood | 0));
+        $('styleSelect').value = this.style;
+        $('moodSelect').value = this.mood;
+        $('presetHint').textContent = C.STYLES[this.style].hint + '  •  ' + C.MOODS[this.mood].hint;
+    };
+
+    P.applyMode = function (mode) {
+        this.mode = mode === 'advanced' ? 'advanced' : 'beginner';
+        document.body.classList.toggle('advanced', this.mode === 'advanced');
+        document.body.classList.toggle('beginner', this.mode !== 'advanced');
+        $('modeBeginner').classList.toggle('active', this.mode !== 'advanced');
+        $('modeAdvanced').classList.toggle('active', this.mode === 'advanced');
+        try { localStorage.setItem(MODE_KEY, this.mode); } catch (e) { /* storage may be blocked */ }
+    };
 
     // ------------------------------------------------------------ generator panel
     P.setupGeneratorPanel = function () {
@@ -777,6 +818,8 @@
             on(checkId, 'change', apply);
         };
         lockField('key', 'keySelect', 'lockKey');
+        on('lockKey', 'change', function () { $('quickKey').value = self.locks.key ? self.fixed.key + 1 : 0; });
+        on('keySelect', 'change', function () { $('quickKey').value = self.locks.key ? self.fixed.key + 1 : 0; });
         lockField('scale', 'scaleSelect', 'lockScale');
         lockField('progression', 'progressionSelect', 'lockProgression');
         on('lockBpm', 'change', function (e) {

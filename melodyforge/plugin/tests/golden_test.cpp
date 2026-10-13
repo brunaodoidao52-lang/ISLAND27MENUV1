@@ -1,7 +1,9 @@
 // Replays tests/golden/golden.txt (written by the JS core) against the C++ port.
 // Every note, chord, fitness value, MIDI byte and evolved genome must match exactly.
 // Usage: mf_golden_test <path-to-golden.txt>
+#include <juce_core/juce_core.h>
 #include "../Source/MelodyCore.h"
+#include "../Source/Presets.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -50,6 +52,12 @@ static Settings readSettings (std::ifstream& in)
         rs >> gene >> lo >> hi;
         s.geneRanges[(size_t) gene] = { true, lo, hi };
     }
+    auto ps = lineStream (in, "POOLS");
+    int ns, np;
+    ps >> ns;
+    for (int i = 0; i < ns; ++i) { int v; ps >> v; s.scalePool.push_back (v); }
+    ps >> np;
+    for (int i = 0; i < np; ++i) { int v; ps >> v; s.progressionPool.push_back (v); }
     return s;
 }
 
@@ -85,7 +93,7 @@ int main (int argc, char** argv)
     std::ifstream in (argv[1]);
     if (! in) { std::cerr << "cannot open " << argv[1] << "\n"; return 2; }
     std::string line;
-    int renderCases = 0, evolveRuns = 0;
+    int renderCases = 0, evolveRuns = 0, presetCount = 0;
     while (std::getline (in, line))
     {
         if (line.rfind ("CASE", 0) == 0)
@@ -134,6 +142,29 @@ int main (int argc, char** argv)
             std::getline (in, line);   // END
             ++renderCases;
         }
+        else if (line.rfind ("PRESET", 0) == 0)
+        {
+            std::istringstream ids (line.substr (7));
+            int si, mi;
+            ids >> si >> mi;
+            Settings expected = normalize (readSettings (in));
+            Settings got;
+            mfplug::presets::apply (got, si, mi);
+            bool same = got.bpmLo == expected.bpmLo && got.bpmHi == expected.bpmHi && got.chordRhythm == expected.chordRhythm
+                     && got.targets.density == expected.targets.density && got.targets.stepwise == expected.targets.stepwise
+                     && got.targets.span == expected.targets.span && got.targets.syncopation == expected.targets.syncopation
+                     && got.targets.repetition == expected.targets.repetition
+                     && got.scalePool == expected.scalePool && got.progressionPool == expected.progressionPool;
+            for (int k = 0; k < NUM_GENES; ++k)
+            {
+                const auto& a = got.geneRanges[(size_t) k];
+                const auto& b = expected.geneRanges[(size_t) k];
+                same = same && a.set == b.set && (! a.set || (a.lo == b.lo && a.hi == b.hi));
+            }
+            check (same, "preset " + std::to_string (si) + "/" + std::to_string (mi));
+            std::getline (in, line);   // END
+            ++presetCount;
+        }
         else if (line.rfind ("EVOLVE", 0) == 0)
         {
             std::string id = line.substr (7);
@@ -165,7 +196,7 @@ int main (int argc, char** argv)
             ++evolveRuns;
         }
     }
-    std::cout << renderCases << " render cases, " << evolveRuns << " evolution runs, "
+    std::cout << renderCases << " render cases, " << evolveRuns << " evolution runs, " << presetCount << " presets, "
               << checks << " checks, " << failures << " failures\n";
     return failures == 0 && renderCases > 0 ? 0 : 1;
 }

@@ -14,6 +14,8 @@ set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 if(MELODYFORGE_BUILD_TESTS)
     enable_testing()
     add_executable(mf_golden_test tests/golden_test.cpp)
+    # Presets.h uses juce::jlimit only; a tiny shim keeps this test free of JUCE
+    target_include_directories(mf_golden_test PRIVATE tests/shim)
     add_test(NAME mf_golden_test COMMAND mf_golden_test ${CMAKE_CURRENT_SOURCE_DIR}/../tests/golden/golden.txt)
 endif()
 

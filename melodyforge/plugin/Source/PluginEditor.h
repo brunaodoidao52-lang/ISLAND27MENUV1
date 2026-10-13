@@ -76,8 +76,8 @@ private:
     PatternView view;
     juce::OwnedArray<juce::ComboBox> chordBoxes;
     juce::TextButton prevBtn { "<" }, nextBtn { ">" }, playBtn { "Play" };
-    juce::Label candidateLabel, statusLabel, fitnessLabel;
-    juce::TextButton newBtn { "New ideas" }, evolveBtn { "Evolve" }, likeBtn { "Like" }, skipBtn { "Skip" };
+    juce::Label candidateLabel, statusLabel, fitnessLabel, hintLabel;
+    juce::TextButton newBtn { "Generate ideas" }, evolveBtn { "Evolve" }, likeBtn { "Like" }, skipBtn { "Skip" };
 
     // layers
     std::array<juce::TextButton, mf::NUM_TRACKS> layerToggle;

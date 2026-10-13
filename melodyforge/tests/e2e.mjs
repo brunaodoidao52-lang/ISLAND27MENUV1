@@ -30,6 +30,22 @@ check(await page.evaluate(() => typeof melodyForge === 'object' && melodyForge.p
       'app initialises (global defined, 20 candidates)');
 check(errors.length === 0, 'no console errors on load', errors.join(' | '));
 
+// ---------------------------------------------------------------- phase 4: modes
+check(await page.evaluate(() => document.body.classList.contains('beginner')), 'first visit opens in Beginner mode');
+const hiddenInBeginner = await page.evaluate(() => ['startBtn', 'generatorPanel', 'diversityScore', 'transposeUp', 'chordRow', 'mutationRate']
+    .every(id => document.getElementById(id).offsetParent === null));
+const visibleInBeginner = await page.evaluate(() => ['generateBtn', 'styleSelect', 'moodSelect', 'quickKey', 'playButton', 'likeButton',
+    'skipButton', 'exportMidiBtn', 'pianoRoll', 'melodicComplexity'].every(id => document.getElementById(id).offsetParent !== null));
+check(hiddenInBeginner, 'Beginner mode hides the advanced controls');
+check(visibleInBeginner, 'Beginner mode keeps style, mood, generate, play, like/skip, editor and export');
+await page.click('#modeAdvanced');
+check(await page.evaluate(() => document.getElementById('startBtn').offsetParent !== null), 'Advanced mode shows every control');
+await page.reload();
+await page.waitForTimeout(400);
+check(await page.evaluate(() => document.body.classList.contains('advanced')), 'chosen mode is remembered after reload');
+await page.mouse.click(5, 5);
+await page.waitForTimeout(400);
+
 // audio unlock + playback
 await page.mouse.click(5, 5);
 await page.waitForTimeout(600);
@@ -116,9 +132,9 @@ const slider = await page.evaluate(() => {
 });
 check(Math.abs(slider - 1 / 9) < 1e-9, 'complexity slider is not cumulative', String(slider));
 
-// environment
-await page.selectOption('#environmentSelect', 'dance');
-check(await page.evaluate(() => melodyForge.settings().chordRhythm === 'stabs'), 'environment changes the generator settings');
+// style preset changes the generator
+await page.selectOption('#styleSelect', '5');   // Funk BR
+check(await page.evaluate(() => melodyForge.settings().chordRhythm === 'stabs'), 'style preset changes the generator settings');
 
 // harmony shown is diatonic
 const chords = await page.evaluate(() => {
@@ -180,8 +196,8 @@ await page.locator('.delete-btn').first().click();
 check(await page.locator('.saved-genome-item').count() === 0, 'delete removes the saved idea');
 
 await page.click('#randomizeBtn');
-check(await page.evaluate(() => Object.keys({ ambient: 1, dance: 1, jazz: 1, classical: 1, lofi: 1, electronic: 1, experimental: 1 })
-      .includes(document.getElementById('environmentSelect').value)), 'Randomize picks a valid environment');
+check(await page.evaluate(() => melodyForge.style >= 1 && melodyForge.style < MFCore.STYLES.length && melodyForge.mood < MFCore.MOODS.length),
+      'Randomize picks a valid style and mood');
 
 
 // ---------------------------------------------------------------- phase 2: seeds, limits, editor
@@ -292,6 +308,42 @@ await page.selectOption('#scaleSelect', '1');
 const locked = await page.evaluate(() => { for (let i = 0; i < 5; i++) melodyForge.evolveOnce();
     return melodyForge.population.every(x => x.genome.key === 7 && x.genome.scale === 1) && melodyForge.genome.key === 7; });
 check(locked, 'locked key and scale hold across generations');
+
+
+// ---------------------------------------------------------------- phase 4: presets
+const presetRun = async (style, mood) => {
+    await page.selectOption('#styleSelect', String(style));
+    await page.selectOption('#moodSelect', String(mood));
+    return page.evaluate(() => melodyForge.population.map(x => ({ bpm: x.genome.bpm, scale: x.genome.scale, prog: x.genome.progression })));
+};
+await page.selectOption('#quickKey', '0');
+await page.evaluate(() => { const l = document.getElementById('lockScale'); if (l.checked) { l.checked = false; l.dispatchEvent(new Event('change')); } });   // locks win over moods
+const trapSad = await presetRun(1, 2);
+check(trapSad.every(x => [1, 2, 4].includes(x.scale)), 'Sad mood: every candidate uses a minor-family scale', trapSad.map(x => x.scale).join(','));
+check(trapSad.every(x => [2, 5, 6].includes(x.prog)), 'Sad mood: progressions come from the mood list');
+check(trapSad.every(x => x.bpm >= 130 && x.bpm <= 160), 'Trap style: tempos between 130 and 160 BPM', trapSad.map(x => x.bpm).join(','));
+const evolvedPreset = await page.evaluate(() => { for (let i = 0; i < 8; i++) melodyForge.evolveOnce();
+    return melodyForge.population.every(x => [1, 2, 4].includes(x.genome.scale) && [2, 5, 6].includes(x.genome.progression)); });
+check(evolvedPreset, 'evolution stays inside the mood scales and progressions');
+const lofiHappy = await presetRun(2, 1);
+check(lofiHappy.every(x => [0, 3, 5].includes(x.scale) && x.bpm >= 70 && x.bpm <= 90), 'Lo-fi + Happy: major scales at 70-90 BPM');
+check(await page.evaluate(() => document.getElementById('presetHint').textContent.includes('70-90 BPM')), 'preset hint explains the style');
+await page.selectOption('#quickKey', '10');   // A
+check(await page.evaluate(() => melodyForge.population.every(x => x.genome.key === 9) && melodyForge.genome.key === 9),
+      'Quick start key locks every candidate to A');
+await page.selectOption('#quickKey', '0');
+const seedBefore = await page.evaluate(() => melodyForge.seed);
+await page.click('#generateBtn');
+check(await page.evaluate(s => melodyForge.seed !== s && melodyForge.generation === 0, seedBefore), 'Generate ideas creates a fresh population');
+const sharedPreset = await page.evaluate(() => { melodyForge.setPreset(4, 3); return melodyForge.style * 10 + melodyForge.mood; });
+await page.click('#shareButton');
+await page.waitForTimeout(300);
+const presetLink = await page.evaluate(() => navigator.clipboard.readText());
+const page3 = await context.newPage();
+await page3.goto(presetLink);
+await page3.waitForTimeout(500);
+check(await page3.evaluate(() => melodyForge.style * 10 + melodyForge.mood) === sharedPreset, 'shared link keeps the style and mood');
+await page3.close();
 
 check(errors.length === 0, 'no console errors during the whole session', errors.join(' | '));
 console.log(`\n${failures === 0 ? 'ALL PASSED' : failures + ' FAILURE(S)'} — files in ${outDir}`);

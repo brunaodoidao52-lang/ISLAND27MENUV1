@@ -7,3 +7,4 @@ build-win-deps/
 CMakeUserPresets.json
 dist/windows/
 node_modules/
+**/dist/windows/

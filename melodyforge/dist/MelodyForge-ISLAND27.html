@@ -721,6 +721,27 @@
         .seed-row input { flex: 1; min-width: 0; }
         .seed-row button { flex: none; padding: 8px 12px; }
 
+
+        /* ---------- Phase 4: quick start, presets and beginner/advanced modes ---------- */
+        header { position: relative; }
+        .mode-toggle { position: absolute; top: 0; right: 0; display: flex; gap: 6px; }
+        .mode-toggle button { flex: none; padding: 8px 16px; font-size: 0.85em; border-radius: 999px;
+            background: transparent; color: #F2F4F8; border: 1px solid rgba(255, 255, 255, 0.16); }
+        .mode-toggle button.active { background: linear-gradient(45deg, #2AA9E0, #4dc0f0); color: #04141c; border-color: transparent; }
+        .quick-start { margin-bottom: 25px; display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)) auto; gap: 14px; align-items: end; }
+        .quick-start h2 { grid-column: 1 / -1; margin: 0; }
+        .quick-start .field select { font-size: 1em; padding: 10px 12px; }
+        .generate-button { flex: none; padding: 14px 28px; font-size: 1.05em; border-radius: 999px;
+            background: linear-gradient(45deg, #2AA9E0, #4dc0f0); color: #04141c; box-shadow: 0 0 24px rgba(42, 169, 224, 0.35); }
+        .preset-hint { grid-column: 1 / -1; font-size: 0.85em; color: #9AA1AE; margin: 0; }
+        .steps { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; font-size: 0.85em; color: #C7CCD6; }
+        .steps li::before { content: counter(step); counter-increment: step; display: inline-flex; align-items: center; justify-content: center;
+            width: 20px; height: 20px; margin-right: 6px; border-radius: 50%; background: rgba(42, 169, 224, 0.18); color: #7FE3FF; font-size: 0.8em; }
+        .steps { counter-reset: step; }
+        .beginner .adv-only { display: none !important; }
+        .advanced .steps { display: none; }
+        @media (max-width: 768px) { .quick-start { grid-template-columns: 1fr; } .mode-toggle { position: static; justify-content: center; margin-bottom: 12px; } }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -730,12 +751,16 @@
 <body>
     <div class="container">
         <header>
+            <div class="mode-toggle" role="group" aria-label="Interface mode">
+                <button id="modeBeginner" title="Simple controls: style, mood, generate, like/skip and export">Beginner</button>
+                <button id="modeAdvanced" title="All controls: evolution, generator limits, seeds and editing tools">Advanced</button>
+            </div>
             <div class="logo">
                 <img class="logo-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAzQ0lEQVR42u2dd5hdVbn/P2utvffpUzOTmXRS6QmEAKEHJIB0RQyoqKAgXAuKWLnqVUAQL4hXVJogHQm9V+lFIARCSyEhvcxMZub03db6/bHPJMEfJZCO+/s850melDO7fNf7ft+y3iWSqawhRoxNBBk/ghgxAWPEBIwRIyZgjJiAMWLEBIwREzBGjJiAMWICxogREzBGTMAYMWICxogJGCNGTMAYMQFjxIgJGCMmYIwYMQFjxASMESMmYIyYgDFixASMERMwRoyYgDFiAsaI8WGw4kfwnwshJQiBEAIDYMAYDcZEn5iAMTYI8ZQCYwirFcLQxwCi9pHCQkiJcJyYgDHWN/MEQinCQi8Bkvqtt6Zp+7EkR43Bl1CeOZP87LcICgX04iUgZUzAGOtL7UtEGBCUC2Qm7stup57G2MkHQUM92oaCBB94d8EyXvnTpVQuPBcSiQ3uimMC/qeQz3Pxk2kG/vp3TP7GyYzK2HjFkEqPCyIk7+V59fprmH3l33AXLUImEpiNoANFPJ7t0+VeAQgCUNaqgEJgCKXFkOunsucRB7Bjh4tAUkGSsQVdDZIrJx/CkocfIOEkEWrj2aXYAm75zEMoiQkCwnIBDUgrAZUi0kkik2mq+ZVsd+FfOeCIAxi5pACZLCVfY9mCeYvn89j/3ciKf71IOpXFSIXRYUzAGGvpWrUmLPZiGlupP+SzZEaPwZo4iZ4nHqF00w24S+cz6MgvcOS3v8k+PS6iIc00F/zQUDCG+++4n9Kc2WSyGaodJYQQG3f5xC54C7V7UmF8lzDQNJ50MsNO/RZDt92OYQ6UivBOAha+9Q7vnHE6Xznrlxy85y4McT3elTav5kP8QNPtOPQ0wcxrrmL2GT/EVKsg1UbLAcYE3GLJJ9FeFdncjxGXX8eIgyfR5MFurs9ejqDHCB4rh0xLO5QrcIytaVKCZSEs8KDUICj2Vln0+jTe+sufWX7L9diJdEQ+TGRZa5ZQUMtLbyC3HLvgLcHNChERgVrVQgeIuiZG3XgbI/fbjezSCo5tI5MW3RJSQrB7RuKWA1JKMEBAh4YVnqYiQqZd/GfevPY6Ku/MQpeLOHWN76l+mGqFMAjQgMGgpMJKpUFIDAYThjEBP/URrZRgDKZSwdc+Yc0aSQQBhoO+ewYH77cbSxbkCdJZbAGzKobXfEhIzRAHUlIyWIBLRD47ZbHwxem8MO1Vkv36oWa+gdXUQlgogF+tEQ6sEduRGTSApDCklKSnu8DKV14EE2ABTqYOAxitYwJ+2ognlUJXqwR+FSMU1pht6Td8BFlLYKSN8D3KK3vRzUPIFEMG2A5lAR6CUIKyQGuYUzHU2ZCxBF2+oYqkWvCQ2+5A/0v+Qs+Bkwg8F72yC6e1DXvH8dRNmULdkCE0DB/DkNYGhhrDUAWLygGvTX+VjmeeYsG9d7H0pRdwLImVTKHX0RrGGnAz0nUmDPCqZZxBQ2n74pcZcuB+tG87ln0Ht+CE0BOCNOAFsLLXxxJ97tkwNCFwDSz1I0+qBGSFoEkaurWh1wCBz7zGJPee+HUKN19Nv0kHMnDK8TTusTtdW21Nkw1tQLIKaU/TZAzNEqpK4aXAUeC6htcfvI+HfnQmxXfeJpGtWycSxhZwcyCfUoTVCiaZYscf/zc7nvItWoYOoL+G4S6kuj1e8yWBARX1rdDkWIQIPG2ohOBrw+iEIIWgy9fkA1gJuCpywUEYEjYneeGiCzFvvcbe9z5E2177IRI2xoVE3sUPNKGtUI6FYwmMEXQa8P2QSjnEVoKcNOx+9KGM2nVn/n7cCSx7+lGcbD0mDGILuCWTT9XVc8hNN7LXgQfQ1O2BF4Jl4UnJciOoIBDGIPwQKQQmNMjQRHrRVlQNhDoKGtqExhGCV11BzhGoKIKhasM78+bSMnwAibo0frdPoMEoSSKn8B0IPUiVQ1o02EJQCcBNSkQW0t0aFQTYvktrvyyLF8zlj5MPxF++DGnZn0gTKst2fhXTYJP5XfA8RC7Drnffw5H77cOuFU1LxsLK2RS1pMMTuEIQegECicxaaCVxcopUvSKRVAQVsEX0db4QlIygaARFQMkonRIiEEbQPKAZE9iEJZ+UJUkIg5VRzLv3QWZf+hdKFZ/EqFE0pRTG9emps3j82n8w767baN53D1rrHFqSCcKyz6BBLZQsh7fuvRvHSUalv9gCbllBhw5c2m+/i6332YtRr7yOeuMN5s+YRvfS5TQe8nn2OO6LlLtdyv2SdLlV3nj2BYb3a6TzqadY9s/7aRk1hl1+dDbKJNFGo6XECAhM1N0SaoMlBAgIMZE7VhDWSRBQWbmSnvYmZl58GYtOPwVlJWmY9Bl2Of98wkFDyefSFMoV5vz0TFKvzqB9913Z+pDDGTtmBKOHDWJRT4nfbD2aoLMT8Qm6Z2ICbsL8nimXSEzaH7XvPvg33Uh55hy01kCAnLgn+9x4Mzv2609HqHnnyYeZ9bvz6XnqKZSyadplAkMOO5LmAUMYftDRONhR90rN3UohMAJCAUIIJIKwlsOTzRZPXHo5c6fegl7ZQZBIofwq8t13QNkE+V5MJosasz2kMzht/TCWwL3tNgK3jEaSGboVQ8buxFYnfY3Xnn+OZb89Fztb97FzhDEBNzUsiS7kQVioVAqpFCYMkGecSWLubMy8+YRJh+IzzxK6FXKtA5nwx4sZdfhRKEdhfKh2a2xjCASEBoyMLGCDEihPY9lqlcfXxmCSko65b7LgrddYXtB0P/M0heceJ5wzE4FGIpGJJCbwodYxDSDSOaRSoDWh6+IGLiKRIrXNtuiZM+MgZIuFUghjIgtmTFRxcKuY0ENYCcLAxUpmGHPiSex46vdoGzMcr9PD1QItBEoKXA1pIIlhajUk4Qi2thUD0opEJUBqSVizikYIkklwHCiE0JGABctLuDNeo+fl5+l8/GHKL7yAyK9EZhswthW1eAXBe9JGQkoIQ8JKBZFMxgT81HlpJ0FQzOP0a+HAv1zGyMMPpTcPlu+TSNnowKA9jW0rhIEdlWaxMlxXMShCBvZPULj4T6QahrLzsYdT6goQtsRICWicQOMJyGtNaNuQFmCDByx66V+8fdEfKd8xFRW4mGQapAXvF2hIGWW/YwJuHoEFQnziF7LqayyLoFCgYacJ7HLlFbRvvR3e8ioH1CmchMVLXhThWimodHfRUxVUm5pY7AdYXoBoS9L992uYe9avOPTeh2lsHRZdkq3QxiCAtARPa3oQ+CbEEYKUMSSMoZRzmO7AO8+/SHnqzVjXXgPFPNiJ9yfhJzX+cRpmfZosBToArwq284nbmoSUhG6FZP8BTLznARJDRlLpquDmUrQ5UPE1M0PNwmXL6XztRe4/7lh6xo4lve0IrLyHyFrkn3+O1756Ejtfcgn99p5IvtunGFTw/QAcG60NFgInLaPfN1nYSBwhydoWbZUQSppg0GDU4ZOpjh2Hvu8+ZOBHYpL1Y7fijenrw+JJK/q11AvJLAzdHsp5opD0Y38hxhh0GDLm4kuwBw1Cr3TRyQSe1tyX95kaSt5cOJvHPrsv9x08GbH9eIZPPoDkwjxJJajkC8yY8kWUV6FU8Sj0BLgDHd6+9xZeveQCvAZB2Q/ploa3XplGKSjw6tXXU8x3krAESaPJOpL+lmJoyWfbuT2MOORA7GO/hF8uINT6o01civuklq7PzYY+eEWwk7D7UbD3F9H9hqGevR5z76XgpD6WyxJKERR7afvSSaQOOYyeJSWsdAJLSbTr44VAk6Tzl5cTzp+Dlamn9TunU61IwhD8EGQuSSKVoLSsyOIr/kr/zx1JaFusuHMqmeGjqAqD5Xm4bRme+f15pJqy9DzzPJmWRoZNPhhKHuVkAiUMjZbEz2XJrgyo/87pvDl3NoXHHkFZVkzATZe/K4DR0ead+hbMtjuidz0cM3g7VLmImPMGpnErkOJjuyoTBqhsHQ2nnEq+ZEAp7KSF1Z3H619HfkWewonfIz/1BoSQJHediBy7PcW8B8pBWoqlZ/8Gf8VyhFC0f/1EqlkHf+5iep97msyYbdFCYAuN8WH4j37G6/vtBmFIb2cHQVLilV1wEhQkBEqRCKMS4OimQQy4726e/PIJdN14LVa2fp17A2MN+AmSx8643RF7HInZ9Rj0hCMJx+yBkTb0dGGWvgsLZ2ICgehZjCh2RT1Sa2n9dLlIds+94Ns/oFz1MYOSdJ3xXRZ5PoWVy1j5xSMpPfEIwk4gpGLgH/5EcqvhBCWXoC1NacZ05p92MsbzSA4fxdCf/gKZybF86j/ovONWckcfxcp5ixBJg+4/ADm4P73TX8Od+QbGTuDsvDuyfytuAh4487usmD2DYZP2IiiFhFqTEwrZ3sa711+DktY6a8FYA659ZABuFdG+FeaUP8E+X0UPHUtop6GQxzS2QL8W5Ix/Iso9sHIhJtf/Y8nAqJBhSH1hCiZhE2RCVpz6Lbou/T+8G6+ieNwXMO/Oxapvwrguqn9/nJ0mEOZdCl6RnqeepnD7zZjAQ+gANXEfSq3tFHrydN59D5YQ5B9/nOU3X0d3XRavGrW5pg47FIli5W1TeWS/vXjh1hvpSArcRfPo+udjVK0ogS1tC6u3yvCxY6nbdSJBtYiQKnbBGw0mxBz3EyplUMsWYrKNqPp+yP4D0RkQt18FQRXjlhBeKSKtk4kiYyE+OioWkUXo3nZrtCljnXQC3h23IesaEY89BMkkJlOH8f2aBNWU8r04QwfR+/Rj5L/yBWQyhXQSSCuFOvLzLMpIEm/NofLPh1GZOqoP3Y/cZjtMUz9UoYzrOST32R/R1o7s6cZ0dfDG147HXzgPsvX4haUUPMgqRb2EpA6py2YYPPlAXn/2SWwp1ikrE1vAtQ06KgXYcW/MNnsgK72EjS2YujpEaSk88BfUz45EPHIDSIHJtWASOczAbdHZ5kgzhmFEwg9DGGKcJOWuDvwvfhHvjtsQuQbwfUwmEyWQda05XxuMVPQMGkD3O3Mo/vyHoMNoz4ZbwTlgMs7hkxE2uP96Dl0tg2UjhSTYcz+625vJJ5NUAx9r0CDsPfZCV0sIJ4mTzjL3f35N1113YUJD1UBah+SCAMdWOCEM22N3sJx1znfGBFxb36hswqN/gPJCrNBFDB6GfPY6xPnHw+PXYdwyZOoQ776McGxE+9ZQ34bc78vYu+8D9c0QBh+cmhEiIlr/NuwLL8S+756IfIEf/b3Wqy2oFKAD9LidYem7lA47CP3OLEQihdAaaQzZgw9H5T3snhLurVNX5+6MRgwZQM+lV7P82X/iZVIktCQx+eBon4fRYAQqmUQZqLwyjSWP3Q8DHLI5h4QlUECirh6VyqCD4KMXVkzAdQrToJxH7/sFwhET0NUyYetQjBUin7kjqgxkGqJylAECFzXtTkQigRo0gkEnf5vULQ8jjj8R3Ap8UPrCGHAcRGcn8rnnMZm6Wu1VvD9ZhUFtuzXu2ecQzJ+LqGsADLpSRm27A8HhhxPWObivz8D714vIVAaqVXQmhzNoKP4f/xcnadEQQqISIvaYiGgdCG4VBJgwxCiF8Dxmn3QSD190MQ/deC1hWhJIgxdqTKjXeSN7rAE/KskceJBtJNz/K1hL5oJbRg8fibrvElg8D7IN0b/p64Oyk1BYjn7hFpovuo3W5iw9KxyEER8dL/ZZuFTqw11bGEIijbnyckyxhEjnwPNAWYjQR5/wTbqfegmr3sE89GBE/GxEaJGrw9x4E8ILCcbviyp7pGyJam3HNDYiulasruJojXAcTE8PC39wOvOATFMdO3zuSKqlIkbXqiLrsJE9toAfZf2qZfShJxE2D8Dr7cJt6o90V6DuugwSqdWarA86xDhpxOI3MMvephgahNCQqKuRbC0000fpKmNAKOjNrw5upMRUy6jRO9Dwla/QtNv2UPHQV14OyVTUr68UlIqED9+DbmvHsyUaga2jvcRCGtDvJz8snPomHMvhmbPOYkalyuJyBeFWo++MNeCGIJ+CUi9i9Dj8E35Cpr2dz+w1gX0O3Y6G524gXLYI4bxPB7CU6EqJ9L5HUx04nvnzuihVIWgZgVB2jVzrY/6Kidz5Kl0oMYFH5pTTSCVTyJZ21Nw3oNgVWbQ++2tZkVz47KEkswKNIABy6RT2wIEY8z6azhi056FSGUpvvc4zf72chdNeRhqNWUcXHBPwAxLO+C7UtWJ+czUmVceYfklO37uNYSsX0Xv1X5BOKnKF75MvFDqEg7+KM2gAqlgkXNyNWTQXE/o1i7GeGpD6yKcUptBLYr8Dsb/7LSoaVPcK9GVXRHXqNS2q1hghSQ4YTF1oaEtIxjiGxoRCNjZH1/YBpDJhgKVsylf+jeojjyGFAr1u9xJrwPfTfQBuFf/cP5DZcSzWMpc3jcXXZvt4Z3wb3bMSlc29fxkqDJCpOsr9Whke+hTLeQoFDcVqNFbDbIDpU2GIzGYxp32bytNPocbvQumRpwnnvI3IZCP327c4PI+wpZ1+Bx5Af08wWAp2TCk6fA+9ZElkkz5I0xmDcRLIuXMi4iX7JEhMwPWa8xPFXvzv/4IJJx7LNst6ucNyqKgUPef8APXY3ahMQy2l8j5uu5jH7L4f4e67MDJleDOTwn/tHezR+2DGTIA50yCRWecXtwq2hc73UHf6j8nstRvlE/+LSlIRzJ4VtTyb9ya6deDhbDWU0k030Dt+Iu7Y8RR8j4LUBPluxNoGFUqulylasQt+z3K0odgDh00h+NH/YFaWmFWXoqcugfrTT7BvuQiRrY8qGx8gyxASHVRxqst5u+yxaPlKhJtH93QQHvyNKGoUrG5c7XP5n2QguFKYconkkFEM+MH3cXIt1N8/FcaPw7wxvRYk6fdYMGEn0O/Oo/ucs1lgG2a6AfcbwRsLFqE7uhC2tXbEMnE/4PrXfZUSYvS2mLPOhp4y/9I2L/RUsb7/OeT152Oy9R8eoeoQEknkrJlw1J4s++1PMXUNCMeCRJJwp0mYvY5EFHsRlh1x0LagWsFUyh+bhAIItWDQ2ecwsF9/0vkSxUKF8OFHEZbz/2tUEwUueulSRDoNbcNYVi7zRtIm/8QziGWLMYnkRp0PGLvgPt2nNUiF+t1VWEOHQ2eFlC4SnPh5vBeegFzDezblfOh3+R566WLEbVeiRu1BuP1ERFBF9+uP942fk95zArnPTkIGPmHSwby7iPJ/n0Uw521IpteuvGXbhPluUl8+Dfv4L8CibvSQRsp//ivhk48iM/Xv7+aNQaTSmO4uzNyZqDE7YYU+4qnH16tlW+tHH+8JWcMCuhUannqTVNMwuvtZBD/7Pv6lf0DUN4Pnfnx3Xs7D0G3QFzyCXa3gNbfit6ZRA8HWYEmirZQ5SM54G//Q/SHfE+UfP4wIykKXCiQn7MHQu+7GCWzyjk3nykVUJu0NXV1RnfaDco5CYFyXtltup3nfz9C9aB5LPzMJerprSWi98R57zLzImlDKw3a7YJr6QeDhJcAvdkVbDz9JwBD4kKqDeW+gXn8Qvf0wLNvDyS/BnrsAXQ0p+eCuLOO/00Nh1NbovfaPqhYfltyVEsIAlcuR+825UXeM61FKCUr//StYuhgSyQ8nkahNPPXL+E0OPVdege5YCsnkRiXff6YLFrLWqQzRYDNDmO8mMW4i8qbbqGTqyeQrZDQE4/aicv11n9wtGR3VU2/9M7q8Ah64G7ngddBg7/kZ1M9+S2XYMMj7EBpMv+baSFzzwe5dgPFckhf8ATV5L0pzyxTbGyjd9A/ELdfWSoPBR0b60oT0GE3+7TlUrvs7MvEBec3YAq4n96pUFDX6HqbYiyn2EhR7oVKm7pCjMNfeSiXbSlPFZXDGxljglfLrljTWIcJJYd6Yhjz/TMSMZ6BchSAkuO8fmGMPQLkrSGSTpEKN/sJxGOdD6sDKgmIe/eNzKJos/hk/Q9eH9M6bh3vWmQhnLSyYEFApw7ARFJtbKB5+aOT2LWej67//DAsoRKTf/EjDqcHDsfbek0QmjZ47n6bT/oviXofRY0ECSAubhdWAPMCS+dEKXZdyk4kStkZlo/UeeJhSL3LC7oh0IypfwN6qDVWs4u28PWbn8YiX/xVtZlrT9ds25Lvh88dhfvhDkoUyK/++FHX27zEz34QlCyLr91Fz+moBl2lqRl3wv6g5szBrG2DFBPwE5At8RGs7ateJyKOPgT0nIge3o31DwnVZKZOUEpCa9irh1dcx6ye/IAgVygM7WE8WQeuo2bRaRibTqO/8HOtnP8GWSSpGgmfwhcI0JBG7T4Tnn45yeFLW8oYCk+9GHvE5zCVX4ORd0JLgv08nOOYr2PdPhbom8L21u5ZkCvH6DITvYzL1m4x8n24C1tIhol8r6p5HMaOGU9FgqgFyeRErncCvS2IXqjiXXEpw6d+QF1wMmTR2dwmqBt6dt96uRdg2iRNOITj2WKpjd0P4GlWuIm0bo6Jpp6Y3hONORM6YgX7xOSiUwUTkkIcfjX/lNQg3ieVWkM0Z7DsegrumQqZu7cj3b/lAbHv9VWRiAv67XlJQduGE0ygPGw5LezGWhWjOIBqyhMuWIK69neCG6wnfnQt33Y21wwTspVWCZJLQGKw998c8/sC6Fdxr0+7Jd2N2m0h5z90wC1ciUhmC/mmEC6IQYggQ+RB35AjkTXfCu++i3noNec1VyFSa4LKr0RUH4bmU00mcSi/ijO9G0ewnkQgb8VDq/zwCymgHG0NGor/0JcTyMqFQCBOgrvozauYsuP9ewnlzojb0fQ7A7DIBe2GRMGkThhrRJDFjRq7bngcpoVoF20Zc8Af8yQdgigEMbgJXY13+Z2gdit77AIwlwFhQ9ggzNowbTbjzaJzDj0EXq/iehTAabQQqoTDfPwPmzoZsbpNEr3Ei+kOtn4yaAv54OfL4b8Cibqr96lBPP4A15bDa0ktAKh1FuYUe1Bk/w5xzDvbyEqY+RaVjIXL/AxDLFoGT+PhEFALCANPWH33e79ATJiB8Dcs6EY88gHx1OuKe26NU0MGHE5zzP4R17agR/ZEX/AFeeQWx3yT0PvtA/6HgKEyni04nSF5zOebMUzDZui2afJ9OAtY6UsSkgwluuwdrRYgIfNzhadR/fQ951Z+goSlqYdd6dVNAKU/4+4sQ3/4uVm8Jc9D+mOkvQbb+k71kKaFcxuy4A2bAQOSzz4BtgesjCj1RcidXH7n3cgnq66CpFTlxImL6NMI3XgNhQWszYpuxMOkzuCf+AGMJ7O98Azn1Ksg11gKILfcVfromI/S1p1sKedGfsZqGYFU9wpY04T1TsS48PyKd/jf9oyzwXERdI95xx2B+fTby1puiF/wJjx/AmMj1LluKmPV2TRZ40Z+n0uAkI2IbE1lYP4SVXZhXX0Z39yAyuShQqPow5y2MGxJOOQFTLhEe/FlEvoR64Yno/27kEy7jRPSHBh4FOGoK/g774S8pUmm00T85FefLx0Kl9P51VmEAgx46GDnrXaxLLoZU5pOTb00SOsloQxBidYktCN773VpHrS3JJOQaomHfQRD9uR210MuTTsXkZG2bpsC/6GL8n52NWLUhKnbBm9766RCy9QR3PkHYMBAcG/H6izhH7xmlKj4o8lMKSgXMoUdgsjnUTddtPvqqFlCJHXZCXHoNlQFDEW6AcBy0VyAxfjSUy+/dHxJbwE1k/apl9AknE4wcFQ2JrLex7rqhNsPvQzp4wxBSGcT99yL/cQMmvRlFllpDIol+5QXEQXuSXTiXRFOGrAmwvFLU4i+2XBvy6SCgkFCtwFYjCE48GauzgtWQQb4zC3nP7VFV4aMIVSuZkc5u9I6QD7PqwrLADxBDR+B3d6J+/gNy+a5ovNrIgYRf/tJ62R4ZE3Bd3ZTvor/zc+yWAST9AJVJoH79U+hYEvXmrY17qpXMNh9JoQkLPagxo0k8+Ci5G++F8TthlnSgchmyeYNzyqmY1gGRZtwCg5EtXwMqBZUSZvsJmJsfxq6EeIPqMHfchP3NL2My2U1ebvpEFt2tQnMzmTPPxD7wEPzhYxCWQKTA6wVZCbAqJcpt9QRTjkXcdQs0NNcCnC3nfj8llRCJPvk7kM2g3QK6YwXq3F9F51tsaUZBRmeEWFtvh7zsCthjZzARp6oVUEuq6ISN6GdRrdbjV33EyacgZ72NfPt1QESLTsh1j+JjC7gWrrdShiHDCR9+FeFqTFsacd5vkL//RS1R62+BNxaNw2DczoikgwKYNInyMVPQo4YiF3WSuvB/0XvvSfXgwzCuD8UC6v47UTfcgHzin0D44ZF/TMB1JZ+KOpsLPYiLL4fPfo3QD/D1SpzP7IZY2bHJmizXDwcNVMu1GodAoKG5HX3A/oT7HYh1xneQboXwF78h/PGPoBqCZWOMj3rgQeRllyIeexASCVYNTooJuJ70US3lgu/CYZ8n+NsNqMVFaGuC3/4U8cfztmDr92+LTKwRlFSr4FdB2ZCrixpty0XkMVOwf/krvK3HIDqrUJckcECccx7iVz+FD9ohFxPw47wIEaVHvGrU+zZsNOEPziQ4+ngoakQ6SWLJPDhsL0ypGP0f8ynrsxCidl+1aL22od0Ue1HNrTi/Ox/zla8RrqxghEQkNHr//dCvTY82Kmm9+b3azf6BQ6Tzij1QKkD7UMTpPyG8/zGCr30D49fOKatTmIt+g1lzvt2nDcZEgUVfE4WJohNR10hYLFA96evov/4Z1ZgiV3VJZlPI/fbF6OCDB2PGUfCHkK9GIjF2Z0z7QIJDjkEceBgMyhEWNSwqoGyJGFaHfPwxuP0fkMlt0hbzTQLPQyZSaLeCePxJsqechhUEmBDYYTxGa0S1HG2QCoPNanFuvgSUEoq96PMuwXzjqxjPBsfBqgTIZWUCx8EfkoOeAvLaq5Hn/rpG2s1XcG/IxWrCEJRCFookjMFtzBD0lEkefDD2L8+mcsVl+IsXYKVzazex/z9aA1o2FLoxx30N77KrYHkZYUnsXJKEFS2bYMFCvAfvRl1/PeLFZ6MGUyex+ZTRNtGiNaUSqSnHkz7/t4SDB2L1ejh1Dom5C6icdzZLr7kGoVR0ytNmoAk3MwJG0+iplqBtEMHDT6IzLRACMsR67WWs7i7Mm6+gr70KuXghRijIZFfNNP6Ph5ToUh576AjSvz2PzBePobESkNIGJ2fT+bfrmP3tbyEQm4Ul3LwIaFlRwNHYhHv7vVhjdkZ19RJkJPKbJyAfexDjVaLMhJ2oDUg0W16pbSM8R1OpQOCS/tJX2eqc83Da2qh29KAGNbD0x7+g43e/wco1YDaxXt58CChl1Jre0h899V6c8eOQi3sIBjYQnvw1xPV/j9rjDVECOtT/2e52LZ6nkJKg0EN66x1ov3kq1oAhVAONG1bo/My+mDmzEOksxt90Ta1ysyFfEMDgoYib78TZcRyJd/OEoxrwb7kFcf21Efn6rF0QxOT7KGiNCQKshn6U357B0tvvpJhLYvke9f2bGfSr/8ELfMJKOZpVqNQm6abZfAjollHfOR122QXr3U6CIXWYm+5Gnvr1aA+Fji3eJ1LVgY8UAv3GdAIHsCTNeY+hx3yeMZdcRnLQEPxiMZqTY/RG7yvcPDYlSQmei906kNQuB5JMpHFmvETpi4dGYlmpT2dieWPpLMtGz3yb+l12o26nbWgoh9SVXQbsuzuNX5yCPXYcWgvcOe8gygVwkpFF3AjprM3DAmqDQcBbr9KaCRhgewxsH0Ry4GBMGG7BW242BxNYO8RGh6z46lcoX/Y3fFPGb0lTKBtKTj0NU6Yw6rZbGPjQPzGTJmMwBMUe0Bq5gSsom8m2TIGQAh1qgoOOxGvph9e/kY5ZC1EvPbPZ1jG3JBIKZaFLZbruvJWOhx6lc+EKultbyQ9rw64aEvkqyRFDqRx1LN6k/WnK1FGeMZ1qMY+TSLKhOmo2EwKaKK3StRxv3K5U9tmZnZYXyB5zECtDiX7sAUQqE5NwHZ+xUBYqkSJYvJDSk49QuPkm3PkLsLYaQr+RA2kARFXTOHAI+x95CLvsM4mgq4tFM2diAg87kcSs53ew+WxMVyraXFNfz4BjjuLHBAxIO7ze0kblztuhr8MlxrotdBMdQKhSKYTrov/1LIVbplJ6/W2SuTpaRw1nrKMY2lWgbdhw9j9hClvtMJa3nnuO/IqlJFLpD57guuVGwQpcN+pbO/Aw8hXN36uGR4xEDW5HpjKYINyiJwBsdikaP4gWfa4BUS3Tcd3f+Nehh/DiQZPpfOhB6tpyKKC4ssj+Rx/On195hb2nHE+p0INc84yTLdsC1lrPQx/cMuFfLkd+/TjchQXebM4xf+lySscfB9OnIdKxC95QZERIVDKNVIrinFm8ccvNLFuwkDHjxjJiUCtub4X6VJLJRx9FwQt5/eknsZS1Xki4CQlYq/tWypDOYS67Go47Dnt+HjW4DvPCM6jPH4Wa/mI02kJ/yGnjMdYPEY1BJZNYymL+C8/x3A030Ng+iG133QnPCyl7IfscdhBhpoGX770Tx0muszvedARUdtRWn2skuONOgs8ehL00jxlch77tNuRxX0B2da4xIiMm38aKmI2BRCpDUK3yzC030bWik+0mT6bkGQpll7GT9mbxuwuY+/KLOIl1I6HcFDeIsqBcRDS1oO+5H73bRMTiXoL+dYQX/C/mq1+GIMCkMpttc6kQYtUHIRGWFU0xWI/6aFNKozDwkcoilczw0BVXUu5aSb+UgyUgKWG/44/DiHWnj9zYN4YdtVuZxibk7XeRGbsTdSt6SbXVI390JvLnP4zOT7PszWtfqxBIpVCWhVSKwPfxPZfAdTHVCkGhh7DQg3Gr0WYoKzoWYksmo6mV5qQUvPrcs9iOoM6xSBmoa24m1dAcddOswz1u3I5oy4n2dTT0I7ztTpK77Uyuq0ylJYv/vW8jL7tkddPBZlP3FQhLof2AcrlI1JwI9f3aSSQTaAye7VB39DH4lQqF++/GFErormVRGTGZivao9M0C3BLlYeDTbSVYoiReOSQrQ5LDRyFTGbzuDpxcPeEn7KjZeO1YlgWFHhg+ivCaW7B3GotcXEDZFcLvnYp/122IXAMEIZtLS71QChOG+JUi6Wwdo3cax04HfZb29lZG7rEPhYYGHqzCiziogTm0Bj9fgmUd6EcfoHLf3eiXXkR0d0TnfiQSWxwRhZQEnsuwiRM5+oLfM2r8eFR3kabmLPdedTXXnPFDwp5uEnX1hL6/ORJQ1MjXjTjqOIIL/khY30Qq8FHllVSP+Txi+nM18m0mLldGhfiwlEcmUrQcegT7fu8M9tx6DF5THV0GOjyY78EbQGetu91IUAasQKNyEq9ShXfmI2++jvBvV6A7lkWDL/uOUjV6tfvqI+Wa7kzKSGOuuST7Or83IomFkLjlInYqxYmXXsoRX/kSXr6MXZfmlZemceGXvkLXrDdJ5+rR4ce7tg1LQCFASUyhF3XCybgXXQI9LjKdQDlVzBFHIJ75J9TXZjZvDivestDlEhhB/cGH0nTqD3F23gNPRz2wEhdZqRDOmU7JC+l9aTpe11LYaxIiKbHGbIM1YjAYhaloQiUQ9QL91izMhX+AW/+B7o1OsxSJZCQ3BLX5hayelmo0plJaRTzB6mqsSGWjRbJROsGjn6osi9Dz8HTIceecy5Hf/jZuEJJMp1jQ0cE1PzuLV6+6jFRt09Paluw2HAH7Vm65SPq00wnOvZBSRwXVkELMfAXx0zMRTz0WDere1JZv1YZvQ1jqJbnVaNrOOZ/MoUdSzAs8A0F3J9UH7iZ4+DbM0mV4c97AhBoRuJHykTZIgWwfhBq3A2ry0difPZDUgAFUO8uUE2m0Bc5bM+GWa/Gm3ki4eD5SWdHL0n70qpUTHaFoOdjjd8Npb8FoTRAatJ1AdBfwnnwIAheRzq4+63gDBFzGmNo2zr7D4CUSKJcL7HLoYZx+9VXIVA6ExcK04ubz/pfXfnEWlhRRELkW17XhCFib2Zf58S+wf/Iz/GUV/PoE7tTrED/8DhQLG418opYa6ZuzEpmTmqsLw+gYLbcMdpLUIUeSO/sCrJbB5JYVSLTkWHr/zXT//hz8mTMQRK3uIpnCrEq5iFXu1Li1yQ0Y1OBhjDvvt4z4whQW+/DKUh9si2RaYC1agNe1lHLCIaj66OeeR6bTiPHjQRocR1I/fGtyuSQ+0JkHL4CcD5nZr9Fx3s8pP/NPZOBFbl2vm7YUQiCkxAhBWK3g+S4SsLP1CKlqUiD6fjuRoNzbw9jPTeHkv16BE3rMroR0tWSYdsutTP/m17Gotdh9xDVtGAIqiSkVkduMZchjL5PprdAlfbrP/SneVX+JTgW3nA2eZhG1lex7HoHvY2EQxiDMatcl7CSk0li774/4+imIPT9Dv5LP17KKCfWSK//6R2790fdwpLV6992H7cDrOw5WCEyphAZGHHoY7d/4Fh3j96RkpXBtiZcC14KgEo14CddIjNlWVBbPaEgHsFUAe4TwZgVeLkCQgp6eMiyehv/Tn6BffgbSuciKf9xnKgRCKbTn4bsVwJAdOJRRhx4GY3fG234HjGNjS8gZQwOGoY5FayqJkA4NLQOwhSAfaro9jxXtOZ4653zeOesn2Nn6aL/yxieggmIvyVPPYuR3f8GEfoLnr/o703/0DVL1TWjf3+AiWggZ7XnwKjQ0ttAwoI2eQBDYKXRTK/5WI5GtLagR42D01pj2IQhbcajy+d4QG/36DH794x/z5EMPolLRvD3zMV+ukAojDG4xj5JJ0oPbERMmEbYPQQsPPXobmLAzQesgwpY6hAepjsVky3mKz7yAWD6XjGMzWsCIMKBr4Ci6x42nM9vO4nQDVQGi2I28+NfIG67G5HswmVz0c41Zve2yb8GscVbyKg9QreL7VdKtbbSN35X+RxxO48GHMGHYQAYCrwQwU0MhGtZPE7AV0B9I1z5OLTmVBxYC04BXvvtD/P+7MCqjfggJN0wesKYZ9IIFFAqaGdWAQtFDSRnpnfdEfGL1hPv1mD4JfI/+9Q0ceOL3GT1lCktahvLCSoOvJIvDLJ2WQFhgVBS5Cgn9bcPn6ObuX17CHy6+GLeQJ5XJYbQBPr61NrV7SuUa0GFIddFimP+3VQEFKGhoQG2zI/bEnRCdZcyzT1Do7kB3dWMI6Qaeqn3AIpnLkh6zHU2//zM9Y3akN3TgrAvh6C+T+L/fIR64gzDwEEgMOvpZlhM19XpebQccgAYEsv8AhnzhWE447RTSI0bzr1CwPIBHXTjKLdG+eDGzl3bT9djDuMuXscxSzAYcCQkpcGwbCbhhQAC4WrMciZ4/P8p/foQO3DAWUEhwS4j20aijz0Q2tqEfvRz/+bsQqdxqsmkNgRfl/lLpVRpk1d99XCspIvFrCj2YTAM/fPwJ2GF77pljKJQNA/pJjA3zeqBz3tuYQgdIg/I0avrT1K2Yh/f886yc8ybJZBZlKcL1Oe62L9gRNS2qw8hlVqs1QoBRNlh2VA0SChEpqehILxMShhpTKSNTaYacfT5tp5yGuyxPMZGi25KYpx5BLXsXP50iqFSo3vcg4aw3ke/MRLUPQmw1PJIho8Zg77sPbXtNYtDwQbSWNI7WdGQsFiycz+LrbiB86GEKr75E6AfgVVZF5GaNz/vFzHZf1J7ObSINKCT4FcywCYghu2A31BE88EdMKR9FR30rQ1mI1gGIhnr0rLcJfQ/br0Y3l0xHNWMpV+W/hBBr3M8aOqzvpfoeVMvIoaPJnf8X6vfcn35dBbZrztHV08OM55+l+8FbKb+7AL1gFpS6EKGBIMQELiEgrAR2KoUOw/XaePmhpFzTNfYtvA/62X3BQuARVKts9+Wvcsq55zKkXxO3k+CRBAQSPA1+Gaquobp4ObwyDUYOR4weRkob7FSKhA3NGtoktChwFy/irauvYNHfriJYtABTa9MSfcdcrJGjFB/uAKNntxaLdwMRUEQngw8cix48DmECxMJXMVtPQA8cA/VNiJHDkbkMDG3Hq8+Rnf8yA6THzEefxHn9tWgvSHcXBlOzDatdilzFc7sWVAQIIGzohz7+u6S+9E3cljaOzcLv2uG+Bx7mlz//OUumvYTssyh2sjayTKzKw4m+08S3hL7DGhErxV6aR4xh0DajCHfcjd5RIyhLjR44HLHz7pSEwCkGbJ+zGGZM1HUuFdMdh+UBZGZPx5o5g+CZ5+i6/14qixZgWwlkKh3lIjfwwPMNQEAR9e6lmzCtIzEoqG9D9x+GaB+GaWzGZLKYUdsim7OIQQ30GwBH5mA7CZeVYVm3T2HuIry33yb57D0ki0X0O3OxRw4jLFcorywgjjgcs8POONKQv/1WCCz4/EkwfAwKMAk4aNHrtF97Mdddez3a93HSWXSfQDVrOBEDW+pELWlZ+JUyfuAjMVh97i9Th7Xrrkz69a85duRI9hCanFIYIekqljjj1jt59IYbUXNn43d3RIrUSSETiVpecuMswg1EQB9yrWCnoNiFsZyaOEhGE6wcB2EMRhqsrUYzZOI49thpV7afMJGV/XO8GcILXVGA0D8D0oAuQbEJip3QUwCVhUEChksY4URe7LYOWLIkj/PWE6hn76Ny91TCnk4S6SxKKPSntKlV1Ky3EWKVbBBhQFApkcs10H/o4FqyPFKTK7vzrFg4DxuBSCQRtlMLmvRGr1NvoER0TWCbsFYy0n1h4XutjREQevhAaKVItg2kYfLh+KO3oTh6FxoGpRloa6ourFzYhdudx830x2y7FTuNauIgDeNsaElAUKpy9lU38thll5N480UCHSCTGaRtE/6nDaxcw0WHQUCwKvKtxd5SYiUSNSegN2lzxAasBYs1ipf/Jl3Fvz0oIRBhQOh5tRQCiFwTJpFCKCAwkO9BGA3JFNawrWjcbx/CnfYnvbKTzMLX6Xz1dZY/8RC2lJDKRqJ5C26BWp/JePFv/Xqmz9ptDte3WY1nq2XlWVWDNNE5fMKAVLXwwUC1SqADwMIQEta0j52tj/gWj2v7ZIHjJlisa0fA2irqWzVizYTyhur4fb/v7bOmNfdCGCJkLY1hDDqMifexn3HfwHPfx/Qdjrgxg6i1MeGh71Mp5VdddFAqYIIgOlh5Q0WPfbmwNT+sLiuZIMAYgw41Oghi8n2iVFkAtoPxqqhddyX9X/+F9irR4t5IWQH5URfp+x6Nbf2ZeMTRGCHQgU/zLrsx8qILccaMQXtu7YJjbFHk81zU4CFkzvgpOgxw9tqDYMliRKhXdw1tchcsBDoMSWezNA8ayKLZszFhSGboMEglKL3xFtK24xe6JRIwDBF1OWRDI8HCBaj6enSh0Fci3nw0oBCCMAwJXBcnlYpIWa1Go7vS6Xhu3xbugk0YIhIJjO9vdP33saJgsUaSc9Xe13hUxpZPwj69vYmi4LWm/HsK85v5EaAxPkag936/35yi4BgxYgLGiAkYI0ZMwBgxAWPEiAkYIyZgjBgxAWPEBIwRIyZgjJiAMWLEBIwREzBGjJiAMWICxogREzBGTMAYMWICxogJGCNGTMAYMQFjxIgJGCMmYIwYMQFjxASM8Z+N/wf7UWGxnDZkEgAAAABJRU5ErkJggg==" alt="ISLAND27">
                 <div>
                     <h1>MelodyForge</h1>
                     <p class="tagline">Evolve Music Through AI</p>
-                    <span class="version-badge">Ultimate Edition v1.0</span>
+                    <span class="version-badge">ISLAND27 Edition v2.0</span>
                 </div>
             </div>
         </header>
@@ -743,6 +768,28 @@
         <div class="audio-warning" id="audioWarning">
             🔈 Click anywhere to enable audio and start forging melodies
         </div>
+
+
+        <section class="control-group quick-start" id="quickStart">
+            <h2>✨ Quick start</h2>
+            <label class="field">Style
+                <select id="styleSelect" title="Style preset: tempo range, rhythm and harmony"></select>
+            </label>
+            <label class="field">Mood
+                <select id="moodSelect" title="Mood preset: scales, progressions and melody shape"></select>
+            </label>
+            <label class="field">Key
+                <select id="quickKey" title="Fix the key or let MelodyForge choose"></select>
+            </label>
+            <button class="generate-button" id="generateBtn" title="Create a new set of ideas with this style and mood">Generate ideas</button>
+            <p class="preset-hint" id="presetHint"></p>
+            <ol class="steps">
+                <li>Pick a style and a mood</li>
+                <li>Generate ideas and press ▶ to listen</li>
+                <li>Like what you love, Skip the rest</li>
+                <li>Export MIDI and drop it into FL Studio</li>
+            </ol>
+        </section>
 
         <div class="visualizer-section">
             <div class="visualizer" id="visualizer">
@@ -786,26 +833,26 @@
                     <button data-track="chords">Chords</button>
                 </div>
                 <div class="editor-tools">
-                    <button class="mini" id="transposeDown" title="Transpose this layer down a semitone">−1</button>
-                    <button class="mini" id="transposeUp" title="Transpose this layer up a semitone">+1</button>
-                    <button class="mini" id="octaveDown" title="Move this layer down an octave">−8va</button>
-                    <button class="mini" id="octaveUp" title="Move this layer up an octave">+8va</button>
+                    <button class="mini adv-only" id="transposeDown" title="Transpose this layer down a semitone">−1</button>
+                    <button class="mini adv-only" id="transposeUp" title="Transpose this layer up a semitone">+1</button>
+                    <button class="mini adv-only" id="octaveDown" title="Move this layer down an octave">−8va</button>
+                    <button class="mini adv-only" id="octaveUp" title="Move this layer up an octave">+8va</button>
                     <button class="mini" id="rerollLayer" title="New variation of this layer, keeping the others">🎲 New variation</button>
                     <button class="mini" id="revertEdits" title="Discard your edits and go back to the generated idea">↺ Revert</button>
                 </div>
             </div>
-            <div class="chord-row" id="chordRow"></div>
+            <div class="chord-row adv-only" id="chordRow"></div>
             <canvas id="pianoRoll" width="1100" height="260" aria-label="Piano roll editor"></canvas>
-            <p class="editor-hint">Click an empty cell to add a 16th note (Shift+click for an 8th), click a note to remove it. Chords can be changed per bar above.</p>
+            <p class="editor-hint">Click an empty cell to add a 16th note (Shift+click for an 8th), click a note to remove it.<span class="adv-only"> Chords can be changed per bar above.</span></p>
             <div class="candidate-nav">
                 <button class="mini" id="prevCandidate" title="Previous candidate">◀</button>
                 <span id="candidateLabel">Candidate 1 / 20</span>
                 <button class="mini" id="nextCandidate" title="Next candidate">▶</button>
-                <span class="seed-info" id="seedInfo"></span>
+                <span class="seed-info adv-only" id="seedInfo"></span>
             </div>
         </section>
 
-        <section class="control-group generator-panel" id="generatorPanel">
+        <section class="control-group generator-panel adv-only" id="generatorPanel">
             <h2>⚙️ Generator</h2>
             <div class="generator-grid">
                 <label class="field">Session seed
@@ -839,23 +886,13 @@
         </section>
 
         <div class="evolution-controls">
-            <div class="control-group">
+            <div class="control-group adv-only">
                 <h2>🧬 Evolution Controls</h2>
                 <div class="button-group">
                     <button id="startBtn">Start</button>
                     <button id="pauseBtn" class="secondary">Pause</button>
                     <button id="resetBtn">Reset</button>
                 </div>
-                <label for="environmentSelect" class="sr-only">Musical Environment</label>
-                <select id="environmentSelect" title="Select Musical Environment">
-                    <option value="ambient">Ambient</option>
-                    <option value="dance">Dance</option>
-                    <option value="jazz">Jazz</option>
-                    <option value="classical">Classical</option>
-                    <option value="lofi">Lo-Fi Hip Hop</option>
-                    <option value="electronic">Electronic</option>
-                    <option value="experimental">Experimental</option>
-                </select>
                 <div class="evolution-progress" id="evolutionProgress"></div>
             </div>
 
@@ -868,14 +905,14 @@
                     </label>
                     <input type="range" id="melodicComplexity" min="1" max="10" value="5" title="Adjust melodic complexity from 1 to 10">
                 </div>
-                <div class="slider-control">
+                <div class="slider-control adv-only">
                     <label for="harmonicDensity">
                         Harmonic Density:
                         <span id="harmonicValue">5</span>
                     </label>
                     <input type="range" id="harmonicDensity" min="1" max="10" value="5" title="Adjust harmonic density from 1 to 10">
                 </div>
-                <div class="slider-control">
+                <div class="slider-control adv-only">
                     <label for="mutationRate">
                         Mutation Rate:
                         <span id="mutationValue">10%</span>
@@ -900,7 +937,7 @@
                     </label>
                     <input type="range" id="tempoControl" min="60" max="180" value="120" title="Adjust tempo from 60 to 180 BPM">
                 </div>
-                <div class="button-group button-group-spaced">
+                <div class="button-group button-group-spaced adv-only">
                     <button id="harmonyBtn" class="active button-small">Harmony</button>
                     <button id="rhythmBtn" class="button-small">Rhythm</button>
                     <button id="catchinessBtn" class="button-small">Catchy</button>
@@ -911,18 +948,18 @@
         <div class="rating-controls">
             <button id="likeButton">👍 Like</button>
             <button id="skipButton" class="secondary">👎 Skip</button>
-            <button id="evolveButton" class="evolve-button">⚡ Evolve</button>
+            <button id="evolveButton" class="evolve-button adv-only">⚡ Evolve</button>
             <button id="exportMidiBtn" class="export-midi-button">🎼 Export MIDI</button>
         </div>
         
         <div class="rating-controls">
             <button id="shareButton" class="share-button">🔗 Share</button>
             <button id="enhancedMidiBtn" class="export-midi-button">🎵 Enhanced MIDI</button>
-            <button id="copyGenomeBtn" class="secondary">📋 Copy Genome</button>
+            <button id="copyGenomeBtn" class="secondary adv-only">📋 Copy Genome</button>
             <button id="randomizeBtn">🎲 Randomize</button>
         </div>
 
-        <div class="stats">
+        <div class="stats adv-only">
             <div class="stat-card">
                 <div class="stat-value" id="generationCount">0</div>
                 <div class="stat-label">Generation</div>
@@ -941,7 +978,7 @@
             </div>
         </div>
 
-        <div class="genome-info" id="genomeInfo">
+        <div class="genome-info adv-only" id="genomeInfo">
             <div>
                 <strong>🧬 Musical DNA:</strong> 
                 Scale: <span class="highlight" id="scaleInfo">C Major</span> | 
@@ -1106,12 +1143,24 @@
             // fixed values used when locked, and the defaults for new genomes
             key: 0, scale: 0, progression: 0, bpm: 120,
             bpmRange: [70, 150],     // range new genomes draw their tempo from
+            scalePool: null,         // scale indices new genomes may use (null = all)
+            progressionPool: null,   // progression indices new genomes may use (null = all)
             locks: { key: false, scale: false, progression: false, bpm: false },
             // style targets used by the fitness function
             targets: { density: 4, stepwise: 0.7, span: 12, syncopation: 0.2, repetition: 0.6 },
             // gene bias: preset ranges new genomes are drawn from
             geneRanges: {}
         };
+    }
+
+    function validPool(pool, n) {
+        var out = [];
+        if (pool) for (var i = 0; i < pool.length; i++) {
+            var v = Math.floor(pool[i]);
+            if (v >= 0 && v < n && out.indexOf(v) < 0) out.push(v);
+        }
+        if (!out.length) for (var j = 0; j < n; j++) out.push(j);
+        return out;
     }
 
     function normalizeSettings(s) {
@@ -1124,6 +1173,8 @@
         out.targets = {};
         for (k in d.targets) out.targets[k] = (s && s.targets && s.targets[k] !== undefined) ? s.targets[k] : d.targets[k];
         out.geneRanges = (s && s.geneRanges) || {};
+        out.scalePool = validPool(s && s.scalePool, SCALES.length);
+        out.progressionPool = validPool(s && s.progressionPool, PROGRESSIONS.length);
         var br = (s && s.bpmRange) || d.bpmRange;
         var bLo = clamp(Math.floor(br[0]), 60, 180);
         out.bpmRange = [bLo, clamp(Math.floor(br[1]), bLo, 180)];
@@ -1153,8 +1204,8 @@
         var s = normalizeSettings(settings);
         var g = {
             key: s.locks.key ? s.key : rng.int(12),
-            scale: s.locks.scale ? s.scale : rng.int(SCALES.length),
-            progression: s.locks.progression ? s.progression : rng.int(PROGRESSIONS.length),
+            scale: s.locks.scale ? s.scale : s.scalePool[rng.int(s.scalePool.length)],
+            progression: s.locks.progression ? s.progression : s.progressionPool[rng.int(s.progressionPool.length)],
             bpm: s.locks.bpm ? s.bpm : s.bpmRange[0] + rng.int(s.bpmRange[1] - s.bpmRange[0] + 1),
             seeds: { melody: rng.next(), bass: rng.next(), chords: rng.next() },
             chordOverrides: [],
@@ -1590,8 +1641,8 @@
         }
         if (!s.locks.bpm && rng.float() < rate) g.bpm = clamp(g.bpm + rng.int(17) - 8, 60, 180);
         if (!s.locks.key && rng.float() < rate * 0.5) g.key = mod12(g.key + (rng.float() < 0.5 ? 7 : 5));
-        if (!s.locks.scale && rng.float() < rate * 0.5) g.scale = rng.int(SCALES.length);
-        if (!s.locks.progression && rng.float() < rate * 0.5) g.progression = rng.int(PROGRESSIONS.length);
+        if (!s.locks.scale && rng.float() < rate * 0.5) g.scale = s.scalePool[rng.int(s.scalePool.length)];
+        if (!s.locks.progression && rng.float() < rate * 0.5) g.progression = s.progressionPool[rng.int(s.progressionPool.length)];
         if (rng.float() < rate) g.seeds.melody = rng.next();
         if (rng.float() < rate * 0.5) g.seeds.bass = rng.next();
         if (rng.float() < rate * 0.5) g.seeds.chords = rng.next();
@@ -1707,6 +1758,71 @@
         return g;
     }
 
+
+    // ---------------------------------------------------------------- presets
+    // Styles set tempo, rhythm and harmony targets; moods choose scales,
+    // progressions, melodic shape and energy. Mirrored in plugin/Source/Presets.h.
+    var STYLES = [
+        { id: 'free', name: 'Free', hint: 'No style bias', bpmRange: [70, 150], chordRhythm: 'sustain',
+          targets: { density: 4, stepwise: 0.7, span: 12, syncopation: 0.2, repetition: 0.6 }, geneRanges: {} },
+        { id: 'trap', name: 'Trap', hint: '130-160 BPM, syncopated melodies, long bass notes', bpmRange: [130, 160], chordRhythm: 'sustain',
+          targets: { density: 5, stepwise: 0.6, span: 12, syncopation: 0.45, repetition: 0.75 },
+          geneRanges: { syncopation: [0.5, 1], density: [0.4, 0.9], bassMovement: [0, 0.4], swing: [0, 0.15], chordComplexity: [0.2, 0.6] } },
+        { id: 'lofi', name: 'Lo-fi', hint: '70-90 BPM, jazzy seventh chords, lazy swing', bpmRange: [70, 90], chordRhythm: 'sustain',
+          targets: { density: 3, stepwise: 0.75, span: 10, syncopation: 0.3, repetition: 0.7 },
+          geneRanges: { chordComplexity: [0.7, 1], swing: [0.4, 0.8], density: [0.2, 0.55], bassMovement: [0.33, 0.66] } },
+        { id: 'pop', name: 'Pop', hint: '95-128 BPM, catchy repeated hooks, simple triads', bpmRange: [95, 128], chordRhythm: 'half',
+          targets: { density: 4, stepwise: 0.75, span: 12, syncopation: 0.25, repetition: 0.8 },
+          geneRanges: { repetition: [0.6, 1], chordComplexity: [0, 0.35], syncopation: [0.2, 0.5], swing: [0, 0.1] } },
+        { id: 'rnb', name: 'R&B', hint: '65-95 BPM, rich chords, soulful syncopation', bpmRange: [65, 95], chordRhythm: 'sustain',
+          targets: { density: 4, stepwise: 0.65, span: 14, syncopation: 0.4, repetition: 0.6 },
+          geneRanges: { chordComplexity: [0.7, 1], swing: [0.2, 0.6], syncopation: [0.4, 0.8] } },
+        { id: 'funk', name: 'Funk BR', hint: '128-150 BPM, short stabs, very repetitive riffs', bpmRange: [128, 150], chordRhythm: 'stabs',
+          targets: { density: 6, stepwise: 0.55, span: 10, syncopation: 0.5, repetition: 0.85 },
+          geneRanges: { syncopation: [0.5, 1], repetition: [0.7, 1], bassMovement: [0.66, 1], chordComplexity: [0, 0.3] } },
+        { id: 'reggaeton', name: 'Reggaeton', hint: '88-100 BPM, dembow-friendly stabs and hooks', bpmRange: [88, 100], chordRhythm: 'stabs',
+          targets: { density: 5, stepwise: 0.65, span: 10, syncopation: 0.45, repetition: 0.8 },
+          geneRanges: { syncopation: [0.4, 0.8], repetition: [0.6, 1], chordComplexity: [0.1, 0.5] } },
+        { id: 'house', name: 'House', hint: '120-128 BPM, chord stabs, moving bass', bpmRange: [120, 128], chordRhythm: 'stabs',
+          targets: { density: 5, stepwise: 0.6, span: 12, syncopation: 0.4, repetition: 0.8 },
+          geneRanges: { bassMovement: [0.66, 1], chordComplexity: [0.4, 0.8], syncopation: [0.3, 0.7] } },
+        { id: 'ambient', name: 'Ambient', hint: '60-90 BPM, few long notes, spacious pads', bpmRange: [60, 90], chordRhythm: 'sustain',
+          targets: { density: 2, stepwise: 0.85, span: 10, syncopation: 0.05, repetition: 0.7 },
+          geneRanges: { density: [0, 0.3], swing: [0, 0.05], bassMovement: [0, 0.33], chordComplexity: [0.5, 1] } },
+        { id: 'jazz', name: 'Jazz', hint: '90-160 BPM, swing, sevenths, walking bass', bpmRange: [90, 160], chordRhythm: 'half',
+          targets: { density: 5, stepwise: 0.55, span: 14, syncopation: 0.4, repetition: 0.4 },
+          geneRanges: { chordComplexity: [0.75, 1], swing: [0.5, 1], bassMovement: [0.66, 1] } }
+    ];
+
+    var MOODS = [
+        { id: 'neutral', name: 'Neutral', hint: 'Any scale or progression', scales: null, progressions: null, geneRanges: {} },
+        { id: 'happy', name: 'Happy', hint: 'Major scales, rising melodies', scales: [0, 3, 5], progressions: [0, 1, 3, 7],
+          geneRanges: { contour: [0.5, 1], dynamics: [0.4, 0.8], range: [0.4, 0.9] } },
+        { id: 'sad', name: 'Sad', hint: 'Minor scales, falling melodies, soft', scales: [1, 2, 4], progressions: [2, 5, 6],
+          geneRanges: { contour: [0, 0.5], dynamics: [0.1, 0.5], range: [0.2, 0.6] } },
+        { id: 'dark', name: 'Dark', hint: 'Minor / harmonic minor, low and narrow', scales: [1, 4, 6], progressions: [5, 6],
+          geneRanges: { contour: [0, 0.4], dynamics: [0.3, 0.7], range: [0.1, 0.5] } },
+        { id: 'dreamy', name: 'Dreamy', hint: 'Open scales, wide and gentle melodies', scales: [0, 2, 5], progressions: [1, 2, 7],
+          geneRanges: { contour: [0.3, 0.7], dynamics: [0, 0.4], range: [0.5, 1] } },
+        { id: 'energetic', name: 'Energetic', hint: 'Driving progressions, strong accents', scales: [1, 3, 6], progressions: [0, 1, 2, 5],
+          geneRanges: { contour: [0.4, 0.9], dynamics: [0.6, 1], range: [0.5, 1] } },
+        { id: 'chill', name: 'Chill', hint: 'Dorian / major, relaxed and soft', scales: [2, 0, 6], progressions: [1, 3, 4],
+          geneRanges: { contour: [0.3, 0.6], dynamics: [0.1, 0.4], range: [0.2, 0.6] } }
+    ];
+
+    // Returns the preset part of the settings (merge it into your own settings).
+    function presetSettings(styleIdx, moodIdx) {
+        var st = STYLES[clamp(Math.floor(styleIdx) || 0, 0, STYLES.length - 1)];
+        var md = MOODS[clamp(Math.floor(moodIdx) || 0, 0, MOODS.length - 1)];
+        var ranges = {}, k;
+        for (k in st.geneRanges) ranges[k] = st.geneRanges[k].slice();
+        for (k in md.geneRanges) ranges[k] = md.geneRanges[k].slice();
+        var targets = {};
+        for (k in st.targets) targets[k] = st.targets[k];
+        return { bpmRange: st.bpmRange.slice(), chordRhythm: st.chordRhythm, targets: targets, geneRanges: ranges,
+                 scalePool: md.scales ? md.scales.slice() : null, progressionPool: md.progressions ? md.progressions.slice() : null };
+    }
+
     // ---------------------------------------------------------------- MIDI
     function vlq(value) {
         var bytes = [value & 0x7F];
@@ -1777,7 +1893,7 @@
     return {
         PPQ: PPQ, STEP: STEP, BAR: BAR, STEPS_PER_BAR: STEPS_PER_BAR,
         NOTE_NAMES: NOTE_NAMES, SCALES: SCALES, PROGRESSIONS: PROGRESSIONS, CHORD_RHYTHMS: CHORD_RHYTHMS,
-        CONTINUOUS_GENES: CONTINUOUS_GENES, TRACKS: TRACKS,
+        CONTINUOUS_GENES: CONTINUOUS_GENES, TRACKS: TRACKS, STYLES: STYLES, MOODS: MOODS, presetSettings: presetSettings,
         createRng: createRng, mixSeed: mixSeed,
         defaultSettings: defaultSettings, normalizeSettings: normalizeSettings,
         randomGenome: randomGenome, cloneGenome: cloneGenome, applyLocks: applyLocks,
@@ -1809,28 +1925,17 @@
         el.addEventListener(event, handler);
     }
 
-    // Environments: fitness targets + the gene ranges new candidates are drawn from.
-    var ENVIRONMENTS = {
-        ambient:      { targets: { density: 2, stepwise: 0.85, span: 10, syncopation: 0.05, repetition: 0.7 }, chordRhythm: 'sustain',
-                        bpmRange: [70, 100], geneRanges: { density: [0, 0.35], swing: [0, 0.1], chordComplexity: [0.4, 1], bassMovement: [0, 0.33] } },
-        dance:        { targets: { density: 6, stepwise: 0.6, span: 12, syncopation: 0.35, repetition: 0.7 }, chordRhythm: 'stabs',
-                        bpmRange: [118, 130], geneRanges: { density: [0.5, 1], syncopation: [0.3, 0.8], bassMovement: [0.66, 1], swing: [0, 0.15] } },
-        jazz:         { targets: { density: 5, stepwise: 0.55, span: 14, syncopation: 0.4, repetition: 0.4 }, chordRhythm: 'half',
-                        bpmRange: [90, 160], geneRanges: { chordComplexity: [0.7, 1], swing: [0.5, 1], bassMovement: [0.66, 1] } },
-        classical:    { targets: { density: 4, stepwise: 0.8, span: 14, syncopation: 0.1, repetition: 0.6 }, chordRhythm: 'half',
-                        bpmRange: [70, 130], geneRanges: { swing: [0, 0], chordComplexity: [0, 0.4], syncopation: [0, 0.3] } },
-        lofi:         { targets: { density: 3, stepwise: 0.75, span: 10, syncopation: 0.3, repetition: 0.7 }, chordRhythm: 'sustain',
-                        bpmRange: [70, 92], geneRanges: { chordComplexity: [0.6, 1], swing: [0.4, 0.8], density: [0.2, 0.6] } },
-        electronic:   { targets: { density: 6, stepwise: 0.5, span: 12, syncopation: 0.45, repetition: 0.75 }, chordRhythm: 'stabs',
-                        bpmRange: [120, 150], geneRanges: { syncopation: [0.4, 1], bassMovement: [0.5, 1], swing: [0, 0.1] } },
-        experimental: { targets: { density: 5, stepwise: 0.4, span: 18, syncopation: 0.5, repetition: 0.3 }, chordRhythm: 'half',
-                        bpmRange: [60, 180], geneRanges: {} }
-    };
-
     var STORAGE_KEY = 'melodyForgeIsland27Genomes';
+    var MODE_KEY = 'melodyForgeIsland27Mode';
+
+    function readMode() {
+        try { return localStorage.getItem(MODE_KEY) === 'advanced' ? 'advanced' : 'beginner'; } catch (e) { return 'beginner'; }
+    }
 
     function MelodyForgeApp() {
-        this.environment = 'ambient';
+        this.style = 0;            // index into MFCore.STYLES
+        this.mood = 0;             // index into MFCore.MOODS
+        this.mode = readMode();
         this.focus = 'harmony';
         this.mutationRate = 0.1;
         this.complexity = 5;
@@ -1858,6 +1963,7 @@
 
         this.setupVisualizer();
         this.setupGeneratorPanel();
+        this.setupQuickStart();
         this.bindEvents();
         this.bindEditor();
         this.setupAudioUnlock();
@@ -1872,17 +1978,13 @@
 
     // ------------------------------------------------------------ settings
     P.settings = function () {
-        var env = ENVIRONMENTS[this.environment] || ENVIRONMENTS.ambient;
-        var c = (this.complexity - 1) / 9, h = (this.harmonic - 1) / 9;
-        var ranges = {};
-        for (var k in env.geneRanges) ranges[k] = env.geneRanges[k];
-        ranges.density = ranges.density || [Math.max(0, c - 0.2), Math.min(1, c + 0.2)];
-        ranges.chordComplexity = ranges.chordComplexity || [Math.max(0, h - 0.2), Math.min(1, h + 0.2)];
+        var preset = C.presetSettings(this.style, this.mood);
         return C.normalizeSettings({
             bars: this.bars, populationSize: this.populationSize, eliteRatio: 0.3, mutationRate: this.mutationRate,
             maxNotesPerBar: this.maxNotesPerBar, melodyLow: this.melodyLow, melodyHigh: this.melodyHigh,
-            focus: this.focus, chordRhythm: env.chordRhythm, targets: env.targets,
-            bpmRange: env.bpmRange, geneRanges: ranges,
+            focus: this.focus, chordRhythm: preset.chordRhythm, targets: preset.targets,
+            bpmRange: preset.bpmRange, geneRanges: preset.geneRanges,
+            scalePool: preset.scalePool, progressionPool: preset.progressionPool,
             key: this.fixed.key, scale: this.fixed.scale, progression: this.fixed.progression, bpm: this.fixed.bpm,
             locks: this.locks
         });
@@ -2260,7 +2362,7 @@
         var g = this.currentGenome();
         if (!g) return;
         var data = { format: 'MelodyForge ISLAND27 genome', version: 2, genome: g, settings: this.settings(),
-                     seed: this.seed, pattern: this.pattern, fitness: C.evaluate(this.pattern, g, this.settings()) };
+                     seed: this.seed, style: C.STYLES[this.style].id, mood: C.MOODS[this.mood].id, pattern: this.pattern, fitness: C.evaluate(this.pattern, g, this.settings()) };
         download(this.fileBase() + '.json', JSON.stringify(data, null, 2), 'application/json');
     };
 
@@ -2277,7 +2379,7 @@
     P.share = function () {
         var g = this.currentGenome();
         if (!g) return;
-        var code = btoa(JSON.stringify({ v: 2, g: g, env: this.environment }));
+        var code = btoa(JSON.stringify({ v: 3, g: g, style: this.style, mood: this.mood }));
         var url = location.origin + location.pathname + '?g=' + encodeURIComponent(code);
         this.copyText(url, 'Share link copied to clipboard');
     };
@@ -2289,7 +2391,7 @@
         try {
             var data = JSON.parse(atob(code));
             if (!data.g || !data.g.seeds) throw new Error('invalid genome');
-            if (ENVIRONMENTS[data.env]) { this.environment = data.env; $('environmentSelect').value = data.env; }
+            if (data.style !== undefined) this.setPreset(data.style, data.mood || 0);
             this.population.unshift(C.scoreGenome(data.g, this.settings()));
             this.population.length = Math.min(this.population.length, this.populationSize);
             this.selectCandidate(0, true);
@@ -2307,11 +2409,9 @@
         set('harmonicDensity', rand(1, 10));
         set('mutationRate', (rand(5, 30) / 100).toFixed(2));
         set('reverbAmount', rand(10, 60));
-        var envs = Object.keys(ENVIRONMENTS);
-        var sel = $('environmentSelect');
-        sel.value = envs[rand(0, envs.length - 1)];
-        sel.dispatchEvent(new Event('change'));
-        this.notify('Parameters randomized');
+        this.setPreset(rand(1, C.STYLES.length - 1), rand(0, C.MOODS.length - 1));
+        this.resetPopulation((Math.random() * 4294967296) >>> 0);
+        this.notify('Randomized: ' + C.STYLES[this.style].name + ' + ' + C.MOODS[this.mood].name);
     };
 
     // ------------------------------------------------------------ library
@@ -2332,7 +2432,7 @@
         if (!name) { this.notify('Please enter a name for the idea', 'warning'); return; }
         var g = this.currentGenome();
         if (!g) return;
-        this.savedGenomes.push({ name: name, genome: C.cloneGenome(g), environment: this.environment,
+        this.savedGenomes.push({ name: name, genome: C.cloneGenome(g), style: this.style, mood: this.mood,
                                  pattern: this.isEdited() ? C.clonePattern(this.pattern) : null,
                                  generation: this.generation, timestamp: Date.now() });
         this.persist();
@@ -2345,7 +2445,7 @@
         var item = this.savedGenomes[index];
         if (!item) return;
         if (!this.confirmDiscard()) return;
-        if (ENVIRONMENTS[item.environment]) { this.environment = item.environment; $('environmentSelect').value = item.environment; }
+        if (item.style !== undefined) this.setPreset(item.style, item.mood || 0);
         this.current = -1;
         this.genome = C.cloneGenome(item.genome);
         this.pattern = item.pattern ? C.clonePattern(item.pattern) : C.render(this.genome, this.settings());
@@ -2409,11 +2509,6 @@
             self.pauseEvolution();
             self.resetPopulation();
             self.notify('New population created (seed ' + self.seed + ')');
-        });
-        on('environmentSelect', 'change', function (e) {
-            self.environment = e.target.value;
-            self.rescore();
-            self.notify('Environment: ' + e.target.options[e.target.selectedIndex].text);
         });
         on('melodicComplexity', 'input', function (e) {
             self.complexity = Number(e.target.value);
@@ -2482,6 +2577,68 @@
         this.replaceCurrent(copy);
     };
 
+
+
+    // ------------------------------------------------------------ quick start / presets / modes
+    P.setupQuickStart = function () {
+        var self = this;
+        var fill = function (id, items) {
+            var sel = $(id);
+            items.forEach(function (label, value) {
+                var o = document.createElement('option');
+                o.value = value;
+                o.textContent = label;
+                sel.appendChild(o);
+            });
+        };
+        fill('styleSelect', C.STYLES.map(function (x) { return x.name; }));
+        fill('moodSelect', C.MOODS.map(function (x) { return x.name; }));
+        fill('quickKey', ['Any key'].concat(C.NOTE_NAMES));
+        this.setPreset(this.style, this.mood);
+        this.applyMode(this.mode);
+
+        var changePreset = function () {
+            var style = Number($('styleSelect').value), mood = Number($('moodSelect').value);
+            if (!self.confirmDiscard()) { self.setPreset(self.style, self.mood); return; }
+            self.setPreset(style, mood);
+            self.pauseEvolution();
+            self.resetPopulation(self.seed);
+            self.notify(C.STYLES[style].name + ' + ' + C.MOODS[mood].name + ': new ideas ready');
+        };
+        on('styleSelect', 'change', changePreset);
+        on('moodSelect', 'change', changePreset);
+        on('quickKey', 'change', function (e) {
+            var v = Number(e.target.value);
+            $('keySelect').value = Math.max(0, v - 1);
+            $('lockKey').checked = v > 0;
+            $('lockKey').dispatchEvent(new Event('change'));
+        });
+        on('generateBtn', 'click', function () {
+            if (!self.confirmDiscard()) return;
+            self.pauseEvolution();
+            self.resetPopulation((Math.random() * 4294967296) >>> 0);
+            self.notify('New ideas: ' + C.STYLES[self.style].name + ' + ' + C.MOODS[self.mood].name);
+        });
+        on('modeBeginner', 'click', function () { self.applyMode('beginner'); });
+        on('modeAdvanced', 'click', function () { self.applyMode('advanced'); });
+    };
+
+    P.setPreset = function (style, mood) {
+        this.style = Math.max(0, Math.min(C.STYLES.length - 1, style | 0));
+        this.mood = Math.max(0, Math.min(C.MOODS.length - 1, mood | 0));
+        $('styleSelect').value = this.style;
+        $('moodSelect').value = this.mood;
+        $('presetHint').textContent = C.STYLES[this.style].hint + '  •  ' + C.MOODS[this.mood].hint;
+    };
+
+    P.applyMode = function (mode) {
+        this.mode = mode === 'advanced' ? 'advanced' : 'beginner';
+        document.body.classList.toggle('advanced', this.mode === 'advanced');
+        document.body.classList.toggle('beginner', this.mode !== 'advanced');
+        $('modeBeginner').classList.toggle('active', this.mode !== 'advanced');
+        $('modeAdvanced').classList.toggle('active', this.mode === 'advanced');
+        try { localStorage.setItem(MODE_KEY, this.mode); } catch (e) { /* storage may be blocked */ }
+    };
 
     // ------------------------------------------------------------ generator panel
     P.setupGeneratorPanel = function () {
@@ -2571,6 +2728,8 @@
             on(checkId, 'change', apply);
         };
         lockField('key', 'keySelect', 'lockKey');
+        on('lockKey', 'change', function () { $('quickKey').value = self.locks.key ? self.fixed.key + 1 : 0; });
+        on('keySelect', 'change', function () { $('quickKey').value = self.locks.key ? self.fixed.key + 1 : 0; });
         lockField('scale', 'scaleSelect', 'lockScale');
         lockField('progression', 'progressionSelect', 'lockProgression');
         on('lockBpm', 'change', function (e) {
