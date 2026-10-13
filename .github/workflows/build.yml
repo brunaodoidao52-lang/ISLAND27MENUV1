@@ -1,0 +1,60 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run DSP core tests
+        run: |
+          cmake -S . -B build -DISLANDEQ_BUILD_PLUGIN=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  plugin:
+    needs: core-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            name: windows-x64
+          - os: macos-14
+            name: macos-universal
+          - os: ubuntu-24.04
+            name: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev libgl1-mesa-dev ninja-build
+
+      - name: Configure
+        shell: bash
+        run: |
+          extra=""
+          if [ "$RUNNER_OS" == "macOS" ]; then extra="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"; fi
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DISLANDEQ_BUILD_TESTS=OFF $extra
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: IslandParametricEQ-${{ matrix.name }}
+          path: |
+            build/IslandParametricEQ_artefacts/Release/Standalone
+            build/IslandParametricEQ_artefacts/Release/VST3
+            build/IslandParametricEQ_artefacts/Release/AU
+          if-no-files-found: ignore
