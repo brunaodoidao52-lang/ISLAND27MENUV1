@@ -1,0 +1,2879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="MelodyForge - Evolve unique musical compositions through genetic algorithms and AI">
+    <meta name="keywords" content="music evolution, genetic algorithm, AI music, procedural music, web audio">
+    <meta name="author" content="MelodyForge">
+    <title>MelodyForge Ultimate - AI Music Evolution</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,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">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            background: #08090c;
+            accent-color: #2AA9E0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at 50% -10%, rgba(42, 169, 224, 0.22), transparent 55%), linear-gradient(160deg, #0c0e13 0%, #08090c 60%);
+            background-attachment: fixed;
+            color: #F2F4F8;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(20, 22, 28, 0.82);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .logo-icon {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(127, 227, 255, 0.35);
+            box-shadow: 0 0 28px rgba(42, 169, 224, 0.35), 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #F2F4F8, #7FE3FF, #2AA9E0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.2em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(42, 169, 224, 0.14);
+            border: 1px solid rgba(42, 169, 224, 0.3);
+            color: #7FE3FF;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .audio-warning {
+            background: rgba(42, 169, 224, 0.12);
+            border: 1px solid rgba(127, 227, 255, 0.35);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .visualizer-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .visualizer {
+            height: 150px;
+            background: #0c0e13;
+            border-radius: 15px;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 4px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .visualizer-bar {
+            width: 14px;
+            background: linear-gradient(to top, #2AA9E0, #7FE3FF);
+            border-radius: 7px 7px 0 0;
+            transition: height 0.15s ease;
+        }
+
+        .waveform-canvas {
+            background: #0c0e13;
+            border-radius: 15px;
+            display: block;
+            width: 100%;
+            height: 150px;
+        }
+
+        .layer-indicator {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        .branding-watermark {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            font-size: 0.8em;
+            opacity: 0.5;
+            font-weight: bold;
+        }
+
+        .music-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .play-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            background: linear-gradient(45deg, #2AA9E0, #4dc0f0);
+            border: none;
+            color: #04141c;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-button:hover:not(:disabled) {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(127, 227, 255, 0.5);
+        }
+
+        .play-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .timeline {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .timeline-progress {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(45deg, #2AA9E0, #7FE3FF);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .time-display {
+            font-size: 1em;
+            opacity: 0.9;
+            min-width: 100px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .audio-layers {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .layer-toggle {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .layer-toggle.active {
+            background: rgba(127, 227, 255, 0.2);
+            border-color: #7FE3FF;
+        }
+
+        .evolution-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        h2 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #7FE3FF;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #2AA9E0, #4dc0f0);
+            border: none;
+            color: #04141c;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: linear-gradient(45deg, #12213f, #14161c);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #F2F4F8;
+        }
+
+        button.active {
+            background: linear-gradient(45deg, #7FE3FF, #2AA9E0);
+            color: #04141c;
+            box-shadow: 0 0 15px rgba(127, 227, 255, 0.5);
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: #F2F4F8;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .rating-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .rating-controls button {
+            font-size: 1em;
+            padding: 15px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #7FE3FF;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        .genome-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1em;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .highlight {
+            color: #7FE3FF;
+            font-weight: bold;
+        }
+
+        .fitness-breakdown {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .fitness-metric {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .fitness-metric-label {
+            font-size: 0.85em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .fitness-metric-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .fitness-metric-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #2AA9E0, #7FE3FF);
+            border-radius: 3px;
+        }
+
+        .slider-control {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .slider-control label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .save-load-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .saved-genomes {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .saved-genomes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .saved-genomes::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .saved-genomes::-webkit-scrollbar-thumb {
+            background: rgba(127, 227, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        .saved-genome-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .saved-genome-item:hover {
+            background: rgba(127, 227, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .delete-btn {
+            background: linear-gradient(45deg, #12213f, #14161c);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #F2F4F8;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            flex: none;
+        }
+
+        .evolution-progress {
+            height: 3px;
+            background: linear-gradient(45deg, #2AA9E0, #7FE3FF);
+            border-radius: 2px;
+            margin-top: 5px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(42, 169, 224, 0.95);
+            color: #F2F4F8;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .button-loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .footer-links a {
+            color: #7FE3FF;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #2AA9E0;
+            transform: translateY(-2px);
+        }
+
+        .layer-icon {
+            font-size: 1.5em;
+        }
+
+        .button-group-spaced {
+            margin-top: 15px;
+        }
+
+        .button-small {
+            font-size: 0.9em;
+        }
+
+        .evolve-button {
+            background: linear-gradient(45deg, #12213f, #2AA9E0);
+            color: #F2F4F8;
+        }
+
+        .export-midi-button {
+            background: linear-gradient(45deg, #7FE3FF, #4dc0f0);
+            color: #04141c;
+        }
+
+        .share-button {
+            background: linear-gradient(45deg, #2AA9E0, #12213f);
+            color: #F2F4F8;
+        }
+
+        .share-button:hover:not(:disabled) {
+            box-shadow: 0 0 15px rgba(42, 169, 224, 0.5);
+        }
+
+        .fitness-metric-fill {
+            width: 0%;
+        }
+
+        .empty-state {
+            opacity: 0.5;
+            text-align: center;
+        }
+
+        .copyright {
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 1024px) {
+            .evolution-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .visualizer-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .rating-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .save-load-section {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .logo-icon {
+                width: 60px;
+                height: 60px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .music-controls,
+            .evolution-controls,
+            .rating-controls {
+                display: none;
+            }
+            
+            .genome-info,
+            .saved-genomes {
+                break-inside: avoid;
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .visualizer-bar {
+                background: white;
+            }
+            
+            .control-group {
+                border: 2px solid white;
+            }
+        }
+
+        /* Dark mode consistency */
+        @media (prefers-color-scheme: dark) {
+            /* Your existing dark theme is perfect */
+        }
+
+        /* Loading states */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #7FE3FF;
+            border-radius: 50%;
+            border-right-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img class="logo-icon" src="data:image/png;base64,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" alt="ISLAND27">
+                <div>
+                    <h1>MelodyForge</h1>
+                    <p class="tagline">Evolve Music Through AI</p>
+                    <span class="version-badge">Ultimate Edition v1.0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="audio-warning" id="audioWarning">
+            🔈 Click anywhere to enable audio and start forging melodies
+        </div>
+
+        <div class="visualizer-section">
+            <div class="visualizer" id="visualizer">
+                <div class="layer-indicator" id="layerIndicator">Melody • Bass • Chords</div>
+                <div class="branding-watermark">MelodyForge</div>
+            </div>
+            <canvas class="waveform-canvas" id="waveformCanvas" width="400" height="150"></canvas>
+        </div>
+
+        <div class="audio-layers">
+            <div class="layer-toggle active" id="melodyToggle">
+                <div class="layer-icon">🎹</div>
+                <div>Melody</div>
+            </div>
+            <div class="layer-toggle active" id="bassToggle">
+                <div class="layer-icon">🎸</div>
+                <div>Bass Line</div>
+            </div>
+            <div class="layer-toggle active" id="chordsToggle">
+                <div class="layer-icon">🎼</div>
+                <div>Chords</div>
+            </div>
+        </div>
+
+        <div class="music-controls">
+            <button class="play-button" id="playButton">▶️</button>
+            <div class="timeline">
+                <div class="timeline-progress" id="timelineProgress"></div>
+            </div>
+            <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+        </div>
+
+        <div class="evolution-controls">
+            <div class="control-group">
+                <h2>🧬 Evolution Controls</h2>
+                <div class="button-group">
+                    <button id="startBtn">Start</button>
+                    <button id="pauseBtn" class="secondary">Pause</button>
+                    <button id="resetBtn">Reset</button>
+                </div>
+                <label for="environmentSelect" class="sr-only">Musical Environment</label>
+                <select id="environmentSelect" title="Select Musical Environment">
+                    <option value="ambient">Ambient</option>
+                    <option value="dance">Dance</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="classical">Classical</option>
+                    <option value="lofi">Lo-Fi Hip Hop</option>
+                    <option value="electronic">Electronic</option>
+                    <option value="experimental">Experimental</option>
+                </select>
+                <div class="evolution-progress" id="evolutionProgress"></div>
+            </div>
+
+            <div class="control-group">
+                <h2>🎛️ Musical Parameters</h2>
+                <div class="slider-control">
+                    <label for="melodicComplexity">
+                        Melodic Complexity:
+                        <span id="melodicValue">5</span>
+                    </label>
+                    <input type="range" id="melodicComplexity" min="1" max="10" value="5" title="Adjust melodic complexity from 1 to 10">
+                </div>
+                <div class="slider-control">
+                    <label for="harmonicDensity">
+                        Harmonic Density:
+                        <span id="harmonicValue">5</span>
+                    </label>
+                    <input type="range" id="harmonicDensity" min="1" max="10" value="5" title="Adjust harmonic density from 1 to 10">
+                </div>
+                <div class="slider-control">
+                    <label for="mutationRate">
+                        Mutation Rate:
+                        <span id="mutationValue">10%</span>
+                    </label>
+                    <input type="range" id="mutationRate" min="0.01" max="0.5" step="0.01" value="0.1" title="Adjust mutation rate from 1% to 50%">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h2>🔊 Audio Effects</h2>
+                <div class="slider-control">
+                    <label for="reverbAmount">
+                        Reverb Amount:
+                        <span id="reverbValue">30%</span>
+                    </label>
+                    <input type="range" id="reverbAmount" min="0" max="100" value="30" title="Adjust reverb amount from 0% to 100%">
+                </div>
+                <div class="slider-control">
+                    <label for="tempoControl">
+                        Tempo Control:
+                        <span id="tempoValue">120 BPM</span>
+                    </label>
+                    <input type="range" id="tempoControl" min="60" max="180" value="120" title="Adjust tempo from 60 to 180 BPM">
+                </div>
+                <div class="button-group button-group-spaced">
+                    <button id="harmonyBtn" class="active button-small">Harmony</button>
+                    <button id="rhythmBtn" class="button-small">Rhythm</button>
+                    <button id="catchinessBtn" class="button-small">Catchy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="rating-controls">
+            <button id="likeButton">👍 Like</button>
+            <button id="skipButton" class="secondary">👎 Skip</button>
+            <button id="evolveButton" class="evolve-button">⚡ Evolve</button>
+            <button id="exportMidiBtn" class="export-midi-button">🎼 Export MIDI</button>
+        </div>
+        
+        <div class="rating-controls">
+            <button id="shareButton" class="share-button">🔗 Share</button>
+            <button id="enhancedMidiBtn" class="export-midi-button">🎵 Enhanced MIDI</button>
+            <button id="copyGenomeBtn" class="secondary">📋 Copy Genome</button>
+            <button id="randomizeBtn">🎲 Randomize</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="generationCount">0</div>
+                <div class="stat-label">Generation</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="populationCount">20</div>
+                <div class="stat-label">Population</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="fitnessScore">0.00</div>
+                <div class="stat-label">Avg Fitness</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="diversityScore">0.00</div>
+                <div class="stat-label">Diversity</div>
+            </div>
+        </div>
+
+        <div class="genome-info" id="genomeInfo">
+            <div>
+                <strong>🧬 Musical DNA:</strong> 
+                Scale: <span class="highlight" id="scaleInfo">C Major</span> | 
+                Tempo: <span class="highlight" id="tempoInfo">120 BPM</span> | 
+                Pattern: <span class="highlight" id="patternInfo">Melodic</span>
+            </div>
+            <div class="fitness-breakdown">
+                <div class="fitness-metric">
+                    <div class="fitness-metric-label">Melodic Interest</div>
+                    <div class="fitness-metric-bar">
+                        <div class="fitness-metric-fill" id="melodicBar"></div>
+                    </div>
+                </div>
+                <div class="fitness-metric">
+                    <div class="fitness-metric-label">Harmonic Consonance</div>
+                    <div class="fitness-metric-bar">
+                        <div class="fitness-metric-fill" id="harmonicBar"></div>
+                    </div>
+                </div>
+                <div class="fitness-metric">
+                    <div class="fitness-metric-label">Rhythmic Stability</div>
+                    <div class="fitness-metric-bar">
+                        <div class="fitness-metric-fill" id="rhythmicBar"></div>
+                    </div>
+                </div>
+                <div class="fitness-metric">
+                    <div class="fitness-metric-label">Overall Fitness</div>
+                    <div class="fitness-metric-bar">
+                        <div class="fitness-metric-fill" id="overallBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="save-load-section">
+            <div class="control-group">
+                <h2>💾 Save Current Genome</h2>
+                <input type="text" id="genomeName" placeholder="Enter genome name...">
+                <div class="button-group">
+                    <button id="saveBtn">💾 Save</button>
+                    <button id="exportBtn" class="secondary">📥 Export</button>
+                </div>
+            </div>
+            <div class="saved-genomes">
+                <h2>📚 Saved Genomes</h2>
+                <div id="savedGenomesList">
+                    <p class="empty-state">No saved genomes yet</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>MelodyForge Ultimate</strong> - Powered by Genetic Algorithms & Web Audio API</p>
+            <div class="footer-links">
+                <a href="#" onclick="alert('MelodyForge v1.0.0\\n\\nFeatures:\\n• 7 Musical Environments\\n• Real-time Evolution\\n• Professional Audio Engine\\n• MIDI Export\\n• Genome Library'); return false;">About</a>
+                <a href="#" onclick="alert('How to Use MelodyForge:\\n\\n1. Click to enable audio\\n2. Press Play to hear music\\n3. Start Evolution to begin\\n4. Like/Skip to guide evolution\\n5. Save your favorites\\n6. Export as MIDI'); return false;">Help</a>
+                <a href="#" onclick="alert('Created with ❤️ using:\\n• Tone.js (Web Audio)\\n• Genetic Algorithms\\n• Music Theory\\n• JavaScript ES6+'); return false;">Credits</a>
+            </div>
+            <p class="copyright">© 2025 MelodyForge. Forge your sound.</p>
+        </footer>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // MelodyForge Pro Music Evolver
+        class MelodyForge {
+            constructor() {
+                this.population = [];
+                this.generation = 0;
+                this.isRunning = false;
+                this.currentGenome = null;
+                this.fitnessFunction = 'harmony';
+                this.environment = 'ambient';
+                this.audioEnabled = false;
+                this.isPlaying = false;
+                this.startTime = 0;
+                this.duration = 0;
+                this.savedGenomes = this.loadSavedGenomes();
+                this.currentMelody = null;
+                this.currentBass = null;
+                this.currentChords = null;
+                this.evolutionStartTime = 0;
+                this.scheduledEvents = {
+                    melody: [],
+                    bass: [],
+                    chords: []
+                };
+                this.playbackTimeout = null;
+                
+                // Musical parameters from UI controls
+                this.musicalParameters = {
+                    melodicComplexity: 5,
+                    harmonicDensity: 5,
+                    mutationRate: 0.1
+                };
+                
+                // Audio effects settings
+                this.audioEffects = {
+                    reverbAmount: 30,
+                    tempoControl: 120
+                };
+                
+                // Evolution settings
+                this.evolutionSettings = {
+                    environment: 'ambient'
+                };
+                
+                this.layers = {
+                    melody: true,
+                    bass: true,
+                    chords: true
+                };
+                
+                this.cacheDOM();
+                this.setupAudioWithFallback();
+                this.setupVisualizer();
+                this.setupWaveformAnalyzer(); // Setup canvas even if audio not ready
+                this.initializePopulation();
+                
+                // Add debounced UI updates for better performance
+                this.updateUI = this.debounce(this.updateUI.bind(this), 100);
+                this.updateUI();
+                this.updateLayerIndicator();
+                this.animateVisualizer();
+                this.setupEventListeners();
+                
+                // Initialize enhanced features
+                this.registerServiceWorker();
+                
+                // Check for shared genomes in URL
+                this.loadSharedGenome();
+                
+                this.showNotification('🎵 Welcome to MelodyForge! Click to enable audio.');
+            }
+            
+            updateCurrentGenomeWithParameters() {
+                if (!this.currentGenome) return;
+                
+                // Update current genome to reflect new parameter settings
+                const traits = this.currentGenome.musicalTraits;
+                
+                // Adjust melodic complexity
+                const complexityFactor = this.musicalParameters.melodicComplexity / 5; // Normalize to 0-2 range
+                traits.melodyShape = Math.min(1, traits.melodyShape * complexityFactor);
+                traits.melodicContour = Math.min(1, traits.melodicContour * complexityFactor);
+                
+                // Adjust harmonic density
+                const densityFactor = this.musicalParameters.harmonicDensity / 5; // Normalize to 0-2 range
+                traits.harmonyComplexity = Math.min(1, traits.harmonyComplexity * densityFactor);
+                traits.voiceLeading = Math.min(1, traits.voiceLeading * densityFactor);
+                
+                // Recalculate fitness with new parameters
+                this.currentGenome.fitness = this.calculateFitness(this.currentGenome);
+                this.updateGenomeDisplay();
+                
+                // If currently playing, restart with new parameters
+                if (this.isPlaying) {
+                    this.stopPlayback();
+                    setTimeout(() => this.startPlayback(), 100);
+                }
+            }
+            
+            setFitnessFunction(type) {
+                // Remove active class from all buttons
+                document.getElementById('harmonyBtn').classList.remove('active');
+                document.getElementById('rhythmBtn').classList.remove('active');
+                document.getElementById('catchinessBtn').classList.remove('active');
+                
+                // Add active class to selected button
+                document.getElementById(type + 'Btn').classList.add('active');
+                
+                // Update fitness function
+                this.fitnessFunction = type;
+                
+                // Recalculate fitness for all genomes with new function
+                if (this.population && this.population.length > 0) {
+                    this.population.forEach(genome => {
+                        genome.fitness = this.calculateFitness(genome);
+                    });
+                    this.selectBestGenome();
+                }
+                
+                this.showNotification(`🎯 Fitness focus changed to ${type}`);
+            }
+            
+            cacheDOM() {
+                this.dom = {
+                    generationCount: document.getElementById('generationCount'),
+                    populationCount: document.getElementById('populationCount'),
+                    fitnessScore: document.getElementById('fitnessScore'),
+                    diversityScore: document.getElementById('diversityScore'),
+                    scaleInfo: document.getElementById('scaleInfo'),
+                    tempoInfo: document.getElementById('tempoInfo'),
+                    patternInfo: document.getElementById('patternInfo'),
+                    melodicBar: document.getElementById('melodicBar'),
+                    harmonicBar: document.getElementById('harmonicBar'),
+                    rhythmicBar: document.getElementById('rhythmicBar'),
+                    overallBar: document.getElementById('overallBar'),
+                    playButton: document.getElementById('playButton'),
+                    startBtn: document.getElementById('startBtn'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    resetBtn: document.getElementById('resetBtn'),
+                    timelineProgress: document.getElementById('timelineProgress'),
+                    timeDisplay: document.getElementById('timeDisplay'),
+                    evolutionProgress: document.getElementById('evolutionProgress'),
+                    notification: document.getElementById('notification')
+                };
+            }
+            
+            setupAudio() {
+                // Defer audio setup until after user interaction to prevent warnings
+                this.audioInitialized = false;
+                this.setupAudioEnable();
+            }
+            
+            // Enhanced error handling and recovery
+            setupAudioWithFallback() {
+                try {
+                    this.setupAudio();
+                } catch (error) {
+                    console.warn('Primary audio setup failed, using fallback:', error);
+                    this.setupBasicAudio();
+                    this.showNotification('Using basic audio mode', 'warning');
+                }
+            }
+
+            setupBasicAudio() {
+                // Simplified audio setup for maximum compatibility
+                this.melodySynth = new Tone.Synth().toDestination();
+                this.bassSynth = new Tone.Synth().toDestination();
+                this.chordSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+                this.audioInitialized = true;
+            }
+            
+            initializeAudioContext() {
+                if (this.audioInitialized) return;
+                
+                try {
+                    this.reverb = new Tone.Reverb({
+                        decay: 2.5,
+                        wet: 0.3
+                    }).toDestination();
+                    
+                    this.delay = new Tone.FeedbackDelay({
+                        delayTime: 0.25,
+                        feedback: 0.3,
+                        wet: 0.2
+                    }).connect(this.reverb);
+
+                    this.melodySynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'triangle' },
+                        envelope: {
+                            attack: 0.05,
+                            decay: 0.2,
+                            sustain: 0.4,
+                            release: 0.8
+                        },
+                        volume: -8
+                    }).connect(this.delay);
+
+                    this.bassFilter = new Tone.Filter({
+                        frequency: 300,
+                        type: 'lowpass',
+                        rolloff: -24
+                    }).toDestination();
+
+                    this.bassSynth = new Tone.MonoSynth({
+                        oscillator: { type: 'sawtooth' },
+                        filter: { 
+                            Q: 3, 
+                            frequency: 400,
+                            type: 'lowpass'
+                        },
+                        envelope: {
+                            attack: 0.05,
+                            decay: 0.2,
+                            sustain: 0.6,
+                            release: 1.2
+                        },
+                        volume: -10
+                    }).connect(this.bassFilter);
+
+                    this.chorus = new Tone.Chorus({
+                        frequency: 1.5,
+                        delayTime: 3.5,
+                        depth: 0.7,
+                        wet: 0.3
+                    }).toDestination();
+
+                    this.chordSynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'sine' },
+                        envelope: {
+                            attack: 0.2,
+                            decay: 0.3,
+                            sustain: 0.6,
+                            release: 1.5
+                        },
+                        volume: -12
+                    }).connect(this.chorus);
+
+                    Tone.Transport.bpm.value = 120;
+                    
+                    // Setup waveform analyzer after audio context is ready
+                    this.setupWaveformAnalyzer();
+                    
+                    this.audioInitialized = true;
+                    console.log('Audio context initialized successfully');
+                } catch (error) {
+                    console.error('Error initializing audio context:', error);
+                    this.showNotification('Audio setup failed. Please refresh the page.', 'error');
+                }
+            }
+            
+            setupAudioEnable() {
+                const enableAudio = () => {
+                    if (!this.audioEnabled) {
+                        // Initialize audio context first, then start Tone
+                        this.initializeAudioContext();
+                        
+                        Tone.start().then(() => {
+                            this.audioEnabled = true;
+                            document.getElementById('audioWarning').style.display = 'none';
+                            this.showNotification('Audio enabled! Ready to forge melodies 🎵');
+                        }).catch(error => {
+                            console.error('Audio context failed to start:', error);
+                            this.showNotification('Audio failed to start. Click to try again.', 'error');
+                        });
+                    }
+                };
+
+                document.addEventListener('click', enableAudio, { once: true });
+                document.addEventListener('keydown', enableAudio, { once: true });
+            }
+            
+            setupVisualizer() {
+                this.visualizerBars = Array.from({length: 20}, () => {
+                    const bar = document.createElement('div');
+                    bar.className = 'visualizer-bar';
+                    bar.style.height = '20px';
+                    return bar;
+                });
+                
+                const visualizerContainer = document.getElementById('visualizer');
+                this.visualizerBars.forEach(bar => visualizerContainer.appendChild(bar));
+            }
+            
+            // Performance optimization
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // Add analytics for user behavior tracking (optional)
+            trackUserAction(action, data = {}) {
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', action, data);
+                }
+                // Custom analytics
+                console.log('User action:', action, data);
+            }
+
+            // Enhanced genome sharing
+            generateShareableLink() {
+                const genomeData = {
+                    traits: this.currentGenome?.musicalTraits,
+                    generation: this.generation,
+                    timestamp: Date.now()
+                };
+                
+                const compressed = btoa(JSON.stringify(genomeData));
+                return `${window.location.origin}${window.location.pathname}?share=${compressed}`;
+            }
+
+            // Enhanced MIDI export with format options
+            exportMIDIWithFormat() {
+                if (!this.currentGenome) {
+                    this.showNotification('⚠️ No genome to export');
+                    return;
+                }
+
+                // Check for Web MIDI API support
+                if (navigator.requestMIDIAccess) {
+                    navigator.requestMIDIAccess()
+                        .then(() => {
+                            this.trackUserAction('enhanced_midi_export', { 
+                                webMidiSupported: true,
+                                generation: this.generation 
+                            });
+                            this.exportMIDIFile(true); // Enhanced format
+                        })
+                        .catch(() => {
+                            this.exportMIDIFile(false); // Basic format
+                        });
+                } else {
+                    this.exportMIDIFile(false); // Basic format
+                }
+            }
+
+            // Copy genome data to clipboard
+            copyGenomeToClipboard() {
+                if (!this.currentGenome) {
+                    this.showNotification('⚠️ No genome to copy');
+                    return;
+                }
+
+                const genomeData = {
+                    melody: this.currentGenome.melody,
+                    bass: this.currentGenome.bass,
+                    chords: this.currentGenome.chords,
+                    fitness: this.currentGenome.fitness,
+                    generation: this.generation
+                };
+
+                navigator.clipboard.writeText(JSON.stringify(genomeData, null, 2))
+                    .then(() => {
+                        this.showNotification('📋 Genome copied to clipboard!');
+                        this.trackUserAction('genome_copy', { generation: this.generation });
+                    })
+                    .catch(() => {
+                        this.showNotification('❌ Failed to copy genome');
+                    });
+            }
+
+            // Randomize musical parameters
+            randomizeParameters() {
+                // Randomize sliders
+                const sliders = ['tempo', 'complexity', 'harmony', 'rhythm'];
+                sliders.forEach(sliderId => {
+                    const slider = document.getElementById(sliderId);
+                    if (slider) {
+                        const min = parseInt(slider.min);
+                        const max = parseInt(slider.max);
+                        const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+                        slider.value = randomValue;
+                        
+                        // Trigger the input event to update the display
+                        slider.dispatchEvent(new Event('input'));
+                    }
+                });
+
+                // Randomize environment
+                const environments = ['forest', 'cave', 'ocean', 'space', 'desert'];
+                const randomEnv = environments[Math.floor(Math.random() * environments.length)];
+                document.getElementById('environment').value = randomEnv;
+                document.getElementById('environment').dispatchEvent(new Event('change'));
+
+                this.showNotification('🎲 Parameters randomized!');
+                this.trackUserAction('parameters_randomized');
+            }
+
+            // Add service worker for offline functionality (optional)
+            registerServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(registration => console.log('SW registered'))
+                        .catch(error => console.log('SW registration failed'));
+                }
+            }
+
+            // Load shared genome from URL parameter
+            loadSharedGenome() {
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const sharedData = urlParams.get('share');
+                    
+                    if (sharedData) {
+                        const genomeData = JSON.parse(atob(sharedData));
+                        
+                        if (genomeData.traits) {
+                            // Create a genome from shared data
+                            const sharedGenome = {
+                                musicalTraits: genomeData.traits,
+                                fitness: 0,
+                                fitnessBreakdown: { melodic: 0, harmonic: 0, rhythmic: 0 },
+                                age: 0
+                            };
+                            
+                            this.currentGenome = sharedGenome;
+                            this.updateGenomeDisplay();
+                            this.showNotification('🔗 Shared genome loaded successfully!', 'success');
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to load shared genome:', error);
+                    this.showNotification('❌ Invalid shared link', 'error');
+                }
+            }
+            
+            setupWaveformAnalyzer() {
+                try {
+                    this.canvas = document.getElementById('waveformCanvas');
+                    this.canvasCtx = this.canvas.getContext('2d');
+                    
+                    // Only create analyzer if audio is initialized
+                    if (this.audioInitialized && this.melodySynth) {
+                        this.analyser = new Tone.Analyser('waveform', 256);
+                        this.melodySynth.connect(this.analyser);
+                    }
+                } catch (error) {
+                    console.warn('Waveform analyzer setup failed:', error);
+                }
+            }
+            
+            drawWaveform() {
+                if (!this.canvas || !this.canvasCtx) return;
+                
+                if (!this.isPlaying || !this.analyser) {
+                    this.canvasCtx.fillStyle = '#0c0e13';
+                    this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Draw MelodyForge watermark when not playing
+                    this.canvasCtx.fillStyle = 'rgba(127, 227, 255, 0.3)';
+                    this.canvasCtx.font = '20px Segoe UI';
+                    this.canvasCtx.textAlign = 'center';
+                    this.canvasCtx.fillText('MelodyForge', this.canvas.width / 2, this.canvas.height / 2);
+                    return;
+                }
+                
+                try {
+                    const values = this.analyser.getValue();
+                    
+                    this.canvasCtx.fillStyle = '#0c0e13';
+                    this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    this.canvasCtx.beginPath();
+                    this.canvasCtx.moveTo(0, this.canvas.height / 2);
+                    
+                    for (let i = 0; i < values.length; i++) {
+                        const x = (i / values.length) * this.canvas.width;
+                        const y = ((values[i] + 1) / 2) * this.canvas.height;
+                        this.canvasCtx.lineTo(x, y);
+                    }
+                    
+                    this.canvasCtx.strokeStyle = '#7FE3FF';
+                    this.canvasCtx.lineWidth = 2;
+                    this.canvasCtx.stroke();
+                } catch (error) {
+                    console.warn('Waveform drawing error:', error);
+                }
+            }
+            
+            // ... [Rest of the implementation follows the same structure as the Pro Edition code] ...
+            // For brevity, including essential methods only. Full implementation available on request.
+            
+            initializePopulation() {
+                this.population = [];
+                for (let i = 0; i < 20; i++) {
+                    this.population.push(this.createRandomGenome());
+                }
+                this.selectBestGenome();
+            }
+            
+            createRandomGenome() {
+                return {
+                    musicalTraits: {
+                        scaleType: ['major', 'minor', 'dorian', 'mixolydian', 'pentatonic', 'blues', 'harmonic_minor'][Math.floor(Math.random() * 7)],
+                        rootNote: Math.floor(Math.random() * 12),
+                        tempo: 60 + Math.random() * 120,
+                        melodyShape: Math.random(),
+                        melodyInterval: Math.random(),
+                        melodicContour: Math.random(),
+                        motifRepetition: Math.random(),
+                        rhythmDensity: Math.random(),
+                        syncopation: Math.random(),
+                        swingFactor: Math.random(),
+                        harmonyComplexity: Math.random(),
+                        chordProgression: this.generateChordProgression(),
+                        bassMovement: Math.random(),
+                        voiceLeading: Math.random(),
+                        articulation: Math.random(),
+                        dynamics: Math.random(),
+                        tension: Math.random()
+                    },
+                    fitness: 0,
+                    fitnessBreakdown: { melodic: 0, harmonic: 0, rhythmic: 0 },
+                    age: 0
+                };
+            }
+            
+            generateChordProgression() {
+                const progressions = [
+                    [0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3],
+                    [0, 2, 3, 4], [0, 3, 0, 4], [0, 5, 3, 0], [2, 5, 0, 4]
+                ];
+                return progressions[Math.floor(Math.random() * progressions.length)];
+            }
+            
+            selectBestGenome() {
+                if (this.population && this.population.length > 0) {
+                    // Calculate fitness for all genomes
+                    this.population.forEach(genome => {
+                        genome.fitness = this.calculateFitness(genome);
+                    });
+                    
+                    // Sort by fitness and select the best
+                    this.population.sort((a, b) => b.fitness - a.fitness);
+                    this.currentGenome = this.population[0];
+                    
+                    // Update UI with current genome info
+                    this.updateGenomeDisplay();
+                } else {
+                    // Fallback: create a default genome if population is empty
+                    this.currentGenome = this.createRandomGenome();
+                    this.currentGenome.fitness = this.calculateFitness(this.currentGenome);
+                }
+            }
+            
+            calculateFitness(genome) {
+                const traits = genome.musicalTraits;
+                let fitness = 0;
+                
+                // Melodic fitness
+                const melodicFitness = (
+                    traits.melodyShape * 0.3 +
+                    traits.melodicContour * 0.3 +
+                    traits.motifRepetition * 0.4
+                );
+                
+                // Harmonic fitness
+                const harmonicFitness = (
+                    traits.harmonyComplexity * 0.4 +
+                    traits.voiceLeading * 0.3 +
+                    (1 - Math.abs(traits.tension - 0.5)) * 0.3
+                );
+                
+                // Rhythmic fitness
+                const rhythmicFitness = (
+                    traits.rhythmDensity * 0.4 +
+                    traits.syncopation * 0.3 +
+                    traits.swingFactor * 0.3
+                );
+                
+                // Apply fitness function focus first
+                let fitnessBase;
+                switch (this.fitnessFunction) {
+                    case 'harmony':
+                        fitnessBase = harmonicFitness * 0.6 + melodicFitness * 0.3 + rhythmicFitness * 0.1;
+                        break;
+                    case 'rhythm':
+                        fitnessBase = rhythmicFitness * 0.6 + melodicFitness * 0.2 + harmonicFitness * 0.2;
+                        break;
+                    case 'catchy':
+                        // Catchy focuses on melodic interest and motif repetition
+                        const catchyFactor = (traits.melodyShape + traits.motifRepetition) / 2;
+                        fitnessBase = catchyFactor * 0.5 + melodicFitness * 0.3 + rhythmicFitness * 0.2;
+                        break;
+                    default:
+                        fitnessBase = (melodicFitness + harmonicFitness + rhythmicFitness) / 3;
+                }
+                
+                // Environment-based adjustments (secondary influence)
+                let environmentModifier = 1.0;
+                switch (this.environment) {
+                    case 'ambient':
+                        environmentModifier = 0.8 + (harmonicFitness * 0.4);
+                        break;
+                    case 'dance':
+                        environmentModifier = 0.8 + (rhythmicFitness * 0.4);
+                        break;
+                    case 'jazz':
+                        environmentModifier = 0.8 + ((harmonicFitness + melodicFitness) * 0.2);
+                        break;
+                    case 'classical':
+                        environmentModifier = 0.8 + (harmonicFitness * 0.3) + (melodicFitness * 0.1);
+                        break;
+                    case 'electronic':
+                        environmentModifier = 0.8 + (rhythmicFitness * 0.3) + (traits.syncopation * 0.1);
+                        break;
+                    case 'lofi':
+                        environmentModifier = 0.9 + (harmonicFitness * 0.1);
+                        break;
+                    case 'experimental':
+                        environmentModifier = 0.7 + (Math.random() * 0.6); // Add some randomness
+                        break;
+                    default:
+                        environmentModifier = 1.0;
+                }
+                
+                fitness = fitnessBase * environmentModifier;
+                
+                // Store breakdown for UI display
+                genome.fitnessBreakdown = {
+                    melodic: melodicFitness,
+                    harmonic: harmonicFitness,
+                    rhythmic: rhythmicFitness
+                };
+                
+                return Math.max(0, Math.min(1, fitness));
+            }
+            
+            updateGenomeDisplay() {
+                if (!this.currentGenome) return;
+                
+                const traits = this.currentGenome.musicalTraits;
+                const scaleNames = ['major', 'minor', 'dorian', 'mixolydian', 'pentatonic', 'blues', 'harmonic_minor'];
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                
+                // Update genome info display
+                if (this.dom.scaleInfo) {
+                    const scaleName = scaleNames[scaleNames.indexOf(traits.scaleType)] || traits.scaleType;
+                    const rootNote = noteNames[traits.rootNote] || 'C';
+                    this.dom.scaleInfo.textContent = `${rootNote} ${scaleName}`;
+                }
+                
+                if (this.dom.tempoInfo) {
+                    this.dom.tempoInfo.textContent = `${Math.round(traits.tempo)} BPM`;
+                }
+                
+                if (this.dom.patternInfo) {
+                    const pattern = traits.melodyShape > 0.7 ? 'Complex' : 
+                                   traits.melodyShape > 0.4 ? 'Moderate' : 'Simple';
+                    this.dom.patternInfo.textContent = pattern;
+                }
+                
+                // Update fitness bars
+                const breakdown = this.currentGenome.fitnessBreakdown;
+                if (breakdown) {
+                    if (this.dom.melodicBar) {
+                        this.dom.melodicBar.style.width = `${breakdown.melodic * 100}%`;
+                    }
+                    if (this.dom.harmonicBar) {
+                        this.dom.harmonicBar.style.width = `${breakdown.harmonic * 100}%`;
+                    }
+                    if (this.dom.rhythmicBar) {
+                        this.dom.rhythmicBar.style.width = `${breakdown.rhythmic * 100}%`;
+                    }
+                    if (this.dom.overallBar) {
+                        this.dom.overallBar.style.width = `${this.currentGenome.fitness * 100}%`;
+                    }
+                }
+            }
+            
+            showNotification(message, type = 'success') {
+                const notification = this.dom.notification;
+                notification.textContent = message;
+                notification.className = 'notification';
+                
+                if (type === 'error') {
+                    notification.style.background = 'rgba(18, 33, 63, 0.97)';
+                } else if (type === 'warning') {
+                    notification.style.background = 'rgba(29, 143, 194, 0.96)';
+                } else {
+                    notification.style.background = 'rgba(42, 169, 224, 0.95)';
+                }
+                
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Additional methods follow the same pattern as Pro Edition...
+            setupEventListeners() {
+                // Start Evolution
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    if (!this.audioEnabled) {
+                        this.initializeAudioContext();
+                        Tone.start().then(() => {
+                            this.audioEnabled = true;
+                            document.getElementById('audioWarning').style.display = 'none';
+                            this.startEvolution();
+                        });
+                    } else {
+                        this.startEvolution();
+                    }
+                });
+                
+                // Pause Evolution
+                document.getElementById('pauseBtn').addEventListener('click', () => {
+                    this.pauseEvolution();
+                });
+                
+                // Reset Evolution
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.resetEvolution();
+                });
+                
+                // Play/Pause Button
+                document.getElementById('playButton').addEventListener('click', () => {
+                    if (!this.audioEnabled) {
+                        this.showNotification('Please click anywhere to enable audio first!', 'warning');
+                        return;
+                    }
+                    this.togglePlayback();
+                });
+                
+                // Environment Selection
+                document.getElementById('environmentSelect').addEventListener('change', (e) => {
+                    this.environment = e.target.value;
+                    this.evolutionSettings.environment = e.target.value;
+                    
+                    // Recalculate fitness for all genomes with new environment
+                    if (this.population && this.population.length > 0) {
+                        this.population.forEach(genome => {
+                            genome.fitness = this.calculateFitness(genome);
+                        });
+                        this.selectBestGenome();
+                    }
+                    
+                    this.showNotification(`🌍 Environment changed to ${e.target.value}`);
+                });
+                
+                // Slider Controls
+                document.getElementById('melodicComplexity').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    document.getElementById('melodicValue').textContent = value;
+                    this.musicalParameters.melodicComplexity = value;
+                    this.updateCurrentGenomeWithParameters();
+                    this.showNotification(`Melodic complexity set to ${value}`);
+                });
+                
+                document.getElementById('harmonicDensity').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    document.getElementById('harmonicValue').textContent = value;
+                    this.musicalParameters.harmonicDensity = value;
+                    this.updateCurrentGenomeWithParameters();
+                    this.showNotification(`Harmonic density set to ${value}`);
+                });
+                
+                document.getElementById('mutationRate').addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    const percentage = Math.round(value * 100);
+                    document.getElementById('mutationValue').textContent = `${percentage}%`;
+                    this.musicalParameters.mutationRate = value;
+                    this.showNotification(`Mutation rate set to ${percentage}%`);
+                });
+                
+                document.getElementById('reverbAmount').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    document.getElementById('reverbValue').textContent = `${value}%`;
+                    this.audioEffects.reverbAmount = value;
+                    
+                    if (this.reverb) {
+                        this.reverb.wet.value = value / 100;
+                        this.reverb.decay = 1 + (value / 100) * 3; // Scale decay from 1-4 seconds
+                    }
+                    
+                    this.showNotification(`🔊 Reverb set to ${value}%`);
+                });
+                
+                document.getElementById('tempoControl').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    document.getElementById('tempoValue').textContent = `${value} BPM`;
+                    this.audioEffects.tempoControl = value;
+                    
+                    if (this.audioEnabled) {
+                        Tone.Transport.bpm.value = value;
+                        
+                        // Update current genome tempo if one exists
+                        if (this.currentGenome) {
+                            this.currentGenome.musicalTraits.tempo = value;
+                            this.updateGenomeDisplay();
+                        }
+                        
+                        // If currently playing, the tempo change will take effect immediately
+                        if (this.isPlaying) {
+                            this.showNotification(`🎵 Tempo changed to ${value} BPM`);
+                        }
+                    }
+                });
+                
+                // Rating buttons
+                document.getElementById('likeButton').addEventListener('click', () => {
+                    this.rateCurrentGenome('like');
+                });
+                
+                document.getElementById('skipButton').addEventListener('click', () => {
+                    this.rateCurrentGenome('skip');
+                });
+                
+                document.getElementById('evolveButton').addEventListener('click', () => {
+                    this.evolvePopulation();
+                });
+                
+                // Save/Load functionality
+                document.getElementById('saveBtn').addEventListener('click', () => {
+                    this.saveCurrentGenome();
+                });
+                
+                // Export MIDI functionality
+                document.getElementById('exportMidiBtn').addEventListener('click', () => {
+                    this.exportCurrentGenomeAsMIDI();
+                });
+                
+                // Layer toggles
+                document.getElementById('melodyToggle').addEventListener('click', () => {
+                    this.toggleLayer('melody');
+                });
+                
+                document.getElementById('bassToggle').addEventListener('click', () => {
+                    this.toggleLayer('bass');
+                });
+                
+                document.getElementById('chordsToggle').addEventListener('click', () => {
+                    this.toggleLayer('chords');
+                });
+                
+                // Audio Effects Buttons
+                document.getElementById('harmonyBtn').addEventListener('click', () => {
+                    this.setFitnessFunction('harmony');
+                });
+                
+                document.getElementById('rhythmBtn').addEventListener('click', () => {
+                    this.setFitnessFunction('rhythm');
+                });
+                
+                document.getElementById('catchinessBtn').addEventListener('click', () => {
+                    this.setFitnessFunction('catchy');
+                });
+
+                // New advanced feature buttons
+                document.getElementById('shareBtn').addEventListener('click', () => {
+                    this.generateShareableLink();
+                });
+
+                document.getElementById('enhancedExportBtn').addEventListener('click', () => {
+                    this.exportMIDIWithFormat();
+                });
+
+                document.getElementById('copyGenomeBtn').addEventListener('click', () => {
+                    this.copyGenomeToClipboard();
+                });
+
+                document.getElementById('randomizeBtn').addEventListener('click', () => {
+                    this.randomizeParameters();
+                });
+            }
+            
+            toggleLayer(layerName) {
+                this.layers[layerName] = !this.layers[layerName];
+                const toggle = document.getElementById(layerName + 'Toggle');
+                
+                if (this.layers[layerName]) {
+                    toggle.classList.add('active');
+                    
+                    // If layer is enabled and we're currently playing, add the new layer
+                    if (this.isPlaying && this.audioEnabled) {
+                        this.addLayerToCurrentPlayback(layerName);
+                    }
+                } else {
+                    toggle.classList.remove('active');
+                    
+                    // If layer is disabled and we're currently playing, stop that layer immediately
+                    if (this.isPlaying && this.audioEnabled) {
+                        this.stopLayerAudio(layerName);
+                    }
+                }
+                
+                this.updateLayerIndicator();
+                this.showNotification(`${layerName} ${this.layers[layerName] ? 'enabled' : 'disabled'}`);
+            }
+            
+            addLayerToCurrentPlayback(layerName) {
+                if (!this.audioEnabled || !this.currentGenome || !this.isPlaying) return;
+                
+                const traits = this.currentGenome.musicalTraits;
+                const currentTime = (Date.now() - this.startTime) / 1000; // Convert to seconds
+                
+                // Schedule events for the newly enabled layer, starting from current time
+                switch (layerName) {
+                    case 'melody':
+                        for (let i = 0; i < 64; i++) {
+                            const time = i * 0.5;
+                            if (time > currentTime) { // Only schedule future events
+                                const note = this.generateNote(traits, i);
+                                if (note) {
+                                    const eventId = Tone.Transport.schedule((time) => {
+                                        if (this.isPlaying && this.layers.melody) {
+                                            this.melodySynth.triggerAttackRelease(note, '8n', time);
+                                        }
+                                    }, time);
+                                    this.scheduledEvents.melody.push(eventId);
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 'bass':
+                        for (let i = 0; i < 16; i++) {
+                            const time = i * 2.0;
+                            if (time > currentTime) {
+                                const bassNote = this.generateBassNote(traits, i);
+                                if (bassNote) {
+                                    const eventId = Tone.Transport.schedule((time) => {
+                                        if (this.isPlaying && this.layers.bass) {
+                                            this.bassSynth.triggerAttackRelease(bassNote, '4n', time);
+                                        }
+                                    }, time);
+                                    this.scheduledEvents.bass.push(eventId);
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 'chords':
+                        for (let i = 0; i < 8; i++) {
+                            const time = i * 4.0;
+                            if (time > currentTime) {
+                                const chord = this.generateChord(traits, i);
+                                if (chord && chord.length > 0) {
+                                    const eventId = Tone.Transport.schedule((time) => {
+                                        if (this.isPlaying && this.layers.chords) {
+                                            this.chordSynth.triggerAttackRelease(chord, '2n', time);
+                                        }
+                                    }, time);
+                                    this.scheduledEvents.chords.push(eventId);
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+            
+            stopLayerAudio(layerName) {
+                // Immediately stop audio for the specified layer
+                switch (layerName) {
+                    case 'melody':
+                        if (this.melodySynth) {
+                            this.melodySynth.releaseAll();
+                        }
+                        break;
+                    case 'bass':
+                        if (this.bassSynth) {
+                            this.bassSynth.triggerRelease();
+                        }
+                        break;
+                    case 'chords':
+                        if (this.chordSynth) {
+                            this.chordSynth.releaseAll();
+                        }
+                        break;
+                }
+                
+                // Cancel scheduled events for this layer
+                this.clearScheduledEvents(layerName);
+            }
+
+            
+            updateLayerIndicator() {
+                const activeLayersList = [];
+                if (this.layers.melody) activeLayersList.push('Melody');
+                if (this.layers.bass) activeLayersList.push('Bass');
+                if (this.layers.chords) activeLayersList.push('Chords');
+                
+                const indicator = document.getElementById('layerIndicator');
+                if (indicator) {
+                    indicator.textContent = activeLayersList.join(' • ') || 'No layers active';
+                }
+            }
+            
+            startEvolution() {
+                this.isRunning = true;
+                this.dom.startBtn.textContent = 'Running...';
+                this.dom.startBtn.disabled = true;
+                this.evolutionStartTime = Date.now();
+                
+                // Start evolution progress animation
+                this.updateEvolutionProgress();
+                
+                this.showNotification('🧬 Evolution started!');
+            }
+            
+            updateEvolutionProgress() {
+                if (!this.isRunning) return;
+                
+                // Calculate progress based on generation and fitness
+                const maxGenerations = 100; // Target generations
+                const generationProgress = Math.min(this.generation / maxGenerations, 1);
+                const fitnessProgress = this.currentGenome ? this.currentGenome.fitness : 0;
+                
+                // Combine generation and fitness progress
+                const overallProgress = (generationProgress * 0.7) + (fitnessProgress * 0.3);
+                
+                // Update progress bar
+                if (this.dom.evolutionProgress) {
+                    this.dom.evolutionProgress.style.width = `${overallProgress * 100}%`;
+                }
+                
+                // Continue animation if evolution is running
+                if (this.isRunning) {
+                    setTimeout(() => this.updateEvolutionProgress(), 1000);
+                }
+            }
+            
+            pauseEvolution() {
+                this.isRunning = false;
+                this.dom.startBtn.textContent = 'Start';
+                this.dom.startBtn.disabled = false;
+                
+                // Stop progress animation
+                if (this.dom.evolutionProgress) {
+                    this.dom.evolutionProgress.style.width = '0%';
+                }
+                
+                this.showNotification('⏸️ Evolution paused');
+            }
+            
+            resetEvolution() {
+                this.isRunning = false;
+                this.generation = 0;
+                this.initializePopulation();
+                this.updateUI();
+                this.dom.startBtn.textContent = 'Start';
+                this.dom.startBtn.disabled = false;
+                
+                // Reset progress bar
+                if (this.dom.evolutionProgress) {
+                    this.dom.evolutionProgress.style.width = '0%';
+                }
+                
+                // Reset fitness function to default
+                this.fitnessFunction = 'harmony';
+                document.getElementById('harmonyBtn').classList.add('active');
+                document.getElementById('rhythmBtn').classList.remove('active');
+                document.getElementById('catchinessBtn').classList.remove('active');
+                
+                this.showNotification('🔄 Evolution reset to defaults');
+            }
+            
+            togglePlayback() {
+                if (this.isPlaying) {
+                    this.stopPlayback();
+                } else {
+                    this.startPlayback();
+                }
+            }
+            
+            startPlayback() {
+                if (!this.audioEnabled || !this.currentGenome) return;
+                
+                this.isPlaying = true;
+                this.dom.playButton.textContent = '⏸️';
+                this.startTime = Date.now();
+                this.duration = 32000; // 32 seconds - much longer!
+                
+                // Clear any existing scheduled events
+                this.clearScheduledEvents();
+                
+                // Reset scheduled events arrays
+                this.scheduledEvents = {
+                    melody: [],
+                    bass: [],
+                    chords: []
+                };
+                this.playbackTimeout = null;
+                this.timelineInterval = null;
+                
+                // Check if any layers are active
+                const hasActiveLayers = this.layers.melody || this.layers.bass || this.layers.chords;
+                if (!hasActiveLayers) {
+                    this.showNotification('🔇 All layers disabled - playing silence', 'warning');
+                }
+                
+                // Simple melody generation based on current genome
+                this.generateAndPlayMusic();
+                
+                // Start timeline updates (update every 100ms for smooth progress)
+                this.timelineInterval = setInterval(() => {
+                    this.updateTimelineDisplay();
+                }, 100);
+                
+                // Initial timeline display
+                this.updateTimelineDisplay();
+                
+                // Stop after duration
+                this.playbackTimeout = setTimeout(() => {
+                    this.stopPlayback();
+                }, this.duration);
+            }
+            
+            stopPlayback() {
+                this.isPlaying = false;
+                this.dom.playButton.textContent = '▶️';
+                
+                // Clear the timeout if it exists
+                if (this.playbackTimeout) {
+                    clearTimeout(this.playbackTimeout);
+                    this.playbackTimeout = null;
+                }
+                
+                // Stop all audio and clear scheduled events
+                if (this.audioEnabled) {
+                    this.melodySynth?.releaseAll();
+                    this.bassSynth?.triggerRelease();
+                    this.chordSynth?.releaseAll();
+                    
+                    // Cancel all scheduled events
+                    this.clearScheduledEvents();
+                }
+                
+                // Clear timeline update interval
+                if (this.timelineInterval) {
+                    clearInterval(this.timelineInterval);
+                    this.timelineInterval = null;
+                }
+                
+                // Reset timeline display
+                this.updateTimelineDisplay();
+            }
+            
+            updateTimelineDisplay() {
+                if (!this.isPlaying) {
+                    // Reset to start position when not playing
+                    if (this.dom.timelineProgress) {
+                        this.dom.timelineProgress.style.width = '0%';
+                    }
+                    if (this.dom.timeDisplay) {
+                        this.dom.timeDisplay.textContent = '0:00 / 0:32';
+                    }
+                    return;
+                }
+                
+                const currentTime = Date.now() - this.startTime;
+                const progress = Math.min(currentTime / this.duration, 1) * 100;
+                
+                // Update progress bar
+                if (this.dom.timelineProgress) {
+                    this.dom.timelineProgress.style.width = `${progress}%`;
+                }
+                
+                // Update time display
+                if (this.dom.timeDisplay) {
+                    const currentSeconds = Math.floor(currentTime / 1000);
+                    const totalSeconds = Math.floor(this.duration / 1000);
+                    const currentFormatted = this.formatTime(currentSeconds);
+                    const totalFormatted = this.formatTime(totalSeconds);
+                    this.dom.timeDisplay.textContent = `${currentFormatted} / ${totalFormatted}`;
+                }
+            }
+            
+            formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+            
+            clearScheduledEvents(layerName = null) {
+                // Cancel scheduled Tone.js events for a specific layer or all layers
+                if (layerName) {
+                    // Cancel events for specific layer
+                    if (this.scheduledEvents[layerName] && this.scheduledEvents[layerName].length > 0) {
+                        this.scheduledEvents[layerName].forEach(eventId => {
+                            try {
+                                Tone.Transport.cancel(eventId);
+                            } catch (e) {
+                                // Event might already be played or cancelled
+                            }
+                        });
+                        this.scheduledEvents[layerName] = [];
+                    }
+                } else {
+                    // Cancel all events
+                    Object.keys(this.scheduledEvents).forEach(layer => {
+                        if (this.scheduledEvents[layer] && this.scheduledEvents[layer].length > 0) {
+                            this.scheduledEvents[layer].forEach(eventId => {
+                                try {
+                                    Tone.Transport.cancel(eventId);
+                                } catch (e) {
+                                    // Event might already be played or cancelled
+                                }
+                            });
+                            this.scheduledEvents[layer] = [];
+                        }
+                    });
+                    
+                    // Stop and clear the transport
+                    if (Tone.Transport.state === 'started') {
+                        Tone.Transport.stop();
+                    }
+                    Tone.Transport.cancel(0); // Cancel all events from time 0
+                }
+            }
+            
+            generateAndPlayMusic() {
+                if (!this.audioEnabled || !this.currentGenome) return;
+                
+                const traits = this.currentGenome.musicalTraits;
+                
+                // Use Transport for better timing control
+                Tone.Transport.bpm.value = traits.tempo || 120;
+                
+                // Schedule melody notes
+                if (this.layers.melody) {
+                    for (let i = 0; i < 64; i++) {
+                        const time = i * 0.5; // Every half second
+                        const note = this.generateNote(traits, i);
+                        if (note) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.melody) { // Check layer status at play time
+                                    this.melodySynth.triggerAttackRelease(note, '8n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.melody.push(eventId);
+                        }
+                    }
+                }
+                
+                // Schedule bass notes (simpler pattern)
+                if (this.layers.bass) {
+                    for (let i = 0; i < 16; i++) {
+                        const time = i * 4.0; // Every 4 seconds (chords)
+                        const bassNote = this.generateBassNote(traits, i);
+                        if (bassNote) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.bass) { // Check layer status at play time
+                                    this.bassSynth.triggerAttackRelease(bassNote, '4n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.bass.push(eventId);
+                        }
+                    }
+                }
+                
+                // Schedule chord progression
+                if (this.layers.chords) {
+                    for (let i = 0; i < 8; i++) {
+                        const time = i * 4.0; // Every 4 seconds (chords)
+                        const chord = this.generateChord(traits, i);
+                        if (chord && chord.length > 0) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.chords) { // Check layer status at play time
+                                    this.chordSynth.triggerAttackRelease(chord, '2n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.chords.push(eventId);
+                        }
+                    }
+                }
+                
+                // Start the transport
+                Tone.Transport.start();
+            }
+            
+            generateNote(traits, index) {
+                const scales = {
+                    major: [0, 2, 4, 5, 7, 9, 11],
+                    minor: [0, 2, 3, 5, 7, 8, 10],
+                    pentatonic: [0, 2, 4, 7, 9],
+                    dorian: [0, 2, 3, 5, 7, 9, 10],
+                    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+                    blues: [0, 3, 5, 6, 7, 10],
+                    harmonic_minor: [0, 2, 3, 5, 7, 8, 11]
+                };
+                
+                const scale = scales[traits.scaleType] || scales.major;
+                const rootNote = traits.rootNote || 0;
+                const noteIndex = Math.floor(Math.random() * scale.length);
+                const octave = 4 + Math.floor(Math.random() * 2);
+                const semitone = rootNote + scale[noteIndex];
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return noteNames[semitone % 12] + octave;
+            }
+            
+            generateBassNote(traits, index) {
+                const progression = traits.chordProgression || [0, 3, 4, 0];
+                const chordIndex = index % progression.length;
+                const chordRoot = progression[chordIndex];
+                
+                const rootNote = traits.rootNote || 0;
+                const bassNote = (rootNote + chordRoot) % 12;
+                const octave = 2; // Bass octave
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return noteNames[bassNote] + octave;
+            }
+            
+            generateChord(traits, index) {
+                const progression = traits.chordProgression || [0, 3, 4, 0];
+                const chordIndex = index % progression.length;
+                const chordRoot = progression[chordIndex];
+                
+                const rootNote = traits.rootNote || 0;
+                const baseNote = (rootNote + chordRoot) % 12;
+                const octave = 3; // Chord octave
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                
+                // Generate a triad (root, third, fifth)
+                const chord = [
+                    noteNames[baseNote] + octave,
+                    noteNames[(baseNote + 4) % 12] + octave, // Major third
+                    noteNames[(baseNote + 7) % 12] + octave  // Perfect fifth
+                ];
+                
+                return chord;
+            }
+            
+            rateCurrentGenome(rating) {
+                if (!this.currentGenome) return;
+
+                // Track user interaction
+                this.trackUserAction('genome_rating', {
+                    rating: rating,
+                    generation: this.generation,
+                    fitness: this.currentGenome.fitness
+                });
+                
+                if (rating === 'like') {
+                    this.currentGenome.fitness += 0.1;
+                    this.showNotification('👍 Genome liked! Fitness increased');
+                } else {
+                    this.currentGenome.fitness -= 0.05;
+                    this.showNotification('👎 Genome skipped! Trying new variation');
+                    this.selectBestGenome();
+                }
+                
+                this.updateUI();
+            }
+            
+            evolvePopulation() {
+                this.generation++;
+                // Simple evolution: create new population based on current best
+                const elite = this.population.slice(0, 5); // Keep top 5
+                const newPopulation = [...elite];
+                
+                // Generate new genomes with mutations
+                while (newPopulation.length < 20) {
+                    const parent = elite[Math.floor(Math.random() * elite.length)];
+                    const child = this.mutateGenome(parent);
+                    newPopulation.push(child);
+                }
+                
+                this.population = newPopulation;
+                this.selectBestGenome();
+                this.updateUI();
+                this.showNotification(`⚡ Generation ${this.generation} evolved!`);
+            }
+            
+            mutateGenome(parent) {
+                const child = JSON.parse(JSON.stringify(parent));
+                const mutationRate = parseFloat(document.getElementById('mutationRate').value) || 0.1;
+                
+                Object.keys(child.musicalTraits).forEach(key => {
+                    if (Math.random() < mutationRate) {
+                        if (typeof child.musicalTraits[key] === 'number') {
+                            child.musicalTraits[key] += (Math.random() - 0.5) * 0.2;
+                            child.musicalTraits[key] = Math.max(0, Math.min(1, child.musicalTraits[key]));
+                        }
+                    }
+                });
+                
+                child.fitness = 0;
+                child.age = 0;
+                return child;
+            }
+            
+            saveCurrentGenome() {
+                const name = document.getElementById('genomeName').value.trim();
+                if (!name) {
+                    this.showNotification('Please enter a name for the genome', 'warning');
+                    return;
+                }
+                
+                if (!this.currentGenome) {
+                    this.showNotification('No genome to save', 'warning');
+                    return;
+                }
+                
+                const savedGenome = {
+                    name: name,
+                    genome: JSON.parse(JSON.stringify(this.currentGenome)),
+                    generation: this.generation,
+                    timestamp: Date.now()
+                };
+                
+                this.savedGenomes.push(savedGenome);
+                this.persistSavedGenomes();
+                this.renderSavedGenomes();
+                
+                document.getElementById('genomeName').value = '';
+                this.showNotification(`💾 Genome "${name}" saved!`);
+            }
+            
+            loadGenome(index) {
+                if (index >= 0 && index < this.savedGenomes.length) {
+                    this.currentGenome = JSON.parse(JSON.stringify(this.savedGenomes[index].genome));
+                    this.updateGenomeDisplay();
+                    this.updateUI();
+                    this.showNotification(`📚 Loaded genome "${this.savedGenomes[index].name}"`);
+                }
+            }
+            
+            deleteGenome(index) {
+                if (index >= 0 && index < this.savedGenomes.length) {
+                    const name = this.savedGenomes[index].name;
+                    this.savedGenomes.splice(index, 1);
+                    this.persistSavedGenomes();
+                    this.renderSavedGenomes();
+                    this.showNotification(`🗑️ Deleted genome "${name}"`);
+                }
+            }
+            
+            updateUI() {
+                // Update all UI elements
+                this.dom.generationCount.textContent = this.generation;
+                this.dom.populationCount.textContent = this.population.length;
+                
+                const avgFitness = this.population.reduce((sum, g) => sum + g.fitness, 0) / this.population.length;
+                this.dom.fitnessScore.textContent = avgFitness.toFixed(2);
+            }
+            
+            animateVisualizer() {
+                const updateBars = () => {
+                    if (this.isPlaying && this.audioEnabled) {
+                        this.visualizerBars.forEach((bar, i) => {
+                            const baseHeight = 20;
+                            const waveOffset = Math.sin(Date.now() * 0.003 + i * 0.3) * 40;
+                            const randomVariation = Math.random() * 30;
+                            const height = baseHeight + waveOffset + randomVariation;
+                            bar.style.height = `${Math.max(10, height)}px`;
+                        });
+                        
+                        this.drawWaveform();
+                    } else {
+                        this.drawWaveform();
+                    }
+                    requestAnimationFrame(updateBars);
+                };
+                updateBars();
+            }
+            
+            loadSavedGenomes() {
+                try {
+                    const saved = localStorage.getItem('melodyForgeGenomes');
+                    return saved ? JSON.parse(saved) : [];
+                } catch (e) {
+                    console.warn('Could not load from localStorage:', e);
+                    return [];
+                }
+            }
+            
+            persistSavedGenomes() {
+                try {
+                    localStorage.setItem('melodyForgeGenomes', JSON.stringify(this.savedGenomes));
+                } catch (e) {
+                    console.warn('Could not save to localStorage:', e);
+                    this.showNotification('Failed to save to storage', 'error');
+                }
+            }
+            
+            renderSavedGenomes() {
+                const container = document.getElementById('savedGenomesList');
+                
+                if (this.savedGenomes.length === 0) {
+                    container.innerHTML = '<p class="empty-state">No saved genomes yet</p>';
+                    return;
+                }
+                
+                container.innerHTML = this.savedGenomes.map((saved, index) => {
+                    const date = new Date(saved.timestamp).toLocaleDateString();
+                    return `
+                        <div class="saved-genome-item" onclick="melodyForge.loadGenome(${index})">
+                            <div>
+                                <strong>${saved.name}</strong><br>
+                                <small style="opacity: 0.7;">Gen ${saved.generation} • ${date}</small>
+                            </div>
+                            <button class="delete-btn" onclick="event.stopPropagation(); melodyForge.deleteGenome(${index})">🗑️</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            clearScheduledEvents(layerName = null) {
+                // Cancel scheduled Tone.js events for a specific layer or all layers
+                if (layerName) {
+                    // Cancel events for specific layer
+                    if (this.scheduledEvents[layerName] && this.scheduledEvents[layerName].length > 0) {
+                        this.scheduledEvents[layerName].forEach(eventId => {
+                            try {
+                                Tone.Transport.cancel(eventId);
+                            } catch (e) {
+                                // Event might already be played or cancelled
+                            }
+                        });
+                        this.scheduledEvents[layerName] = [];
+                    }
+                } else {
+                    // Cancel all events
+                    Object.keys(this.scheduledEvents).forEach(layer => {
+                        if (this.scheduledEvents[layer] && this.scheduledEvents[layer].length > 0) {
+                            this.scheduledEvents[layer].forEach(eventId => {
+                                try {
+                                    Tone.Transport.cancel(eventId);
+                                } catch (e) {
+                                    // Event might already be played or cancelled
+                                }
+                            });
+                            this.scheduledEvents[layer] = [];
+                        }
+                    });
+                    
+                    // Stop and clear the transport
+                    if (Tone.Transport.state === 'started') {
+                        Tone.Transport.stop();
+                    }
+                    Tone.Transport.cancel(0); // Cancel all events from time 0
+                }
+            }
+            
+            stopPlayback() {
+                this.isPlaying = false;
+                this.dom.playButton.textContent = '▶️';
+                
+                // Clear the timeout if it exists
+                if (this.playbackTimeout) {
+                    clearTimeout(this.playbackTimeout);
+                    this.playbackTimeout = null;
+                }
+                
+                // Stop all audio and clear scheduled events
+                if (this.audioEnabled) {
+                    this.melodySynth?.releaseAll();
+                    this.bassSynth?.triggerRelease();
+                    this.chordSynth?.releaseAll();
+                    
+                    // Cancel all scheduled events
+                    this.clearScheduledEvents();
+                }
+            }
+            
+            generateAndPlayMusic() {
+                if (!this.audioEnabled || !this.currentGenome) return;
+                
+                const traits = this.currentGenome.musicalTraits;
+                
+                // Use Transport for better timing control
+                Tone.Transport.bpm.value = traits.tempo || 120;
+                
+                // Schedule melody notes
+                if (this.layers.melody) {
+                    for (let i = 0; i < 64; i++) {
+                        const time = i * 0.5; // Every half second
+                        const note = this.generateNote(traits, i);
+                        if (note) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.melody) { // Check layer status at play time
+                                    this.melodySynth.triggerAttackRelease(note, '8n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.melody.push(eventId);
+                        }
+                    }
+                }
+                
+                // Schedule bass notes (simpler pattern)
+                if (this.layers.bass) {
+                    for (let i = 0; i < 16; i++) {
+                        const time = i * 4.0; // Every 4 seconds (chords)
+                        const bassNote = this.generateBassNote(traits, i);
+                        if (bassNote) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.bass) { // Check layer status at play time
+                                    this.bassSynth.triggerAttackRelease(bassNote, '4n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.bass.push(eventId);
+                        }
+                    }
+                }
+                
+                // Schedule chord progression
+                if (this.layers.chords) {
+                    for (let i = 0; i < 8; i++) {
+                        const time = i * 4.0; // Every 4 seconds (chords)
+                        const chord = this.generateChord(traits, i);
+                        if (chord && chord.length > 0) {
+                            const eventId = Tone.Transport.schedule((time) => {
+                                if (this.isPlaying && this.layers.chords) { // Check layer status at play time
+                                    this.chordSynth.triggerAttackRelease(chord, '2n', time);
+                                }
+                            }, time);
+                            this.scheduledEvents.chords.push(eventId);
+                        }
+                    }
+                }
+                
+                // Start the transport
+                Tone.Transport.start();
+                
+                // Stop after duration
+                this.playbackTimeout = setTimeout(() => {
+                    this.stopPlayback();
+                }, this.duration);
+            }
+            
+            generateNote(traits, index) {
+                const scales = {
+                    major: [0, 2, 4, 5, 7, 9, 11],
+                    minor: [0, 2, 3, 5, 7, 8, 10],
+                    pentatonic: [0, 2, 4, 7, 9],
+                    dorian: [0, 2, 3, 5, 7, 9, 10],
+                    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+                    blues: [0, 3, 5, 6, 7, 10],
+                    harmonic_minor: [0, 2, 3, 5, 7, 8, 11]
+                };
+                
+                const scale = scales[traits.scaleType] || scales.major;
+                const rootNote = traits.rootNote || 0;
+                const noteIndex = Math.floor(Math.random() * scale.length);
+                const octave = 4 + Math.floor(Math.random() * 2);
+                const semitone = rootNote + scale[noteIndex];
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return noteNames[semitone % 12] + octave;
+            }
+            
+            generateBassNote(traits, index) {
+                const progression = traits.chordProgression || [0, 3, 4, 0];
+                const chordIndex = index % progression.length;
+                const chordRoot = progression[chordIndex];
+                
+                const rootNote = traits.rootNote || 0;
+                const bassNote = (rootNote + chordRoot) % 12;
+                const octave = 2; // Bass octave
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return noteNames[bassNote] + octave;
+            }
+            
+            generateChord(traits, index) {
+                const progression = traits.chordProgression || [0, 3, 4, 0];
+                const chordIndex = index % progression.length;
+                const chordRoot = progression[chordIndex];
+                
+                const rootNote = traits.rootNote || 0;
+                const baseNote = (rootNote + chordRoot) % 12;
+                const octave = 3; // Chord octave
+                
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                
+                // Generate a triad (root, third, fifth)
+                const chord = [
+                    noteNames[baseNote] + octave,
+                    noteNames[(baseNote + 4) % 12] + octave, // Major third
+                    noteNames[(baseNote + 7) % 12] + octave  // Perfect fifth
+                ];
+                
+                return chord;
+            }
+            
+            rateCurrentGenome(rating) {
+                if (!this.currentGenome) return;
+                
+                if (rating === 'like') {
+                    this.currentGenome.fitness += 0.1;
+                    this.showNotification('👍 Genome liked! Fitness increased');
+                } else {
+                    this.currentGenome.fitness -= 0.05;
+                    this.showNotification('👎 Genome skipped! Trying new variation');
+                    this.selectBestGenome();
+                }
+                
+                this.updateUI();
+            }
+            
+            evolvePopulation() {
+                this.generation++;
+                // Simple evolution: create new population based on current best
+                const elite = this.population.slice(0, 5); // Keep top 5
+                const newPopulation = [...elite];
+                
+                // Generate new genomes with mutations
+                while (newPopulation.length < 20) {
+                    const parent = elite[Math.floor(Math.random() * elite.length)];
+                    const child = this.mutateGenome(parent);
+                    newPopulation.push(child);
+                }
+                
+                this.population = newPopulation;
+                this.selectBestGenome();
+                this.updateUI();
+                this.showNotification(`⚡ Generation ${this.generation} evolved!`);
+            }
+            
+            mutateGenome(parent) {
+                const child = JSON.parse(JSON.stringify(parent));
+                const mutationRate = parseFloat(document.getElementById('mutationRate').value) || 0.1;
+                
+                Object.keys(child.musicalTraits).forEach(key => {
+                    if (Math.random() < mutationRate) {
+                        if (typeof child.musicalTraits[key] === 'number') {
+                            child.musicalTraits[key] += (Math.random() - 0.5) * 0.2;
+                            child.musicalTraits[key] = Math.max(0, Math.min(1, child.musicalTraits[key]));
+                        }
+                    }
+                });
+                
+                child.fitness = 0;
+                child.age = 0;
+                return child;
+            }
+            
+            saveCurrentGenome() {
+                const name = document.getElementById('genomeName').value.trim();
+                if (!name) {
+                    this.showNotification('Please enter a name for the genome', 'warning');
+                    return;
+                }
+                
+                if (!this.currentGenome) {
+                    this.showNotification('No genome to save', 'warning');
+                    return;
+                }
+                
+                const savedGenome = {
+                    name: name,
+                    genome: JSON.parse(JSON.stringify(this.currentGenome)),
+                    generation: this.generation,
+                    timestamp: Date.now()
+                };
+                
+                this.savedGenomes.push(savedGenome);
+                this.persistSavedGenomes();
+                this.renderSavedGenomes();
+                
+                document.getElementById('genomeName').value = '';
+                this.showNotification(`💾 Genome "${name}" saved!`);
+            }
+            
+            loadGenome(index) {
+                if (index >= 0 && index < this.savedGenomes.length) {
+                    this.currentGenome = JSON.parse(JSON.stringify(this.savedGenomes[index].genome));
+                    this.updateGenomeDisplay();
+                    this.updateUI();
+                    this.showNotification(`📚 Loaded genome "${this.savedGenomes[index].name}"`);
+                }
+            }
+            
+            deleteGenome(index) {
+                if (index >= 0 && index < this.savedGenomes.length) {
+                    const name = this.savedGenomes[index].name;
+                    this.savedGenomes.splice(index, 1);
+                    this.persistSavedGenomes();
+                    this.renderSavedGenomes();
+                    this.showNotification(`🗑️ Deleted genome "${name}"`);
+                }
+            }
+            
+            exportCurrentGenomeAsMIDI() {
+                try {
+                    if (!this.currentGenome || !this.currentGenome.musicalTraits) {
+                        this.showNotification("⚠️ No genome to export!");
+                        return;
+                    }
+                    
+                    // Generate notes from the genome's musical traits
+                    const generatedNotes = this.generateNotesFromGenome(this.currentGenome);
+                    
+                    // Generate MIDI-like data (simplified format)
+                    const midiData = this.generateMIDIData(this.currentGenome, generatedNotes);
+                    const jsonString = JSON.stringify(midiData, null, 2);
+                    
+                    // Create download link
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `melodyforge-midi-${Date.now()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showNotification("🎵 MIDI data exported successfully!");
+                } catch (error) {
+                    console.error('MIDI export error:', error);
+                    this.showNotification("❌ MIDI export failed!");
+                }
+            }
+
+            // Enhanced MIDI export with proper format
+            async exportAsStandardMIDI() {
+                try {
+                    // Use Web MIDI API if available
+                    if (navigator.requestMIDIAccess) {
+                        const midiAccess = await navigator.requestMIDIAccess();
+                        this.showNotification('MIDI hardware detected', 'success');
+                    }
+                    
+                    // Your existing MIDI export logic
+                    this.exportCurrentGenomeAsMIDI();
+                } catch (error) {
+                    console.warn('Web MIDI not available:', error);
+                    this.exportCurrentGenomeAsMIDI(); // Fallback to JSON export
+                }
+            }
+            
+            generateNotesFromGenome(genome) {
+                const traits = genome.musicalTraits;
+                const notes = [];
+                
+                // Generate 64 melody notes (32 seconds at 120 BPM with 8th notes)
+                for (let i = 0; i < 64; i++) {
+                    const note = this.generateNote(traits, i);
+                    if (note) {
+                        // Convert note name to MIDI pitch number
+                        const pitch = this.convertNoteToPitch(note);
+                        notes.push({
+                            pitch: pitch,
+                            duration: 0.5, // 8th note duration in seconds
+                            velocity: 0.7 + (Math.random() * 0.3), // Vary velocity slightly
+                            time: i * 0.5, // Each note starts 0.5 seconds apart
+                            noteName: note
+                        });
+                    }
+                }
+                
+                // Add bass notes (8 notes, 2-second duration each)
+                for (let i = 0; i < 8; i++) {
+                    const bassNote = this.generateBassNote(traits, i);
+                    if (bassNote) {
+                        const pitch = this.convertNoteToPitch(bassNote);
+                        notes.push({
+                            pitch: pitch - 24, // Bass octave (two octaves down)
+                            duration: 2.0, // Whole note duration
+                            velocity: 0.6,
+                            time: i * 2.0,
+                            noteName: bassNote,
+                            track: 'bass'
+                        });
+                    }
+                }
+                
+                // Add chord notes (8 chord progressions, 4-second duration each)
+                for (let i = 0; i < 8; i++) {
+                    const chord = this.generateChord(traits, i);
+                    if (chord && chord.length > 0) {
+                        chord.forEach((chordNote, chordIndex) => {
+                            const pitch = this.convertNoteToPitch(chordNote);
+                            notes.push({
+                                pitch: pitch,
+                                duration: 4.0, // Chord duration (4 seconds)
+                                velocity: 0.5,
+                                time: i * 4.0,
+                                noteName: chordNote,
+                                track: 'chords'
+                            });
+                        });
+                    }
+                }
+                
+                return notes.sort((a, b) => a.time - b.time); // Sort by time
+            }
+            
+            convertNoteToPitch(noteName) {
+                // Convert Tone.js note format (e.g., "C4", "F#3") to MIDI pitch number
+                if (!noteName || typeof noteName !== 'string') return 60; // Default to C4
+                
+                const noteMap = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
+                
+                // Extract note and octave (e.g., "C4" -> note="C", octave=4)
+                const matches = noteName.match(/([A-G]#?)(\d+)/);
+                if (!matches) return 60; // Default to C4 if parsing fails
+                
+                const note = matches[1];
+                const octave = parseInt(matches[2]);
+                
+                // MIDI note number = (octave + 1) * 12 + noteValue
+                // C4 = 60, so C-1 would be 0
+                return (octave + 1) * 12 + noteMap[note];
+            }
+            
+            generateMIDIData(genome, notes) {
+                const traits = genome.musicalTraits;
+                const tempo = traits.tempo || 120;
+                const scaleNames = ['major', 'minor', 'dorian', 'mixolydian', 'pentatonic', 'blues', 'harmonic_minor'];
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                
+                const scaleName = scaleNames[scaleNames.indexOf(traits.scaleType)] || traits.scaleType;
+                const rootNote = noteNames[traits.rootNote] || 'C';
+                
+                return {
+                    format: "MelodyForge MIDI Export",
+                    tempo: Math.round(tempo),
+                    timeSignature: "4/4",
+                    key: rootNote,
+                    scale: scaleName,
+                    tracks: [{
+                        name: "MelodyForge Track",
+                        instrument: "piano",
+                        notes: notes.map((note, index) => ({
+                            pitch: note.pitch,
+                            duration: note.duration,
+                            velocity: note.velocity || 0.7,
+                            time: note.time,
+                            octave: Math.floor(note.pitch / 12) - 1,
+                            noteName: this.getNoteNameFromPitch(note.pitch),
+                            track: note.track || 'melody'
+                        }))
+                    }],
+                    musicalTraits: {
+                        scaleType: traits.scaleType,
+                        rootNote: traits.rootNote,
+                        tempo: traits.tempo,
+                        melodyShape: traits.melodyShape,
+                        harmonyComplexity: traits.harmonyComplexity,
+                        rhythmDensity: traits.rhythmDensity
+                    },
+                    metadata: {
+                        generation: this.generation,
+                        fitness: genome.fitness || 0,
+                        exportTime: new Date().toISOString(),
+                        genomeId: genome.id || `genome-${Date.now()}`,
+                        totalNotes: notes.length,
+                        duration: Math.max(...notes.map(n => n.time + n.duration))
+                    }
+                };
+            }
+            
+            getNoteNameFromPitch(pitch) {
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return noteNames[Math.round(pitch) % 12];
+            }
+        }
+
+        // Initialize MelodyForge
+        let melodyForge;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            melodyForge = new MelodyForge();
+            melodyForge.renderSavedGenomes();
+        });
+    </script>
+</body>
+</html>
