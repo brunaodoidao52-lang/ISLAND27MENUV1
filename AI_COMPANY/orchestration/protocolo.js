@@ -94,7 +94,10 @@ function enviar(m) {
   }
   return armazem.comTrava(() => {
     const caixa = armazem.lerJSON(ARQ, { mensagens: [] });
-    const assinatura = tarefas.hash({ t: m.task_id, f: m.from_agent, to: m.to_agent, a: m.action, s: m.status, i: m.input, r: m.result });
+    // Mesma mensagem no MESMO momento da tarefa = reenvio por falha (descarta).
+    // Depois que a tarefa andou (histórico mudou), a repetição é legítima (nova rodada).
+    const momento = tarefas.obter(m.task_id).historico.length;
+    const assinatura = tarefas.hash({ t: m.task_id, f: m.from_agent, to: m.to_agent, a: m.action, s: m.status, i: m.input, r: m.result, momento });
     const repetida = caixa.mensagens.find(x => x.assinatura === assinatura);
     if (repetida) {
       auditoria.registrar({ task_id: m.task_id, agente: m.from_agent, acao: 'MENSAGEM_DUPLICADA', entrada: { action: m.action, to: m.to_agent }, decisao: 'Descartada: já entregue (provável reenvio por falha de comunicação).' });

@@ -1,6 +1,8 @@
 'use strict';
 /*
  * LANÇADOR v1.0 — registra a ficha no livro interno, uma única vez, só com aprovação humana.
+ * O que vai para a aprovação é exatamente o que é gravado: o pacote preparado
+ * (ficha + parcelas + valor) fica na memória da tarefa e é reaproveitado na execução.
  */
 const { hash } = require('../../orchestration/tarefas');
 
@@ -13,41 +15,59 @@ function erroParaCeo(ctx, id, nivel, descricao, causa, result = {}, origem = 'da
   ctx.enviar({ task_id: id, to_agent: 'ceo', action: 'ERROR_REPORT', result, errors: [{ nivel, descricao, causa }] });
 }
 
-/* Monta (sem gravar) o lançamento a partir do que o sistema registrou da etapa do CAPTADOR. */
-function preparar(ctx, id, msg) {
+/* Confere a ficha registrada na etapa do CAPTADOR (e se a mensagem bate com ela). */
+function fichaRegistrada(ctx, id, msg) {
   const t = ctx.tarefa(id);
   const registrado = t.resultado.captador && t.resultado.captador.ficha;
   if (!registrado) return { erro: ['HIGH', 'A etapa do CAPTADOR não tem ficha registrada.', 'Passagem sem dados'] };
-  // Dados contraditórios: a mensagem não pode dizer uma coisa e o registro outra.
   if (msg && msg.input.ficha && hash(msg.input.ficha) !== hash(registrado)) {
     return { erro: ['CRITICAL', 'A ficha da mensagem é diferente da ficha registrada na etapa do CAPTADOR.', 'Dados contraditórios entre mensagem e registro'] };
   }
-  const ficha = registrado;
-  const livro = ctx.ferramenta('LIVRO_LANCAMENTOS');
+  return { ficha: registrado, marca: hash(t.entrada) };
+}
+
+/* Duplicidade é conferida em toda tentativa (outro lançamento pode ter entrado no meio tempo). */
+function duplicado(ctx, id, ficha, livro) {
   const repetidos = ctx.skill('auditing').duplicidadeLancamento(livro.consultar(), ficha).filter(l => l.task_id !== id);
-  if (repetidos.length) return { erro: ['MEDIUM', `Já existe o lançamento nº ${repetidos[0].numero} para este CPF, serviço e categoria.`, 'Lançamento duplicado'], result: { lancamento_existente: repetidos[0].numero } };
-  const fin = ctx.skill('financial_analysis');
-  const parcelas = fin.gerarParcelas(Object.assign({ data_entrada: hoje() }, ficha));
-  const valor_final = (Math.round(ficha.valor_total * 100) - Math.round((ficha.desconto || 0) * 100)) / 100;
-  const resumo = `Lançar ficha de ${ficha.nome} — ${ficha.servico} (cat. ${ficha.categoria}) — valor final ${fin.brl(valor_final)} em ${parcelas.length} lançamento(s).`;
-  return { ficha, parcelas, valor_final, resumo, livro };
+  return repetidos[0] || null;
 }
 
 function lancar(ctx, id, msg) {
-  const p = preparar(ctx, id, msg);
-  if (p.erro) { erroParaCeo(ctx, id, ...p.erro, p.result || {}); return; }
-  const chave = hash({ cpf: p.ficha.cpf, servico: p.ficha.servico, categoria: p.ficha.categoria, task: id });
-  const r = ctx.tarefas.executar(id, { operacao: 'LANCAR_FICHA', chave, categorias: ['financeira'], resumo: p.resumo }, () => {
+  const f = fichaRegistrada(ctx, id, msg);
+  if (f.erro) { erroParaCeo(ctx, id, ...f.erro); return; }
+  const livro = ctx.ferramenta('LIVRO_LANCAMENTOS');
+  const rep = duplicado(ctx, id, f.ficha, livro);
+  if (rep) { erroParaCeo(ctx, id, 'MEDIUM', `Já existe o lançamento nº ${rep.numero} para este CPF, serviço e categoria.`, 'Lançamento duplicado', { lancamento_existente: rep.numero }); return; }
+
+  // Reaproveita o pacote já mostrado na aprovação (mesmos dados, mesmas datas).
+  const mem = ctx.memoria.lerTarefa(id);
+  let pacote = mem.pacote && mem.pacote.valor && mem.pacote.valor.marca === f.marca ? mem.pacote.valor : null;
+  if (!pacote) {
+    const fin = ctx.skill('financial_analysis');
+    const parcelas = fin.gerarParcelas(Object.assign({ data_entrada: hoje() }, f.ficha));
+    const valor_final = (Math.round(f.ficha.valor_total * 100) - Math.round((f.ficha.desconto || 0) * 100)) / 100;
+    const resumo = `Lançar ficha de ${f.ficha.nome} — ${f.ficha.servico} (cat. ${f.ficha.categoria}) — valor final ${fin.brl(valor_final)} em ${parcelas.length} lançamento(s).`;
+    pacote = { marca: f.marca, ficha: f.ficha, parcelas, valor_final, resumo };
+    ctx.memoria.gravarTarefa(id, 'pacote', pacote);
+  }
+  const dados = { ficha: pacote.ficha, parcelas: pacote.parcelas, valor_final: pacote.valor_final };
+  const chave = hash({ cpf: pacote.ficha.cpf, servico: pacote.ficha.servico, categoria: pacote.ficha.categoria, task: id });
+  const r = ctx.tarefas.executar(id, { operacao: 'LANCAR_FICHA', chave, categorias: ['financeira'], resumo: pacote.resumo, dados }, () => {
     const t = ctx.tarefa(id);
-    return p.livro.gravar({ task_id: id, ficha: p.ficha, parcelas: p.parcelas, valor_final: p.valor_final, aprovado_por: t.aprovacao.decidida_por, aprovado_em: t.aprovacao.decidida_em }).numero;
+    return livro.gravar(Object.assign({ task_id: id, chave, aprovado_por: t.aprovacao.decidida_por, aprovado_em: t.aprovacao.decidida_em }, dados)).numero;
   });
   if (r.aguardandoAprovacao) {
-    ctx.memoria.gravarTarefa(id, 'resumo_lancamento', p.resumo);
-    ctx.enviar({ task_id: id, to_agent: 'ceo', action: 'REQUEST_APPROVAL', input: { resumo: p.resumo, parcelas: p.parcelas, valor_final: p.valor_final } });
+    ctx.enviar({ task_id: id, to_agent: 'ceo', action: 'REQUEST_APPROVAL', input: { resumo: pacote.resumo, parcelas: pacote.parcelas, valor_final: pacote.valor_final } });
     return;
   }
-  const numero = r.resultado;
-  const resultado = { lancamento: numero, valor_final: p.valor_final, parcelas: p.parcelas, fontes: [`Etapa do CAPTADOR em ${id}`, `Livro interno, lançamento nº ${numero}`], limitacoes: ['Registrado só no livro interno; sem integração externa nesta etapa.'] };
+  // Execução confirmada pelo proprietário pode não ter o número: busca no próprio livro, não supõe.
+  let numero = r.resultado;
+  if (numero === null || numero === undefined) {
+    const achados = livro.consultar({ task_id: id });
+    if (achados.length !== 1) { erroParaCeo(ctx, id, 'HIGH', `Não tenho dados suficientes. A execução consta como feita, mas o livro tem ${achados.length} lançamento(s) desta tarefa.`, 'Execução confirmada sem lançamento correspondente', {}, 'execucao'); return; }
+    numero = achados[0].numero;
+  }
+  const resultado = { lancamento: numero, valor_final: pacote.valor_final, parcelas: pacote.parcelas, fontes: [`Etapa do CAPTADOR em ${id}`, `Livro interno, lançamento nº ${numero}`], limitacoes: ['Registrado só no livro interno; sem integração externa nesta etapa.'] };
   ctx.tarefas.enviarRevisao(id, resultado, TODAS_SIM);
   ctx.enviar({ task_id: id, to_agent: 'ceo', action: 'RESULT', result: resultado, warnings: r.jaExecutada ? ['Operação já tinha sido executada; não foi repetida.'] : [] });
 }

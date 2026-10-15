@@ -54,6 +54,24 @@ test('CEO recebendo informação incompleta: resultado sem confirmação de qual
   assert.ok(correcao.input.correcoes.some(c => /não há execução LANCAR_FICHA registrada/.test(c)), 'e também acusa a falta de execução');
 });
 
+test('CEO não entra em laço: depois de 2 correções sem sucesso, bloqueia e avisa o proprietário', () => {
+  executor.registrarHandlerDeTeste('lancador', {
+    processar(msg, ctx) {
+      if (!['HANDOFF', 'REQUEST_CORRECTION'].includes(msg.action)) return;
+      if (ctx.tarefa(msg.task_id).status === 'ASSIGNED') ctx.tarefas.iniciar(msg.task_id);
+      const sim = { objetivo_cumprido: true, dados_completos: true, sem_inconsistencias: true, sem_erros: true, fundamentada: true, nada_faltando: true, pode_concluir: true };
+      ctx.tarefas.enviarRevisao(msg.task_id, { fontes: ['x'] }, sim);
+      ctx.enviar({ task_id: msg.task_id, to_agent: 'ceo', action: 'RESULT', result: { lancamento: 1, rodada: Math.random() } });
+    }
+  });
+  const r = A.pedirFicha(FICHA_OK);
+  const t = tarefas.obter(r.task_id);
+  assert.equal(t.status, 'BLOCKED');
+  assert.equal(A.mensagens(r.task_id).filter(m => m.action === 'REQUEST_CORRECTION').length, 2);
+  assert.ok(A.caixaDono().some(m => /não conseguiu corrigir/.test(m.result.resumo)));
+  assert.ok(!A.auditoria.listar().some(x => x.acao === 'LIMITE_DE_CICLO'), 'parou por regra, não pelo limite de segurança');
+});
+
 test('CEO não aceita "lançado" sem execução registrada (não acredita só na mensagem)', () => {
   executor.registrarHandlerDeTeste('lancador', {
     processar(msg, ctx) {

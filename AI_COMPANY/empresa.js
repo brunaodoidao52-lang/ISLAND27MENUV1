@@ -29,6 +29,8 @@ Auto Escola Raça — organização de agentes (proprietário)
                                    Completa/corrige os dados de uma tarefa parada
   retomar <TASK> "o que foi resolvido"
                                    Continua uma tarefa parada por erro depois de resolver a causa
+  confirmar-execucao <TASK> sim|nao "como conferiu"
+                                   Diz se uma execução incerta/interrompida aconteceu
   aprovar <TASK> "motivo"          Concede a aprovação humana pendente
   negar <TASK> "motivo"            Nega a aprovação humana pendente
   cancelar <TASK> "motivo"         Cancela uma tarefa
@@ -94,10 +96,18 @@ function main(argv) {
     }
     case 'complementar': {
       const id = o._[0];
-      const novos = o.arquivo ? lerArquivo(o.arquivo) : o._.slice(1).join('\n');
+      // "Parcelas: 4" sem aspas chega como dois pedaços; cada pedaço com ":" é uma linha.
+      const partes = o._.slice(1);
+      const novos = o.arquivo ? lerArquivo(o.arquivo) : (partes.every(x => x.includes(':')) ? partes.join('\n') : partes.join(' '));
       tarefas.complementar(P, id, novos);
       executor.avisarCeo(id, { complemento: true });
       return mostrarCaixa();
+    }
+    case 'confirmar-execucao': {
+      const id = o._[0];
+      if (!['sim', 'nao', 'não'].includes(o._[1])) throw new Error('Responda sim ou nao.');
+      tarefas.confirmarExecucao(P, id, o._[1] === 'sim', o._.slice(2).join(' '));
+      return mostrar(`Registrado. Agora use: retomar ${id} "motivo"`);
     }
     case 'retomar': {
       const id = o._[0];

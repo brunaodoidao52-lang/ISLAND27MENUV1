@@ -14,7 +14,7 @@ const ARQ_LIVRO = 'tasks/dados/lancamentos.json';
 const indisponiveis = new Set((process.env.RACA_FERRAMENTAS_INDISPONIVEIS || '').split(',').filter(Boolean));
 
 class FerramentaIndisponivel extends Error {
-  constructor(nome) { super(`Ferramenta indisponível: ${nome}`); this.codigo = 'FERRAMENTA_INDISPONIVEL'; this.nivel = 'HIGH'; this.origem = 'ferramenta'; }
+  constructor(nome) { super(`Ferramenta indisponível: ${nome}`); this.codigo = 'FERRAMENTA_INDISPONIVEL'; this.nivel = 'HIGH'; this.origem = 'ferramenta'; this.semEfeito = true; }
 }
 
 function simularFalha(nome, ligada = true) { if (ligada) indisponiveis.add(nome); else indisponiveis.delete(nome); }
@@ -38,6 +38,9 @@ const implementacoes = {
       politica.exigir(ficha, 'EXECUTE', 'gravar no livro de lançamentos');
       return armazem.comTrava(() => {
         const livro = armazem.lerJSON(ARQ_LIVRO, { lancamentos: [], proximo_numero: 1 });
+        // Segunda barreira contra lançamento duplo: a mesma chave nunca entra duas vezes no livro.
+        const igual = lancamento.chave && livro.lancamentos.find(l => l.chave === lancamento.chave);
+        if (igual) return Object.assign({ ja_existia: true }, igual);
         const registro = Object.assign({ numero: livro.proximo_numero || livro.lancamentos.length + 1, registrado_em: new Date().toISOString(), registrado_por: ficha.AGENT_ID, situacao: 'ATIVO' }, lancamento);
         livro.lancamentos.push(registro);
         livro.proximo_numero = registro.numero + 1;

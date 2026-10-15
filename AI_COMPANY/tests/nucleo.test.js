@@ -106,6 +106,9 @@ test('auditoria: corrente de hashes detecta alteração e remoção; dados pesso
 
 test('memória: três níveis com regras próprias', () => {
   const t = nova('tarefa com memória', { etapas: ['captador'] });
+  tarefas.atribuir(ficha('ceo'), t.task_id, 'captador');
+  assert.throws(() => memoria.gravarTarefa(ficha('lancador'), t.task_id, 'x', 'y'), /não trabalha/);
+  assert.throws(() => memoria.gravarTarefa(ficha('captador'), '../estrategica', 'x', 'y'), /TASK_ID inválido/);
   memoria.gravarTarefa(ficha('captador'), t.task_id, 'dado', 'CPF 529.982.247-25');
   assert.ok(memoria.lerTarefa(ficha('captador'), t.task_id).dado);
   assert.throws(() => memoria.gravarOperacional(ficha('captador'), 'aluno', 'CPF 529.982.247-25'), /pessoais/);
@@ -118,6 +121,7 @@ test('memória: três níveis com regras próprias', () => {
   assert.throws(() => memoria.gravarOperacional(ficha('captador'), 'grande', 'x'.repeat(2000)), /grande demais/);
   tarefas.mover(ficha('ceo'), t.task_id, 'CANCELLED', 'fim');
   assert.deepEqual(memoria.lerTarefa(ficha('captador'), t.task_id), {}, 'memória de tarefa descartada no fim');
+  assert.throws(() => memoria.gravarTarefa(ficha('ceo'), t.task_id, 'depois', 'x'), /finalizada/, 'não recria memória após o fim');
   assert.ok(A.acoesLog(t.task_id).includes('MEMORIA_TAREFA_DESCARTADA'));
 });
 

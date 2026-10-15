@@ -20,7 +20,8 @@ const auditoria = require('../logs/auditoria');
 const politica = require('../permissions/politica');
 const { AGENTE_HUMANO } = require('../orchestration/definicoes');
 
-const LIMITE_VALOR = 1000;
+const LIMITE_VALOR = 1000;          // operacional e estratégica: só o essencial
+const LIMITE_VALOR_TAREFA = 20000; // tarefa: cabe o pacote que vai para aprovação
 const VALIDADE_OPERACIONAL_DIAS = 90;
 const DADO_PESSOAL = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\(?\b\d{2}\)?\s?9?\d{4}-?\d{4}\b|[\w.+-]+@[\w-]+\.[\w.]+/;
 
@@ -28,25 +29,39 @@ class MemoriaRecusada extends Error {}
 
 const idDe = f => (f === AGENTE_HUMANO ? AGENTE_HUMANO : f.AGENT_ID);
 
-function conferirValor(valor, permitirPessoal) {
+function conferirValor(valor, permitirPessoal, limite = LIMITE_VALOR) {
   const texto = typeof valor === 'string' ? valor : JSON.stringify(valor);
   if (texto === undefined || texto === '') throw new MemoriaRecusada('Valor vazio não é guardado.');
-  if (texto.length > LIMITE_VALOR) throw new MemoriaRecusada(`Valor grande demais para memória (${texto.length} > ${LIMITE_VALOR} caracteres). Guarde só o essencial.`);
+  if (texto.length > limite) throw new MemoriaRecusada(`Valor grande demais para memória (${texto.length} > ${limite} caracteres). Guarde só o essencial.`);
   if (!permitirPessoal && DADO_PESSOAL.test(texto)) throw new MemoriaRecusada('Dados pessoais (CPF, telefone, e-mail) não podem ir para esta memória.');
 }
 
-const chaveValida = c => typeof c === 'string' && /^[a-z0-9_.-]{1,60}$/i.test(c);
+const chaveValida = c => typeof c === 'string' && /^[a-z0-9_-]{1,60}$/i.test(c);
+
+/* A memória de tarefa só existe para tarefa real, em andamento, de quem está trabalhando nela. */
+function conferirTarefa(ficha, taskId, escrita) {
+  if (typeof taskId !== 'string' || !/^TASK-\d{8}-\d{4}$/.test(taskId)) throw new MemoriaRecusada(`TASK_ID inválido: ${taskId}`);
+  const t = armazem.lerJSON('tasks/dados/tarefas.json', {})[taskId];
+  if (!t) throw new MemoriaRecusada(`Tarefa inexistente: ${taskId}`);
+  if (escrita && ['COMPLETED', 'CANCELLED'].includes(t.status)) throw new MemoriaRecusada('Tarefa finalizada: a memória dela já foi descartada.');
+  const quem = idDe(ficha);
+  if (ficha !== AGENTE_HUMANO && t.responsavel !== quem && !politica.tem(ficha, 'DELEGATE')) {
+    throw new politica.SemPermissao(`${quem} não trabalha em ${taskId}.`);
+  }
+}
 
 // ---------- TAREFA ----------
 function lerTarefa(ficha, taskId) {
   politica.exigir(ficha, 'READ', 'ler memória de tarefa');
+  conferirTarefa(ficha, taskId, false);
   return armazem.lerJSON(`memory/dados/tarefa/${taskId}.json`, {});
 }
 
 function gravarTarefa(ficha, taskId, chave, valor) {
   politica.exigir(ficha, 'WRITE', 'gravar memória de tarefa');
   if (!chaveValida(chave)) throw new MemoriaRecusada('Chave inválida.');
-  conferirValor(valor, true); // memória de tarefa pode conter os dados do aluno enquanto a tarefa dura
+  conferirTarefa(ficha, taskId, true);
+  conferirValor(valor, true, LIMITE_VALOR_TAREFA); // memória de tarefa pode conter os dados do aluno enquanto a tarefa dura
   return armazem.comTrava(() => {
     const m = armazem.lerJSON(`memory/dados/tarefa/${taskId}.json`, {});
     m[chave] = { valor, por: idDe(ficha), em: new Date().toISOString() };

@@ -1,4 +1,4 @@
-# CEO v1.0
+# CEO v1.1
 
 > Gerado de `agente.json` por `node AI_COMPANY/orchestration/gerar_docs.js`. Edite o JSON, não este arquivo.
 
@@ -55,6 +55,7 @@ Skills compartilhadas: `task_management`, `reporting`, `auditing`, `communicatio
 - `REGISTRO_TAREFAS` — Usar o programa da organização (node AI_COMPANY/empresa.js).
 - `DELEGAR_AGENTES` — Acionar subagentes especialistas.
 - `LER_HISTORICO` — Ler logs de auditoria e o registro de tarefas (somente leitura).
+- `LIVRO_LANCAMENTOS` — Consultar e gravar no livro interno de lançamentos (tasks/dados/lancamentos.json).
 
 ## PERMISSIONS
 - `READ` — Ler tarefas, mensagens e dados de entrada da própria tarefa.
@@ -79,7 +80,7 @@ Skills compartilhadas: `task_management`, `reporting`, `auditing`, `communicatio
 - 6. Delegar ao agente escolhido pelo balanceamento.
 - 7. Acompanhar pelo painel.
 - 8. Receber os resultados.
-- 9. Validar com as 7 perguntas de qualidade e conferir as execuções registradas.
+- 9. Validar com as 7 perguntas de qualidade, conferir as execuções registradas e, no lançamento de ficha, o próprio livro (existe, é desta tarefa, é um só e as parcelas fecham).
 - 10. Consolidar.
 - 11. Entregar o resultado ao proprietário.
 
@@ -149,3 +150,4 @@ Marca a tarefa para aprovação humana quando o pedido ou o fluxo envolver algum
 
 ## CHANGELOG
 - v1.0 (2026-10-15): Versão inicial.
+- v1.1 (2026-10-15): Leitura do livro de lançamentos para conferir, por conta própria, o lançamento informado pelo LANÇADOR (sem permissão de gravar).

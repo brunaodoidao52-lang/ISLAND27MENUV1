@@ -8,6 +8,7 @@ const roteador = require('../../orchestration/roteador');
 const { SEM_DADOS, REVISAR, AGENTE_HUMANO } = require('../../orchestration/definicoes');
 
 const MAX_NOVAS_TENTATIVAS = 1;
+const MAX_CORRECOES = 2; // depois disso o CEO para e chama o proprietário (evita laço entre agentes)
 
 function reportar(ctx, taskId, resumo, extra = {}) {
   ctx.enviar({ task_id: taskId, to_agent: AGENTE_HUMANO, action: 'REPORT', result: Object.assign({ resumo }, extra.result || {}), warnings: extra.warnings || [], errors: extra.errors || [] });
@@ -85,10 +86,12 @@ module.exports = {
 
     if (msg.action === 'ERROR_REPORT') {
       const erro = msg.errors[0] || {};
-      const tentativas = t.avisos.filter(a => a.tipo === 'NOVA_TENTATIVA').length;
-      const recuperavel = ['MEDIUM', 'LOW'].includes(erro.nivel) && erro.origem === 'ferramenta' && tentativas < MAX_NOVAS_TENTATIVAS;
+      // Recuperação segura: uma nova tentativa automática só para falha leve de ferramenta.
+      const falhasFerramenta = t.erros.filter(e => e.origem === 'ferramenta');
+      const recuperavel = ['MEDIUM', 'LOW'].includes(erro.nivel) && erro.origem === 'ferramenta' && falhasFerramenta.length <= MAX_NOVAS_TENTATIVAS;
       if (recuperavel && registroAtivo(ctx, de)) {
-        delegarProxima(ctx, t);
+        t.erros.forEach((e, i) => { if (!e.resolvido) ctx.tarefas.resolverErro(t.task_id, i, 'nova tentativa automática do CEO'); });
+        delegarProxima(ctx, ctx.tarefa(t.task_id));
         return;
       }
       const humano = ['CRITICAL', 'HIGH'].includes(erro.nivel);
@@ -101,8 +104,17 @@ module.exports = {
     if ((msg.action === 'RESULT' || msg.action === 'AUDIT_RESULT') && t.status === 'REVIEW') {
       // Não acredita só na mensagem: confere o que o sistema registrou.
       const correcoes = [];
-      if (t.tipo === 'LANCAR_FICHA' && !t.execucoes.some(e => e.operacao === 'LANCAR_FICHA' && e.status === 'OK')) {
-        correcoes.push('O resultado diz que lançou, mas não há execução LANCAR_FICHA registrada.');
+      if (t.tipo === 'LANCAR_FICHA') {
+        if (!t.execucoes.some(e => e.operacao === 'LANCAR_FICHA' && e.status === 'OK')) {
+          correcoes.push('O resultado diz que lançou, mas não há execução LANCAR_FICHA registrada.');
+        } else {
+          // Confere no próprio livro: existe, é desta tarefa, é um só e as parcelas fecham.
+          const doLivro = ctx.ferramenta('LIVRO_LANCAMENTOS').consultar({ task_id: t.task_id });
+          const soma = l => l.parcelas.reduce((s, p) => s + Math.round(p.valor * 100), 0);
+          if (doLivro.length !== 1) correcoes.push(`O livro tem ${doLivro.length} lançamento(s) para esta tarefa (esperado: 1).`);
+          else if (doLivro[0].numero !== msg.result.lancamento) correcoes.push('O número informado não confere com o livro.');
+          else if (soma(doLivro[0]) !== Math.round(doLivro[0].valor_final * 100)) correcoes.push('As parcelas gravadas não somam o valor final.');
+        }
       }
       const todas = correcoes.concat(require('../../orchestration/tarefas').pendencias(t));
       const r = todas.length ? { concluida: false, pendencias: todas } : ctx.tarefas.validar(t.task_id, { consolidado: msg.result });
@@ -110,6 +122,9 @@ module.exports = {
         const rel = ctx.skill('reporting');
         const texto = rel.relatorioTarefa(ctx.tarefa(t.task_id));
         reportar(ctx, t.task_id, `Tarefa concluída e validada.\n${texto}`, { result: msg.result });
+      } else if (t.avisos.filter(a => a.tipo === 'CORRECAO').length >= MAX_CORRECOES) {
+        ctx.tarefas.mover(t.task_id, 'BLOCKED', `correção pedida ${MAX_CORRECOES} vezes sem sucesso`);
+        reportar(ctx, t.task_id, `${de.toUpperCase()} não conseguiu corrigir depois de ${MAX_CORRECOES} pedidos. Tarefa BLOCKED: necessário revisar.`, { warnings: r.pendencias });
       } else {
         ctx.tarefas.pedirCorrecao(t.task_id, de, r.pendencias);
         ctx.enviar({ task_id: t.task_id, to_agent: de, action: 'REQUEST_CORRECTION', input: { correcoes: r.pendencias }, warnings: [REVISAR] });

@@ -37,11 +37,24 @@ function handlerDe(id) {
   return fs.existsSync(arq) ? require(arq) : null;
 }
 
-function contexto(ficha) {
+/* Cópia congelada: um handler não consegue se dar permissões mexendo na própria ficha. */
+function congelar(o) {
+  Object.values(o).forEach(v => { if (v && typeof v === 'object') congelar(v); });
+  return Object.freeze(o);
+}
+
+function contexto(fichaOriginal) {
+  const ficha = congelar(JSON.parse(JSON.stringify(fichaOriginal)));
   const id = ficha.AGENT_ID;
   const ctx = {
     ficha, id,
-    tarefa: taskId => tarefas.obter(taskId),
+    /* Tarefa completa só para o responsável (ou quem coordena); para os demais, sem dados de entrada. */
+    tarefa: taskId => {
+      politica.exigir(ficha, 'READ', 'ler tarefa');
+      const t = tarefas.obter(taskId);
+      if (t.responsavel === id || politica.tem(ficha, 'DELEGATE')) return t;
+      return { task_id: t.task_id, titulo: t.titulo, tipo: t.tipo, status: t.status, prioridade: t.prioridade, responsavel: t.responsavel, etapas: t.etapas.map(e => ({ ordem: e.ordem, agente: e.agente, status: e.status })) };
+    },
     ferramenta: nome => ferramentas.obter(ficha, nome, ctx),
     skill: nome => {
       if (!ficha.SKILLS.shared.includes(nome)) throw new politica.SemPermissao(`${id} não tem a skill ${nome}.`);
@@ -65,6 +78,7 @@ function contexto(ficha) {
       pedirAprovacao: (t, o) => tarefas.pedirAprovacao(ficha, t, o),
       executar: (t, o, fn) => tarefas.executar(ficha, t, o, fn),
       registrarErro: (t, e) => tarefas.registrarErro(ficha, t, e),
+      resolverErro: (t, i, s) => tarefas.resolverErro(ficha, t, i, s),
       dividir: (t, p) => tarefas.dividir(ficha, t, p),
       listar: f => { politica.exigir(ficha, 'READ'); return tarefas.listar(f); }
     },
@@ -105,25 +119,38 @@ function processar(item) {
   const msg = item.mensagem;
   const ficha = registro.ficha(msg.to_agent);
   const handler = handlerDe(msg.to_agent);
-  protocolo.marcarLida(item.id);
   // Mensagem obsoleta: a tarefa já terminou ou já não está com este agente.
   if (msg.to_agent !== 'ceo') {
     let t = null;
     try { t = tarefas.obter(msg.task_id); } catch (e) { t = null; }
     if (!t || ['COMPLETED', 'CANCELLED'].includes(t.status) || t.responsavel !== msg.to_agent) {
+      protocolo.marcarLida(item.id);
       auditoria.registrar({ task_id: msg.task_id, agente: 'sistema', acao: 'MENSAGEM_OBSOLETA', entrada: { para: msg.to_agent, action: msg.action }, decisao: 'Descartada: a tarefa não está mais com este agente.' });
       return;
     }
   }
   if (!handler) {
+    protocolo.marcarLida(item.id);
     auditoria.registrar({ task_id: msg.task_id, agente: 'sistema', acao: 'SEM_IMPLEMENTACAO', entrada: { agente: msg.to_agent }, erro: 'Agente sem implementação' });
     return;
   }
-  try { handler.processar(msg, contexto(ficha)); } catch (e) { tratarFalha(ficha, msg, e); }
+  // Só marca como lida depois de processar: se o processo cair no meio, a mensagem
+  // continua na caixa e o motor bloqueia a execução pela metade em vez de perdê-la.
+  try { handler.processar(msg, contexto(ficha)); } catch (e) { tratarFalha(ficha, msg, e); } finally { protocolo.marcarLida(item.id); }
+}
+
+/* Avisa o proprietário (pelo CEO) sobre tarefas bloqueadas por execução interrompida. */
+function recuperarInterrompidas() {
+  tarefas.marcarInterrompidas().forEach(id => {
+    try {
+      contexto(registro.ficha('ceo')).enviar({ task_id: id, to_agent: AGENTE_HUMANO, action: 'REPORT', result: { resumo: `Uma execução da tarefa ${id} começou e não terminou (o sistema foi interrompido). Confira se ela aconteceu e use: confirmar-execucao ${id} sim|nao "como conferiu".` }, errors: [{ nivel: 'CRITICAL', descricao: 'Execução interrompida', causa: 'Processo interrompido no meio da execução' }] });
+    } catch (e) { auditoria.registrar({ task_id: id, agente: 'sistema', acao: 'FALHA_AO_AVISAR', erro: e.message }); }
+  });
 }
 
 /* Roda as caixas até esvaziar (ou até o limite, para nunca entrar em laço). */
 function ciclo(limite = 100) {
+  recuperarInterrompidas();
   let feitas = 0;
   for (; feitas < limite; feitas++) {
     const pendentes = Object.keys(registro.carregar().agentes)

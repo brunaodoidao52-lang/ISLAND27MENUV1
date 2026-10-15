@@ -303,11 +303,14 @@ function reprioritizar(fichaPor, taskId, prioridade, motivo) {
 }
 
 // ---------------------------------------------------------------- aprovação humana
-function pedirAprovacaoInterno(t, por, { operacao, resumo, categorias }) {
+/* A aprovação fica presa aos dados EXATOS que serão executados (entrada + operação + resumo + dados). */
+const impressaoAprovacao = (t, operacao, resumo, dados) => hash({ entrada: t.entrada, operacao, resumo, dados: dados === undefined ? null : dados });
+
+function pedirAprovacaoInterno(t, por, { operacao, resumo, categorias, dados }) {
   const cats = [...new Set([...(t.aprovacao.categorias || []), ...(categorias || [])])];
   t.aprovacao = Object.assign(t.aprovacao, {
-    necessaria: true, categorias: cats, status: 'PENDENTE', operacao, resumo,
-    pedida_por: por, pedida_em: agora(), impressao: hash({ entrada: t.entrada, operacao, resumo })
+    necessaria: true, categorias: cats, status: 'PENDENTE', operacao, resumo, dados: dados === undefined ? null : dados,
+    pedida_por: por, pedida_em: agora(), impressao: impressaoAprovacao(t, operacao, resumo, dados), consumida: null
   });
   if (t.status !== 'WAITING') mudarStatus(t, 'WAITING', por, 'HUMAN APPROVAL REQUIRED');
   auditoria.registrar({ task_id: t.task_id, agente: por, acao: 'HUMAN_APPROVAL_REQUIRED', entrada: { operacao, resumo, categorias: cats }, status: 'WAITING' });
@@ -317,7 +320,7 @@ function pedirAprovacao(fichaPor, taskId, { operacao, resumo, categorias = [] })
   if (!operacao || !resumo) throw new ErroTarefa('Pedido de aprovação precisa da operação e de um resumo claro.', 'ENTRADA_INCOMPLETA');
   return alterar(taskId, t => {
     if (!podeMexer(fichaPor, t)) throw new politica.SemPermissao(`${quem(fichaPor)} não é responsável por ${taskId}.`);
-    if (t.aprovacao.status === 'APROVADA' && t.aprovacao.operacao === operacao && t.aprovacao.impressao === hash({ entrada: t.entrada, operacao, resumo })) return t;
+    if (t.aprovacao.status === 'APROVADA' && t.aprovacao.operacao === operacao && t.aprovacao.impressao === impressaoAprovacao(t, operacao, resumo)) return t;
     pedirAprovacaoInterno(t, quem(fichaPor), { operacao, resumo, categorias });
   });
 }
@@ -345,7 +348,7 @@ function decidirAprovacao(fichaPor, taskId, aprovar, motivo = '') {
  * - Ficou pela metade (queda no meio) → BLOQUEIA e pede revisão humana (não arrisca repetir).
  * - Operação com categorias de aprovação → exige aprovação humana válida para ESTA entrada.
  */
-function executar(fichaPor, taskId, { operacao, chave, categorias = [], resumo }, fn) {
+function executar(fichaPor, taskId, { operacao, chave, categorias = [], resumo, dados }, fn) {
   politica.exigir(fichaPor, 'EXECUTE', `executar ${operacao}`);
   const chaveExec = chave || hash({ taskId, operacao });
   const preparo = alterar(taskId, t => {
@@ -356,17 +359,20 @@ function executar(fichaPor, taskId, { operacao, chave, categorias = [], resumo }
       auditoria.registrar({ task_id: taskId, agente: de, acao: 'EXECUCAO_REPETIDA_BLOQUEADA', entrada: { operacao }, decisao: 'Já executada; não repetida.' });
       return { jaExecutada: true, resultado: anterior.resultado };
     }
-    if (anterior && anterior.status === 'INICIADA') {
+    if (anterior && (anterior.status === 'INICIADA' || anterior.status === 'INCERTA')) {
       // Salva o bloqueio primeiro; o erro é lançado depois de gravar (fora da trava).
       mudarStatus(t, 'BLOCKED', de, 'execução interrompida no meio: necessário revisar antes de repetir');
       return { interrompida: true };
     }
     const precisa = categorias.length > 0 || t.aprovacao.necessaria;
     if (precisa) {
+      const r = resumo || t.titulo;
+      // Válida só se aprovada para estes dados exatos e ainda não usada em outra execução.
       const valida = t.aprovacao.status === 'APROVADA' && t.aprovacao.operacao === operacao &&
-        t.aprovacao.impressao === hash({ entrada: t.entrada, operacao, resumo: t.aprovacao.resumo });
+        t.aprovacao.impressao === impressaoAprovacao(t, operacao, r, dados) &&
+        (!t.aprovacao.consumida || t.aprovacao.consumida === chaveExec);
       if (!valida) {
-        pedirAprovacaoInterno(t, de, { operacao, resumo: resumo || t.titulo, categorias });
+        pedirAprovacaoInterno(t, de, { operacao, resumo: r, categorias, dados });
         return { aguardandoAprovacao: true };
       }
     }
@@ -382,17 +388,28 @@ function executar(fichaPor, taskId, { operacao, chave, categorias = [], resumo }
   try {
     resultado = fn();
   } catch (e) {
+    const semEfeito = !!(e && e.semEfeito);
     alterar(taskId, t => {
       const ex = t.execucoes.find(x => x.chave === chaveExec);
-      ex.status = 'FALHOU'; ex.erro = e.message;
-      t.execucoes = t.execucoes.filter(x => x !== ex).concat([Object.assign({}, ex, { chave: `${chaveExec}#falha-${Date.now()}` })]);
+      ex.erro = e.message;
+      if (semEfeito) {
+        // Falhou antes de fazer qualquer coisa: pode tentar de novo.
+        ex.status = 'FALHOU';
+        t.execucoes = t.execucoes.filter(x => x !== ex).concat([Object.assign({}, ex, { chave: `${chaveExec}#falha-${Date.now()}` })]);
+      } else {
+        // Não dá para saber se o efeito aconteceu: bloqueia até o proprietário confirmar.
+        ex.status = 'INCERTA';
+        mudarStatus(t, 'BLOCKED', quem(fichaPor), `execução de ${operacao} incerta: necessário revisar`);
+      }
     });
-    auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: 'EXECUCAO_FALHOU', entrada: { operacao }, erro: e.message });
-    throw e;
+    auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: semEfeito ? 'EXECUCAO_FALHOU' : 'EXECUCAO_INCERTA', entrada: { operacao }, erro: e.message });
+    if (semEfeito) throw e;
+    throw Object.assign(new ErroTarefa(`Não é possível saber se ${operacao} foi feita (${e.message}). Necessário revisar antes de repetir: confirme com "confirmar-execucao".`, 'EXECUCAO_INCERTA', 'CRITICAL'), { origem: 'execucao' });
   }
   alterar(taskId, t => {
     const ex = t.execucoes.find(x => x.chave === chaveExec);
     ex.status = 'OK'; ex.resultado = resultado; ex.concluida_em = agora();
+    if (t.aprovacao.status === 'APROVADA') t.aprovacao.consumida = chaveExec; // uma aprovação, uma execução
   });
   auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: 'EXECUCAO_OK', entrada: { operacao }, saida: resultado });
   return { executada: true, resultado };
@@ -408,6 +425,12 @@ function registrarErro(fichaPor, taskId, { nivel, descricao, causa, recuperacao 
   if (!descricao || !causa) throw new ErroTarefa('Erro precisa de descrição e causa provável.', 'ENTRADA_INCOMPLETA');
   const de = quem(fichaPor);
   const intervencao = nivel === 'CRITICAL' || nivel === 'HIGH';
+  const atual = obter(taskId);
+  if (FINAIS.includes(atual.status)) {
+    auditoria.registrar({ task_id: taskId, agente: de, acao: 'ERRO_APOS_FIM', entrada: { nivel, causa, origem }, erro: descricao, decisao: 'Tarefa já finalizada: só registrado no log.' });
+    return null;
+  }
+  if (!podeMexer(fichaPor, atual) && de !== 'sistema') throw new politica.SemPermissao(`${de} não pode registrar erro em ${taskId}, que não está com ele.`);
   const r = alterar(taskId, t => {
     const erro = { em: agora(), por: de, nivel, descricao, causa, recuperacao, origem, intervencao_humana: intervencao, resolvido: false };
     t.erros.push(erro);
@@ -433,12 +456,43 @@ function resolverErro(fichaPor, taskId, indice, solucao) {
   });
 }
 
+/* O proprietário confirma se uma execução incerta/interrompida aconteceu ou não. */
+function confirmarExecucao(fichaPor, taskId, aconteceu, motivo) {
+  politica.exigir(fichaPor, 'HUMAN_APPROVE', 'confirmar execução incerta');
+  if (!motivo) throw new ErroTarefa('Diga como você conferiu.', 'ENTRADA_INCOMPLETA');
+  return alterar(taskId, t => {
+    const ex = [...t.execucoes].reverse().find(e => e.status === 'INCERTA' || e.status === 'INICIADA');
+    if (!ex) throw new ErroTarefa('Não há execução incerta nesta tarefa.', 'ENTRADA_INVALIDA');
+    if (aconteceu) { ex.status = 'OK'; ex.resultado = ex.resultado || null; ex.confirmada_por = quem(fichaPor); ex.concluida_em = agora(); }
+    else { ex.status = 'FALHOU'; ex.chave = `${ex.chave}#nao-aconteceu-${Date.now()}`; ex.confirmada_por = quem(fichaPor); }
+    auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: 'EXECUCAO_CONFIRMADA', entrada: { operacao: ex.operacao, aconteceu, motivo }, decisao: aconteceu ? 'Considerada feita: não será repetida.' : 'Considerada não feita: pode ser repetida.' });
+  });
+}
+
+/* Execução que ficou pela metade (processo caiu): bloqueia e registra, para ninguém repetir às cegas. */
+function marcarInterrompidas(limiteMs = 60000) {
+  const marcadas = [];
+  listar({ status: 'IN_PROGRESS' }).forEach(t0 => {
+    const ex = t0.execucoes.find(e => e.status === 'INICIADA' && Date.now() - Date.parse(e.em) > limiteMs);
+    if (!ex) return;
+    alterar(t0.task_id, t => {
+      mudarStatus(t, 'BLOCKED', 'sistema', `execução ${ex.operacao} interrompida (queda no meio)`);
+      t.erros.push({ em: agora(), por: 'sistema', nivel: 'CRITICAL', descricao: `A execução ${ex.operacao} começou e não terminou.`, causa: 'Processo interrompido no meio da execução', recuperacao: 'Proprietário confere e usa confirmar-execucao', origem: 'execucao', intervencao_humana: true, resolvido: false });
+      t.responsavel = 'ceo';
+      auditoria.registrar({ task_id: t.task_id, agente: 'sistema', acao: 'EXECUCAO_INTERROMPIDA', entrada: { operacao: ex.operacao }, status: 'BLOCKED' });
+    });
+    marcadas.push(t0.task_id);
+  });
+  return marcadas;
+}
+
 /* Retomar depois de resolver a causa de um erro (ex.: ferramenta voltou). Não muda os dados nem a aprovação. */
 function retomar(fichaPor, taskId, motivo) {
   politica.exigir(fichaPor, 'DELEGATE', 'retomar tarefa');
   if (!motivo) throw new ErroTarefa('Diga o que foi resolvido para retomar.', 'ENTRADA_INCOMPLETA');
   return alterar(taskId, t => {
     if (!['ERROR', 'BLOCKED'].includes(t.status)) throw new ErroTarefa(`Só se retoma tarefa em ERROR ou BLOCKED (está ${t.status}).`, 'TRANSICAO_INVALIDA');
+    if (t.execucoes.some(e => e.status === 'INCERTA' || e.status === 'INICIADA')) throw new ErroTarefa('Há execução incerta: confirme primeiro com "confirmar-execucao" se ela aconteceu ou não.', 'EXECUCAO_INCERTA', 'CRITICAL');
     t.erros.forEach(e => { if (!e.resolvido) { e.resolvido = true; e.solucao = motivo; e.resolvido_por = quem(fichaPor); e.resolvido_em = agora(); } });
     t.responsavel = 'ceo';
     t.retomadas = (t.retomadas || 0) + 1;
@@ -489,5 +543,5 @@ function dividir(fichaPor, paiId, partes) {
 module.exports = {
   ErroTarefa, ID_VALIDO, hash, canonico, novoId, obter, pendencias: t => pendenciasDe(t), criar, atribuir, iniciar, passar, enviarRevisao,
   validar, pedirCorrecao, mover, reprioritizar, pedirAprovacao, decidirAprovacao, executar,
-  registrarErro, resolverErro, retomar, complementar, listar, fila, dividir
+  registrarErro, resolverErro, retomar, confirmarExecucao, marcarInterrompidas, complementar, listar, fila, dividir, podeMexer
 };

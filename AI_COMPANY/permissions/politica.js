@@ -67,7 +67,7 @@ const ACOES = {
 };
 
 class SemPermissao extends Error {
-  constructor(msg) { super(msg); this.codigo = 'SEM_PERMISSAO'; this.nivel = 'HIGH'; }
+  constructor(msg) { super(msg); this.codigo = 'SEM_PERMISSAO'; this.nivel = 'HIGH'; this.semEfeito = true; }
 }
 
 function permissoesDe(ficha) {

@@ -47,7 +47,7 @@ AI_COMPANY/
 ├── logs/             ← auditoria encadeada por hash
 ├── permissions/      ← política: permissões, ferramentas, aprovação humana
 ├── tasks/            ← (dados) tarefas, mensagens, livro interno de lançamentos
-└── tests/            ← 58 testes automáticos
+└── tests/            ← 68 testes automáticos
 ```
 
 Os dados de uso ficam em `*/dados/` (fora do Git).
@@ -61,6 +61,8 @@ node AI_COMPANY/empresa.js pedido "Lançar ficha da Maria" --arquivo maria.txt
 node AI_COMPANY/empresa.js aprovar TASK-20261015-0001 "conferi os valores"
 node AI_COMPANY/empresa.js painel                   # as 6 perguntas do CEO
 node AI_COMPANY/empresa.js verificar-log            # confere se o log foi adulterado
+node AI_COMPANY/empresa.js retomar TASK-... "o que foi resolvido"
+node AI_COMPANY/empresa.js confirmar-execucao TASK-... sim|nao "como conferiu"
 ```
 
 `maria.txt` tem uma informação por linha:
@@ -82,8 +84,11 @@ O que acontece:
 1. **CEO** cria `TASK-AAAAMMDD-XXXX`, reconhece o fluxo `LANCAR_FICHA` e delega ao CAPTADOR.
 2. **CAPTADOR** confere tudo. Faltou algo → para e o CEO te avisa o que falta (`complementar`). Dado inválido ou contraditório → erro com o motivo de cada campo.
 3. **LANÇADOR** confere duplicidade e para em **HUMAN APPROVAL REQUIRED**, com o resumo.
-4. Você aprova → o lançamento é registrado **uma vez**. Você nega → nada é registrado.
-5. **CEO** confere a checagem de qualidade e a execução registrada, conclui e te entrega o relatório.
+4. Você aprova → é gravado **exatamente** o que você viu (ficha, parcelas e datas), **uma vez**. Você nega → nada é registrado.
+5. **CEO** confere a checagem de qualidade, a execução registrada e o próprio livro (o lançamento existe, é um só e as parcelas fecham), conclui e te entrega o relatório.
+
+Se algo falhar **depois** de começar a gravar (queda, erro no meio), o sistema não arrisca repetir:
+a tarefa fica BLOCKED até você conferir e responder com `confirmar-execucao`.
 
 Todo o caminho mantém o mesmo TASK_ID e fica no log (`node AI_COMPANY/empresa.js log TASK-...`).
 
@@ -96,10 +101,11 @@ Todo o caminho mantém o mesmo TASK_ID e fica no log (`node AI_COMPANY/empresa.j
 | Protocolo padrão; recusa campo faltando/extra, TASK_ID trocado, canal ou ação não permitidos | `protocolo.js` |
 | Mínimo privilégio: cada agente só usa as permissões, ferramentas e skills da própria ficha | `permissions/politica.js`, `executor.js` |
 | Nenhum agente tem HUMAN_APPROVE nem todas as permissões | `registro.js` (validação das fichas) |
-| HUMAN APPROVAL REQUIRED para executar decisões financeiras, exclusões etc.; a aprovação vale só para os dados aprovados | `tarefas.executar` |
-| Duplicidade: pedido repetido não vira outra tarefa; mensagem repetida é descartada; operação crítica nunca roda duas vezes; execução interrompida bloqueia para revisão | `tarefas.criar`, `protocolo.enviar`, `tarefas.executar` |
+| HUMAN APPROVAL REQUIRED para executar decisões financeiras, exclusões etc.; a aprovação vale só para os dados exatos aprovados e para uma única execução | `tarefas.executar` |
+| Duplicidade: pedido repetido não vira outra tarefa; reenvio de mensagem é descartado (repetição depois que a tarefa andou é aceita como nova rodada); operação crítica nunca roda duas vezes; execução incerta ou interrompida bloqueia até o proprietário confirmar; o livro recusa a mesma chave duas vezes | `tarefas.criar`, `protocolo.enviar`, `tarefas.executar`, `ferramentas.js` |
 | Erros: registrados com nível e causa, CEO avisado, HIGH/CRITICAL pedem intervenção humana; CRITICAL de agente põe o agente em ERROR | `tarefas.registrarErro`, `executor.js` |
-| Auditoria: só acrescenta, encadeada por hash (alteração ou remoção é detectada), dados pessoais mascarados | `logs/auditoria.js` |
+| Auditoria: só acrescenta, encadeada por hash e ancorada no fim (alteração, remoção no meio ou no final é detectada), linha cortada por queda não trava o sistema, dados pessoais mascarados | `logs/auditoria.js` |
+| Cada agente recebe cópia congelada da própria ficha e só vê a entrada das tarefas em que trabalha | `executor.contexto` |
 | Memória: de tarefa descartada no fim; operacional sem dados pessoais e com validade; estratégica só CEO/proprietário com justificativa | `memory/memoria.js` |
 | Versionamento: ficha alterada sem nova versão é recusada; histórico de versões guardado | `registro.js` |
 | Balanceamento: especialização, disponibilidade, carga, prioridade e histórico | `skills/task_management` |
@@ -130,7 +136,8 @@ node --test AI_COMPANY/tests/*.test.js
 - **Núcleo (14):** TASK_ID, status, qualidade, aprovação, execução única, auditoria, memória, fichas, versões, registro, prioridade, balanceamento, monitoramento e ausência de rede.
 - **Agentes (27):** CEO, CAPTADOR e LANÇADOR, cada um com os 9 cenários: entrada correta, incompleta, inválida, erro, duplicada, ambígua, falta de permissão, falha de ferramenta e necessidade de aprovação.
 - **Comunicação (8):** CEO→CAPTADOR→LANÇADOR→CEO, CEO→AUDITOR, CEO→FINANCEIRO e CEO→COMERCIAL (inativos são recusados com motivo; ativados com implementação de teste, trocam dados sem perder nada), transmissão de erro e regras do protocolo.
-- **Falhas (9):** CAPTADOR falhando, LANÇADOR falhando, CEO recebendo informação incompleta ou falsa, tarefa duplicada, agente sem permissão, ferramenta indisponível e dados contraditórios.
+- **Falhas (10):** CAPTADOR falhando, LANÇADOR falhando, CEO recebendo informação incompleta ou falsa, tarefa duplicada, agente sem permissão, ferramenta indisponível, dados contraditórios e laço de correções entre agentes.
+- **Revisão adversarial (9):** um teste para cada problema encontrado pela auditoria independente (rodadas legítimas, falha depois de gravar, aprovação dos dados exatos, ficha congelada, escopo de leitura, log truncado/apagado, erro após o fim, queda no meio, CLI).
 
 ## Limites desta etapa
 
@@ -138,3 +145,4 @@ node --test AI_COMPANY/tests/*.test.js
 - O CAPTADOR entende o formato "campo: valor". Documento em foto precisa ser transcrito (sem OCR nesta etapa).
 - O livro de lançamentos é interno (`tasks/dados/lancamentos.json`); levar os lançamentos ao sistema do CFC será uma integração futura.
 - Quem usa `empresa.js` age como proprietário. Não há login nesta etapa: proteja o acesso ao computador.
+- As regras protegem contra agente **com defeito** (tudo passa pelo contexto restrito). O código dos agentes fica no próprio repositório, então quem consegue alterar esse código consegue contornar as regras: mudanças em `agents/*/handler.js` devem ser revisadas como qualquer código.

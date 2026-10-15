@@ -64,7 +64,7 @@ describe('CEO', () => {
     const ctx = executor.contexto(ficha('ceo'));
     assert.throws(() => ctx.ferramenta('LER_HISTORICO'), e => e.codigo === 'FERRAMENTA_INDISPONIVEL');
     assert.ok(A.auditoria.listar().some(r => r.acao === 'FERRAMENTA_INDISPONIVEL'));
-    assert.throws(() => ctx.ferramenta('LIVRO_LANCAMENTOS'), /não tem acesso/, 'ferramenta fora da ficha');
+    assert.throws(() => ctx.ferramenta('LER_ENTRADA'), /não tem acesso/, 'ferramenta fora da ficha');
   });
   test('necessidade de aprovação: CEO avisa o proprietário e a tarefa aparece em "precisam de intervenção"', () => {
     const r = A.pedirFicha(FICHA_OK);
@@ -113,10 +113,14 @@ describe('CAPTADOR', () => {
   test('duplicada: DELEGATE reenviado (falha de comunicação) não é processado duas vezes', () => {
     const r = A.pedirFicha(FICHA_OK);
     const delegate = A.mensagens(r.task_id).find(m => m.action === 'DELEGATE');
-    const reenvio = protocolo.enviar(Object.assign({}, delegate));
-    assert.equal(reenvio.duplicada, true);
+    protocolo.enviar(Object.assign({}, delegate)); // reenvio tardio: a tarefa já andou
     executor.ciclo();
     assert.equal(A.mensagens(r.task_id).filter(m => m.action === 'HANDOFF').length, 1);
+    assert.ok(A.acoesLog(r.task_id).includes('MENSAGEM_OBSOLETA'), 'descartada por não estar mais com o CAPTADOR');
+    // reenvio imediato (no mesmo momento da tarefa) é reconhecido como duplicado
+    const status = protocolo.montar({ task_id: r.task_id, from_agent: 'ceo', to_agent: 'lancador', action: 'STATUS_UPDATE', status: 'WAITING', input: { x: 1 } });
+    protocolo.enviar(status);
+    assert.equal(protocolo.enviar(Object.assign({}, status)).duplicada, true);
   });
   test('ambígua: categoria "carro" e CPF repetido com valores diferentes → "Necessário revisar."', () => {
     const r = A.pedirFicha(trocar(FICHA_OK, 'Categoria: B', 'Categoria: carro') + '\nCPF: 390.533.447-05');
