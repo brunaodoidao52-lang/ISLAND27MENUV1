@@ -1,0 +1,10 @@
+{
+  "_sobre": "Fluxos conhecidos pelo CEO: que agentes participam, em que ordem, e que aprovação humana o fluxo exige. Novos fluxos entram aqui sem mudar o código.",
+  "LANCAR_FICHA": {
+    "versao": "1.0",
+    "descricao": "Lançar a ficha de um aluno: o CAPTADOR estrutura e confere os dados; o LANÇADOR verifica duplicidade e registra no livro interno após aprovação humana.",
+    "etapas": ["captador", "lancador"],
+    "categorias_aprovacao": ["financeira", "informacao_critica"],
+    "palavras_chave": ["lançar ficha", "lancar ficha", "matrícula", "matricula", "novo aluno", "cadastrar aluno", "ficha"]
+  }
+}

@@ -1,0 +1,36 @@
+# SKILL_FINANCIAL_ANALYSIS v1.0
+
+> Gerado de `skill.json`. Edite o JSON, não este arquivo.
+
+**PURPOSE:** Conferir a coerência de valores e montar planos de pagamento (entrada e parcelas) com contas em centavos.
+
+**INPUT:** { valor_total, desconto, entrada, parcelas, primeiro_vencimento, data_entrada } já estruturados.
+
+## PROCESS
+- Converter tudo para centavos.
+- Verificar: total > 0, nada negativo, desconto + entrada ≤ total, parcelas ≤ centavos a dividir.
+- Dividir o restante em parcelas mensais; os centavos que sobram vão para a última.
+- Conferir que a soma das parcelas é igual ao valor final; se não for, é erro CRITICAL.
+
+**OUTPUT:** Lista de inconsistências (verificarPlano) ou lista de parcelas (gerarParcelas).
+
+## REQUIREMENTS
+- Valores numéricos já validados pela SKILL_DOCUMENT_ANALYSIS.
+
+## LIMITATIONS
+- Não define preços, descontos ou juros: só confere e divide o que foi informado.
+- Não registra pagamentos recebidos.
+
+## ERROR_HANDLING
+- Plano incoerente → erro PLANO_INCONSISTENTE (MEDIUM) com a lista de problemas.
+- Primeiro vencimento ausente → ENTRADA_INCOMPLETA.
+- Soma diferente do valor final → ERRO_CALCULO (CRITICAL).
+
+## EXAMPLES
+- entrada: `{"valor_total":1000,"parcelas":3,"primeiro_vencimento":"2026-11-15"}` → saída: 333,33 + 333,33 + 333,34
+
+## USED_BY
+captador, lancador, financeiro
+
+## CHANGELOG
+- v1.0 (2026-10-15): Versão inicial.
