@@ -8,6 +8,34 @@ logs de auditoria à prova de adulteração e monitoramento.
 Instagram, Facebook, sistemas de terceiros ou APIs. Um teste automático garante que nenhum
 arquivo do código use rede.
 
+## Jeito fácil de usar
+
+**Aqui no Claude** (digite na conversa):
+
+| Comando | O que faz |
+|---|---|
+| `/raca` | Resumo da equipe, o que está esperando você e as mensagens |
+| `/ficha Maria Souza, CPF 529.982.247-25, categoria B, primeira habilitação, 2.500 com 500 de entrada no PIX e 4 parcelas a partir de 15/11/2026` | Lança a ficha (o Claude não inventa nada: o que faltar, o CAPTADOR pede) |
+| `/pendencias` | O que está esperando você |
+| `/aprovar` | Mostra o lançamento com todas as parcelas e pergunta se você aprova |
+| `/completar 1 vencimento 15/11/2026` | Completa o que faltou |
+| `/resolver` | Trata uma tarefa parada (tentar de novo ou cancelar) |
+
+**No computador** (na pasta do projeto; no Windows use `raca` em vez de `./raca`):
+
+```
+./raca              menu com opções numeradas
+./raca ficha        pergunta os dados do aluno um por um (confere CPF, datas e valores na hora)
+./raca pendencias   o que está esperando você
+./raca aprovar      mostra o lançamento e pergunta sim/não
+./raca completar    pergunta só o que faltou
+./raca resolver     trata uma tarefa parada
+./raca status       resumo da equipe
+./raca lancamentos  fichas já lançadas
+```
+
+Segurança: nenhuma aprovação acontece sem um "sim" seu. Se ninguém responder, nada é decidido.
+
 ## Hierarquia
 
 ```
@@ -39,7 +67,8 @@ arquivo do código use rede.
 
 ```
 AI_COMPANY/
-├── empresa.js        ← seu painel de comando (proprietário)
+├── raca.js           ← comandos fáceis (./raca)
+├── empresa.js        ← comandos completos/avançados
 ├── agents/           ← uma pasta por agente: agente.json (ficha), FICHA.md (legível), handler.js (implementação)
 ├── skills/           ← 7 skills compartilhadas: skill.json + index.js + FICHA.md
 ├── orchestration/    ← motor: registro, tarefas, protocolo, roteador, executor, monitor, fluxos.json
@@ -47,7 +76,7 @@ AI_COMPANY/
 ├── logs/             ← auditoria encadeada por hash
 ├── permissions/      ← política: permissões, ferramentas, aprovação humana
 ├── tasks/            ← (dados) tarefas, mensagens, livro interno de lançamentos
-└── tests/            ← 68 testes automáticos
+└── tests/            ← 74 testes automáticos
 ```
 
 Os dados de uso ficam em `*/dados/` (fora do Git).
@@ -137,6 +166,7 @@ node --test AI_COMPANY/tests/*.test.js
 - **Agentes (27):** CEO, CAPTADOR e LANÇADOR, cada um com os 9 cenários: entrada correta, incompleta, inválida, erro, duplicada, ambígua, falta de permissão, falha de ferramenta e necessidade de aprovação.
 - **Comunicação (8):** CEO→CAPTADOR→LANÇADOR→CEO, CEO→AUDITOR, CEO→FINANCEIRO e CEO→COMERCIAL (inativos são recusados com motivo; ativados com implementação de teste, trocam dados sem perder nada), transmissão de erro e regras do protocolo.
 - **Falhas (10):** CAPTADOR falhando, LANÇADOR falhando, CEO recebendo informação incompleta ou falsa, tarefa duplicada, agente sem permissão, ferramenta indisponível, dados contraditórios e laço de correções entre agentes.
+- **Comandos fáceis (6):** perguntas guiadas que refazem a pergunta quando o dado está errado, confirmação antes de enviar, aprovação que não decide sem resposta, correção que substitui o valor antigo.
 - **Revisão adversarial (9):** um teste para cada problema encontrado pela auditoria independente (rodadas legítimas, falha depois de gravar, aprovação dos dados exatos, ficha congelada, escopo de leitura, log truncado/apagado, erro após o fim, queda no meio, CLI).
 
 ## Limites desta etapa

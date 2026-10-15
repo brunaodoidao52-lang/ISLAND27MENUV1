@@ -502,13 +502,21 @@ function retomar(fichaPor, taskId, motivo) {
 }
 
 /* O proprietário completa ou corrige a entrada de uma tarefa parada. Invalida aprovações anteriores. */
-function complementar(fichaPor, taskId, novos) {
+/* Troca, no texto "campo: valor", as linhas dos campos informados de novo (a versão nova vale). */
+function substituirCampos(antigo, novo) {
+  const chave = l => (l.split(':')[0] || '').trim().toLowerCase();
+  const novas = novo.split('\n').filter(l => l.trim());
+  const trocadas = new Set(novas.map(chave).filter(Boolean));
+  return [...String(antigo || '').split('\n').filter(l => l.trim() && !trocadas.has(chave(l))), ...novas].join('\n');
+}
+
+function complementar(fichaPor, taskId, novos, { substituir = false } = {}) {
   politica.exigir(fichaPor, 'CREATE_TASK', 'complementar entrada');
   if (!novos || (typeof novos === 'string' && !novos.trim())) throw new ErroTarefa('Nada para complementar.', 'ENTRADA_INCOMPLETA');
   return alterar(taskId, t => {
     if (!['WAITING', 'ERROR', 'BLOCKED'].includes(t.status)) throw new ErroTarefa(`Só se complementa tarefa em WAITING, ERROR ou BLOCKED (está ${t.status}).`, 'TRANSICAO_INVALIDA');
     const antes = t.entrada.dados;
-    if (typeof antes === 'string' && typeof novos === 'string') t.entrada.dados = `${antes}\n${novos}`;
+    if (typeof antes === 'string' && typeof novos === 'string') t.entrada.dados = substituir ? substituirCampos(antes, novos) : `${antes}\n${novos}`;
     else if (antes && typeof antes === 'object' && typeof novos === 'object') t.entrada.dados = Object.assign({}, antes, novos);
     else t.entrada.dados = novos;
     t.entrada.complementos = (t.entrada.complementos || 0) + 1;
@@ -516,7 +524,7 @@ function complementar(fichaPor, taskId, novos) {
     t.etapas.forEach(e => { e.status = 'PENDENTE'; e.resultado = null; });
     t.erros.forEach(e => { if (!e.resolvido) { e.resolvido = true; e.solucao = 'Entrada complementada pelo proprietário.'; } });
     t.responsavel = 'ceo';
-    auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: 'ENTRADA_COMPLEMENTADA', entrada: { complemento: novos }, decisao: 'Etapas reiniciadas; aprovação anterior invalidada.' });
+    auditoria.registrar({ task_id: taskId, agente: quem(fichaPor), acao: 'ENTRADA_COMPLEMENTADA', entrada: { complemento: novos, substituir }, decisao: 'Etapas reiniciadas; aprovação anterior invalidada.' });
   });
 }
 

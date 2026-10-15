@@ -1,0 +1,3 @@
+#!/bin/sh
+# Atalho: ./raca  (equipe de agentes da Auto Escola Raça)
+exec node "$(dirname "$0")/AI_COMPANY/raca.js" "$@"

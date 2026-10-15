@@ -28,7 +28,7 @@ module.exports = {
 
     // Dado inválido: erro MEDIUM, com o motivo de cada campo.
     if (doc.invalidos.length) {
-      const descricao = `Dados inválidos na ficha: ${doc.invalidos.map(i => i.campo).join(', ')}.`;
+      const descricao = `Dados inválidos na ficha: ${doc.invalidos.map(i => com.rotulo(i.campo)).join(', ')}.`;
       ctx.tarefas.registrarErro(id, { nivel: 'MEDIUM', descricao, causa: 'Entrada com formato inválido', recuperacao: 'Proprietário corrige os campos e complementa a tarefa.' });
       ctx.enviar({ task_id: id, to_agent: 'ceo', action: 'ERROR_REPORT', result: { invalidos: doc.invalidos, faltando: doc.faltando }, warnings: com.pedidoDeDados(doc), errors: [com.erro({ nivel: 'MEDIUM', descricao, causa: 'Entrada com formato inválido' })] });
       return;
