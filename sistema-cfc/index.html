@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISLAND27 CFC</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="menu" id="menu">
+    <a class="marca" href="#inicio">
+      <img src="assets/logo.png" alt="">
+      <span><strong>ISLAND27</strong><small id="nome-cfc">Gestão do CFC</small></span>
+    </a>
+    <nav>
+      <a href="#inicio" data-rota="inicio"><span class="ico">⌂</span> Início</a>
+      <a href="#fichas" data-rota="fichas"><span class="ico">▤</span> Fichas</a>
+      <a href="#nova-ficha" data-rota="nova-ficha"><span class="ico">＋</span> Lançar ficha</a>
+      <a href="#pagos" data-rota="pagos"><span class="ico">✓</span> Pagamentos realizados</a>
+      <a href="#pendentes" data-rota="pendentes"><span class="ico">!</span> Pagamentos pendentes</a>
+      <a href="#config" data-rota="config"><span class="ico">⚙</span> Configurações</a>
+    </nav>
+  </aside>
+
+  <main id="tela"></main>
+
+  <!-- Janela usada pelos formulários rápidos (receber pagamento, nova cobrança) -->
+  <div class="modal-fundo" id="modal" hidden>
+    <div class="modal-caixa" role="dialog" aria-modal="true">
+      <div id="modal-conteudo"></div>
+    </div>
+  </div>
+
+  <div class="aviso" id="aviso" hidden></div>
+
+  <!-- Área que só aparece na impressão (recibos e fichas) -->
+  <div id="impressao"></div>
+
+  <script src="js/dados.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/inicio.js"></script>
+  <script src="js/fichas.js"></script>
+  <script src="js/pagamentos.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
