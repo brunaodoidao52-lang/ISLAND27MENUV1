@@ -193,6 +193,7 @@ const Config = {
       `A cópia tem ${novo.alunos.length} ficha(s) e ${novo.parcelas.length} parcela(s). Ela vai SUBSTITUIR todos os dados atuais (${Dados.estado.alunos.length} ficha(s)).`,
       { botao: 'Substituir dados', perigo: true });
     if (!ok) return;
+    Cofre.aberto = true;
     Dados.substituirPor(novo);
     await Cofre.salvarAgora();
     UI.aviso('Cópia restaurada');

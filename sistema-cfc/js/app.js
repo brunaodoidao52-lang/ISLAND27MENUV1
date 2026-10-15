@@ -68,6 +68,7 @@ const Lembrete = {
     const c = Dados.estado.config;
     const dias = c.ultimoBackup ? Hoje.diasEntre(c.ultimoBackup, Hoje.iso()) : Infinity;
     el.hidden = !(Dados.estado.alunos.length && dias >= 7 && Telas.rota !== 'config');
+    el.querySelector('span').textContent = c.ultimoBackup ? `Sua última cópia de segurança foi há ${dias} dias.` : 'Você ainda não fez nenhuma cópia de segurança.';
   }
 };
 
@@ -98,20 +99,23 @@ async function iniciar() {
     document.getElementById('tela').innerHTML = '<div class="painel"><h2>Não foi possível abrir os dados</h2><p class="muted">Verifique a conexão e recarregue a página. Nada foi apagado.</p></div>';
     return;
   }
+  let danificado = false;
   try {
     Dados.estado = env && env.cifrado ? await Seguranca.pedirSenha(env) : await Cofre.abrir(env);
   } catch (e) {
-    document.getElementById('tela').innerHTML = '<div class="painel"><h2>Os dados salvos estão danificados</h2><p class="muted">Restaure uma cópia de segurança em Configurações.</p></div>';
+    danificado = true;
     Dados.estado = Saneamento.estado(null);
     env = null;
   }
   Cofre.genBase = env ? env.gen : null;
+  Cofre.aberto = !danificado; // com dados danificados nada é gravado por cima até restaurar uma cópia
   if (env && env.gen === 'v1') Cofre.salvarAgora(); // migra a versão antiga
   if (Cofre.modo === 'memoria') UI.aviso('Este navegador não deixa salvar dados. Baixe cópias de segurança antes de fechar.', true);
   Seguranca.iniciarVigia();
   mostrarStatus('ok', false);
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* opcional */ }
-  Telas.ir(location.hash.slice(1) || 'inicio', { historico: false });
+  if (danificado) UI.aviso('Os dados salvos estão danificados e nada foi apagado. Restaure uma cópia de segurança.', true);
+  Telas.ir(danificado ? 'config' : (location.hash.slice(1) || 'inicio'), { historico: false });
 }
 
 iniciar();

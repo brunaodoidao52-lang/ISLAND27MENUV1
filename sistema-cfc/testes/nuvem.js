@@ -19,7 +19,7 @@ const mock = () => {
     onSnapshot(next) { const f = e => { if (e.key === K(p)) next(snap(p)); }; addEventListener('storage', f); setTimeout(() => next(snap(p)), 0); return () => removeEventListener('storage', f); },
     async acquire({ holder, ttlMs }) { const l = JSON.parse(localStorage.getItem(K(p) + ':lease') || 'null'); if (l && l.ate > Date.now() && l.h !== holder) return { acquired: false }; localStorage.setItem(K(p) + ':lease', JSON.stringify({ h: holder, ate: Date.now() + ttlMs })); return { acquired: true }; }
   });
-  const db = { doc, collection: p => ({ doc: id => doc(p + '/' + id) }) };
+  const db = { doc, collection: p => ({ doc: id => doc(p + '/' + id), async get() { const docs = Object.keys(localStorage).filter(k => k.startsWith(K(p) + '/') && !k.endsWith(':lease') && k.slice(K(p).length + 1).indexOf('/') < 0).map(k => snap(k.slice(7))); return { docs, size: docs.length, empty: !docs.length }; } }) };
   const user = { id: async () => 'usuario1', isOwner: () => true };
   window.claude = { use: async n => (await new Promise(r => setTimeout(r, 20)), n === 'db' ? db : n === 'user' ? user : n === 'downloads' ? { save: async () => ({ status: 'saved' }) } : null) };
 };
@@ -55,6 +55,8 @@ const mock = () => {
   check(sobras === 0, 'versões antigas apagadas da nuvem (sem lixo acumulado)');
 
   // Senha no modo nuvem
+  // simula partes órfãs sem cifra deixadas por uma gravação interrompida
+  await pc.evaluate(() => localStorage.setItem('mockdb:data/users/usuario1/p-orfao123-0', JSON.stringify({ t: 'Lançado no PC Palmeiras' })));
   await pc.evaluate(() => Cofre.definirSenha('Ilha#2027forte'));
   const bruto = await pc.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('mockdb:')).map(k => localStorage.getItem(k)).join(''));
   check(!/Lançado no PC|Palmeiras/.test(bruto) && /cifrado\\?":true/.test(bruto), 'na nuvem só fica conteúdo criptografado');

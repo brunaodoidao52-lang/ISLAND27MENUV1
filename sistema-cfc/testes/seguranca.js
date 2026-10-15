@@ -238,8 +238,8 @@ async function lancarFicha(page, campos, plano = {}) {
     const idA = await a.evaluate(() => Dados.estado.alunos.find(x => x.nome === 'Feito na aba A').id);
     await a.evaluate(id => Dados.excluirFicha(id), idA);
     await c.evaluate(() => Dados.salvarConfig({ cidade: 'Santos/SP' }));
-    await a.waitForTimeout(1500);
-    check(await nomes(a) === 'Feito na aba C' && await nomes(c) === 'Feito na aba C', 'ficha apagada não volta pela outra aba');
+    const convergiu = async () => { for (let i = 0; i < 80; i++) { if (await nomes(a) === 'Feito na aba C' && await nomes(c) === 'Feito na aba C') return true; await a.waitForTimeout(100); } return false; };
+    check(await convergiu(), 'ficha apagada não volta pela outra aba');
     check(await a.evaluate(() => Dados.estado.config.cidade) === 'Santos/SP', 'configuração feita na outra aba chega');
 
     await lancarFicha(a, { nome: 'Centavos' }, { total: '1000', parcelas: '3' });
@@ -300,6 +300,105 @@ async function lancarFicha(page, campos, plano = {}) {
       check(await page.$eval('#r-valor', el => getComputedStyle(el).fontSize) === '16px', 'celular: campos com 16px (iPhone não dá zoom)');
     }
     check(page.erros.length === 0, nome + ': sem erros JS ' + page.erros.join(' | '));
+    await ctx.close();
+  }
+
+  console.log('\n[7] Regras financeiras (achados da revisão)');
+  {
+    const ctx = await b.newContext();
+    const page = await novaPagina(ctx);
+    const r = await page.evaluate(() => {
+      const out = {};
+      out.milhar = [Dinheiro.ler('2.500'), Dinheiro.ler('1.234.567'), Dinheiro.ler('2.500,50'), Dinheiro.ler('2.5')].join('|');
+      const f = Dados.criarFicha({ nome: 'Fin' }, { total: 1000, parcelas: 2 });
+      const [p1, p2] = Dados.parcelasDoAluno(f.id);
+      try { Dados.receber(p1.id, 800, Hoje.iso(), 'PIX', ''); out.acima = 'aceitou'; } catch (e) { out.acima = 'recusou'; }
+      Dados.receber(p1.id, 200, Hoje.iso(), 'PIX', '');
+      out.parcial = Dados.resumoAluno(f.id);
+      Dados.estornar(p1.id);
+      out.aposEstorno = Dados.parcelasDoAluno(f.id).map(p => [p.valor, !!p.pagoEm]);
+      // dívida fantasma: A recebe parcial, B (outra versão) recebe inteiro
+      const base = JSON.parse(JSON.stringify(Dados.estado));
+      Dados.receber(p2.id, 100, Hoje.iso(), 'PIX', '');
+      const versaoA = Saneamento.estado(JSON.parse(JSON.stringify(Dados.estado)));
+      const versaoB = Saneamento.estado(base);
+      const pB = versaoB.parcelas.find(p => p.id === p2.id);
+      pB.pagoEm = Hoje.iso(); pB.valorPago = 500; pB.forma = 'PIX'; pB.alteradoEm = Date.now() + 5000;
+      const m = mesclarEstados(versaoA, versaoB);
+      out.fantasma = m.parcelas.filter(p => p.alunoId === f.id && !p.pagoEm && p.descricao.includes('restante')).map(p => p.descricao);
+      // números de ficha duplicados
+      const x = Saneamento.estado(JSON.parse(JSON.stringify(Dados.estado)));
+      const y = Saneamento.estado(JSON.parse(JSON.stringify(Dados.estado)));
+      x.alunos.push(Saneamento.aluno({ id: 'aaaaaa1111', nome: 'X', numero: 50, criadoEm: '2026-01-01', alteradoEm: 1 }));
+      y.alunos.push(Saneamento.aluno({ id: 'bbbbbb2222', nome: 'Y', numero: 50, criadoEm: '2026-01-02', alteradoEm: 2 }));
+      const mm = mesclarEstados(x, y), mm2 = mesclarEstados(y, x);
+      out.numeros = [new Set(mm.alunos.map(a => a.numero)).size === mm.alunos.length, mm.alunos.find(a => a.nome === 'Y').numero === mm2.alunos.find(a => a.nome === 'Y').numero];
+      // parcelas de zero centavos
+      const z = Dados.criarFicha({ nome: 'Zero' }, { total: 100, entrada: 99.5, entradaPaga: true, parcelas: 60 });
+      out.zero = Dados.parcelasDoAluno(z.id).filter(p => p.valor <= 0).length + '/' + Dados.parcelasDoAluno(z.id).length;
+      // cancelado
+      Dados.atualizarFicha(f.id, { status: 'Cancelado' });
+      out.cancelado = Dados.resumoAluno(f.id);
+      return out;
+    });
+    console.log('   ', JSON.stringify(r).slice(0, 500));
+    check(r.milhar === '2500|1234567|2500.5|2.5', '"2.500" é lido como dois mil e quinhentos');
+    check(r.acima === 'recusou', 'pagamento acima do valor da parcela é recusado');
+    check(r.parcial.pago + r.parcial.aberto === r.parcial.total, 'parcial: pago + em aberto = contrato');
+    check(JSON.stringify(r.aposEstorno) === '[[500,false],[500,false]]', 'desfazer pagamento parcial devolve o restante para a parcela original');
+    check(r.fantasma.length === 0, 'parcial num aparelho + pagamento inteiro no outro não gera dívida fantasma');
+    check(r.numeros[0] && r.numeros[1], 'fichas com mesmo número em dois aparelhos são renumeradas igual nos dois');
+    check(r.zero === '0/51', 'não cria parcelas de R$ 0,00 (60 pedidas, 50 centavos → entrada + 50 parcelas)');
+    check(r.cancelado.aberto === 0 && r.cancelado.atrasadas === 0 && r.cancelado.total === r.cancelado.pago, 'aluno cancelado não fica devendo');
+    await ir(page, 'nova-ficha'); await page.fill('[name=nome]', 'Teclado'); await page.fill('#p-total', '2.500'); await page.fill('#p-parcelas', '3');
+    console.log('    previa:', JSON.stringify(await page.innerText('#previa')));
+    check((await page.innerText('#previa')).replace(/\s/g, ' ').includes('2× R$ 833,33 + 1× R$ 833,34'), 'prévia mostra o valor real da última parcela');
+    await ir(page, 'nova-ficha'); await page.fill('#c-nome', 'X'); await page.press('#c-nome', 'Enter'); await page.waitForTimeout(200);
+    check(await page.evaluate(() => document.activeElement.id) === 'p-total', 'erro no formulário leva o cursor ao campo que falta');
+    check(page.erros.length === 0, 'sem erros JS: ' + page.erros.join(' | '));
+    await ctx.close();
+  }
+
+  console.log('\n[8] Bloqueio sem perda nem vazamento (achados da auditoria)');
+  {
+    const ctx = await b.newContext();
+    const page = await novaPagina(ctx);
+    await page.evaluate(async () => { Dados.criarFicha({ nome: 'Maria Segredo', cpf: '12345678909' }, { total: 100, parcelas: 1 }); await Cofre.salvarAgora(); await Cofre.definirSenha('Ilha#2027forte'); });
+    // armazenamento falhando + edição pendente + bloqueio
+    await page.evaluate(() => {
+      window.__orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) { if (k === 'island27-cfc-v2') { const e = new Error('cheio'); e.name = 'QuotaExceededError'; throw e; } return window.__orig.call(this, k, v); };
+      Dados.criarFicha({ nome: 'Edicao pendente' }, { total: 50, parcelas: 1 });
+    });
+    await page.waitForTimeout(800);
+    await page.evaluate(() => Fichas.imprimir && document.getElementById('impressao').insertAdjacentHTML('beforeend', '<p>CPF 12345678909</p>'));
+    await page.evaluate(() => { Seguranca.bloquear('teste'); });
+    await page.waitForSelector('#senha-entrar');
+    await page.evaluate(() => { Storage.prototype.setItem = window.__orig; });
+    await page.waitForTimeout(6500);
+    const env = await page.evaluate(() => JSON.parse(localStorage.getItem('island27-cfc-v2')));
+    check(env.cifrado === true, 'bloqueio com salvamento falhando: nada é regravado sem cifra depois');
+    check(await page.evaluate(() => document.getElementById('impressao').innerHTML === '' && !document.body.innerText.includes('Maria')), 'bloqueio limpa a área de impressão e a tela');
+    await page.fill('#senha-entrar', 'Ilha#2027forte'); await page.click('#senha-ok');
+    await esperar(page, () => !Seguranca.bloqueado);
+    check(await page.evaluate(() => Dados.estado.alunos.some(a => a.nome === 'Edicao pendente') && Dados.estado.alunos.some(a => a.nome === 'Maria Segredo')), 'edição que não tinha sido salva volta após desbloquear');
+    await esperar(page, () => !Cofre.pendente && Cofre.status === 'ok');
+
+    // senha trocada em outra aba com edição pendente
+    const outra = await ctx.newPage(); outra.erros = []; outra.on('pageerror', e => outra.erros.push(e.message));
+    await outra.goto(URL); await outra.waitForSelector('#senha-entrar');
+    await outra.fill('#senha-entrar', 'Ilha#2027forte'); await outra.click('#senha-ok'); await esperar(outra, () => !Seguranca.bloqueado);
+    await outra.evaluate(() => { Dados.criarFicha({ nome: 'Lancado em B' }, { total: 10, parcelas: 1 }); });
+    await page.evaluate(() => Cofre.definirSenha('NovaSenha!2028'));
+    await outra.waitForSelector('#senha-entrar', { timeout: 15000 });
+    await outra.fill('#senha-entrar', 'NovaSenha!2028'); await outra.click('#senha-ok'); await esperar(outra, () => !Seguranca.bloqueado);
+    check(await esperar(outra, () => Dados.estado.alunos.some(a => a.nome === 'Lancado em B')), 'ficha lançada durante a troca de senha em outra aba não se perde');
+
+    // leitura falhando durante o bloqueio
+    await outra.evaluate(() => { Cofre.armazem.ler = async () => { throw new Error('offline'); }; Seguranca.bloquear('x'); });
+    await outra.waitForSelector('#tentar-de-novo');
+    check(await outra.evaluate(() => !document.getElementById('tela').innerText.includes('Maria') && Dados.estado.alunos.length === 0), 'sem conexão no bloqueio: tela limpa e botão "Tentar de novo"');
+    check(page.erros.length + outra.erros.length === 0, 'sem erros JS: ' + page.erros.concat(outra.erros).join(' | '));
     await ctx.close();
   }
 

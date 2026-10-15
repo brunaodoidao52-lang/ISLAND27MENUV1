@@ -29,7 +29,7 @@ aparecem marcados como "(exemplo)"; depois use **Apagar tudo**).
 | Celular e PC juntos | Lançamentos feitos ao mesmo tempo nos dois aparelhos são somados, nenhum se perde, e uma ficha apagada não "volta". |
 | Proteção contra erros | Confirmação antes de excluir/estornar, "Apagar tudo" exige digitar APAGAR, toque duplo não registra pagamento duas vezes, valores em centavos (sem erro de arredondamento). |
 
-Os testes automáticos que comprovam isso estão em [`testes/`](testes/README.md) (89 verificações).
+Os testes automáticos que comprovam isso estão em [`testes/`](testes/README.md) (106 verificações).
 
 ## Como usar no dia a dia
 

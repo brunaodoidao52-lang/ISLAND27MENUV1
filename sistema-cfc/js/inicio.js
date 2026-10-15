@@ -5,9 +5,10 @@ const Inicio = {
     const hoje = Hoje.iso();
     const ini = Hoje.inicioMes();
     const fim = Hoje.fimMes();
+    // Dinheiro que entrou conta sempre; de aluno cancelado não se cobra mais nada.
     const parcelas = Dados.estado.parcelas.filter(p => {
       const a = Dados.aluno(p.alunoId);
-      return a && a.status !== 'Cancelado';
+      return a && (p.pagoEm || a.status !== 'Cancelado');
     });
     const soma = (lista, campo = 'valor') => Dinheiro.somar(lista, campo);
 
@@ -23,7 +24,8 @@ const Inicio = {
     const item = p => {
       const a = Dados.aluno(p.alunoId);
       return `<li><span><a href="#ficha/${UI.esc(a.id)}">${UI.esc(a.nome)}</a><br><small class="muted">${UI.esc(p.descricao)} · ${Hoje.br(p.pagoEm || p.vencimento)}</small></span>
-        <span style="text-align:right">${Dinheiro.br(p.pagoEm ? p.valorPago : p.valor)}<br>${UI.tag(p)}</span></li>`;
+        <span class="item-valor">${Dinheiro.br(p.pagoEm ? p.valorPago : p.valor)}<br>${UI.tag(p)}
+          ${p.pagoEm ? '' : `<button class="btn btn-pequeno btn-ok" data-receber="${UI.esc(p.id)}">Receber</button>`}</span></li>`;
     };
     const ultimosPagos = parcelas.filter(p => p.pagoEm).sort((a, b) => b.pagoEm.localeCompare(a.pagoEm)).slice(0, 6);
     const nomeMes = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -71,6 +73,7 @@ const Inicio = {
       </div>
     `);
 
+    document.querySelectorAll('#tela [data-receber]').forEach(b => { b.onclick = () => Pagamentos.modalReceber(b.dataset.receber); });
     // Os atalhos de "atraso" já abrem a lista de pendentes filtrada.
     document.querySelectorAll('[data-atrasadas]').forEach(el => {
       el.addEventListener('click', () => { Pagamentos.filtroPendentes.situacao = 'atrasado'; });

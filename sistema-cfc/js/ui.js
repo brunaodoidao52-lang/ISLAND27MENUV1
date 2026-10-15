@@ -24,11 +24,16 @@ const UI = {
   },
 
   abrirModal(html) {
+    if (!this.modalAberto()) this._origemFoco = document.activeElement;
     document.getElementById('modal-conteudo').innerHTML = html;
     document.getElementById('modal').hidden = false;
     document.body.classList.add('com-modal');
-    const primeiro = document.querySelector('#modal input:not([type=checkbox]), #modal select, #modal button.btn-primario');
-    if (primeiro) primeiro.focus();
+    // No celular, focar um campo abre o teclado e esconde os botões: foca o botão principal.
+    const toque = matchMedia('(pointer: coarse)').matches;
+    const primeiro = toque && document.querySelector('#modal input[type=password]') ? document.querySelector('#modal input[type=password]')
+      : toque ? document.querySelector('#modal .botoes .btn:last-child')
+      : document.querySelector('#modal input:not([type=checkbox]), #modal select, #modal button.btn-primario');
+    if (primeiro) primeiro.focus({ preventScroll: true });
   },
 
   fecharModal() {
@@ -38,6 +43,8 @@ const UI = {
     document.body.classList.remove('com-modal');
     document.getElementById('modal-conteudo').replaceChildren();
     if (this._aoFechar) { const f = this._aoFechar; this._aoFechar = null; f(); }
+    if (this._origemFoco && document.contains(this._origemFoco)) this._origemFoco.focus({ preventScroll: true });
+    this._origemFoco = null;
     if (typeof Telas !== 'undefined') Telas.aposFecharModal();
   },
 
@@ -79,7 +86,7 @@ const UI = {
       pago: 'Pago',
       hoje: 'Vence hoje',
       aberto: 'A vencer',
-      atrasado: `Atrasado ${Hoje.diasEntre(p.vencimento, Hoje.iso())}d`
+      atrasado: (d => `${d} dia${d > 1 ? 's' : ''} de atraso`)(Hoje.diasEntre(p.vencimento, Hoje.iso()))
     };
     return `<span class="tag ${s}">${textos[s]}</span>`;
   },
@@ -142,6 +149,9 @@ h1{font-size:20px}table{border-collapse:collapse;width:100%;margin-top:10px}th,t
 </head><body>${corpo}</body></html>`;
   }
 };
+
+/* Depois de imprimir, a cópia para impressão sai da página. */
+window.addEventListener('afterprint', () => document.getElementById('impressao').replaceChildren());
 
 /* Fecha a janela ao clicar fora dela ou apertar Esc. */
 document.addEventListener('click', e => {

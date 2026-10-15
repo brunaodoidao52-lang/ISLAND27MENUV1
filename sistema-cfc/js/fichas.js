@@ -146,7 +146,7 @@ const Fichas = {
         document.getElementById('previa').innerHTML = `
           <div><span>Valor final</span><strong>${Dinheiro.br(p.total - p.desconto)}</strong></div>
           <div><span>Entrada</span><strong>${Dinheiro.br(p.entrada)}</strong></div>
-          <div><span>Parcelas</span><strong>${restante > 0 && p.parcelas ? `${p.parcelas}× ${Dinheiro.br(restante / p.parcelas)}` : '—'}</strong></div>
+          <div><span>Parcelas</span><strong>${restante > 0 && p.parcelas ? Fichas.textoParcelas(restante, p.parcelas) : '—'}</strong></div>
           <div><span>Vencimentos</span><strong>${restante > 0 && Hoje.valida(p.primeiroVencimento) ? `todo dia ${Number(p.primeiroVencimento.slice(8))}` : '—'}</strong></div>`;
       };
       form.querySelectorAll('#p-total,#p-desconto,#p-entrada,#p-parcelas,#p-venc').forEach(el => { el.oninput = previa; });
@@ -155,12 +155,18 @@ const Fichas = {
 
     form.onsubmit = e => {
       e.preventDefault();
-      const erro = msg => { document.getElementById('erro-ficha').textContent = msg; UI.aviso(msg, true); };
+      // Mostra o erro e leva a pessoa até o campo com problema.
+      const erro = (msg, campoId) => {
+        document.getElementById('erro-ficha').textContent = msg;
+        UI.aviso(msg, true);
+        const el = campoId && document.getElementById(campoId);
+        if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
+      };
       const dados = UI.lerForm(form);
-      if (!dados.nome) return erro('Informe o nome do aluno.');
-      if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) return erro('O e-mail parece incorreto.');
-      if (dados.cpf && dados.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF deve ter 11 números.');
-      if (dados.matricula && !Hoje.valida(dados.matricula)) return erro('Data da matrícula inválida.');
+      if (!dados.nome) return erro('Informe o nome do aluno.', 'c-nome');
+      if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) return erro('O e-mail parece incorreto.', 'c-email');
+      if (dados.cpf && dados.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF deve ter 11 números.', 'c-cpf');
+      if (dados.matricula && !Hoje.valida(dados.matricula)) return erro('Data da matrícula inválida.', 'c-matricula');
 
       try {
         if (a) {
@@ -170,10 +176,10 @@ const Fichas = {
           return;
         }
         const p = plano();
-        if (p.total <= 0) return erro('Informe o valor total (ex.: 2.500,00).');
-        if (!p.parcelas) return erro(`O número de parcelas deve ser de 1 a ${MAX_PARCELAS}.`);
-        if (p.desconto + p.entrada > p.total) return erro('Desconto + entrada é maior que o valor total.');
-        if (!Hoje.valida(p.primeiroVencimento)) return erro('Informe a data do 1º vencimento.');
+        if (p.total <= 0) return erro('Informe o valor total (ex.: 2.500,00).', 'p-total');
+        if (!p.parcelas) return erro(`O número de parcelas deve ser de 1 a ${MAX_PARCELAS}.`, 'p-parcelas');
+        if (Dinheiro.centavos(p.desconto) + Dinheiro.centavos(p.entrada) > Dinheiro.centavos(p.total)) return erro('Desconto + entrada é maior que o valor total.', 'p-entrada');
+        if (!Hoje.valida(p.primeiroVencimento)) return erro('Informe a data do 1º vencimento.', 'p-venc');
         const ficha = Dados.criarFicha(dados, p);
         UI.aviso(`Ficha nº ${ficha.numero} lançada`);
         Telas.ir('ficha/' + ficha.id);
@@ -202,6 +208,7 @@ const Fichas = {
         </div>
       </div>
 
+      ${r.cancelado ? '<p class="lembrete-ficha">Aluno cancelado: as parcelas pendentes não são cobradas nem aparecem em Pendentes.</p>' : ''}
       <div class="cartoes">
         <div class="cartao"><span>Valor do contrato</span><strong>${Dinheiro.br(r.total)}</strong></div>
         <div class="cartao ok"><span>Pago</span><strong>${Dinheiro.br(r.pago)}</strong></div>
@@ -220,10 +227,10 @@ const Fichas = {
               <td data-rotulo="Vencimento">${Hoje.br(p.vencimento)}</td>
               <td class="num" data-rotulo="Valor">${Dinheiro.br(p.pagoEm ? p.valorPago : p.valor)}</td>
               <td data-rotulo="Situação">${UI.tag(p)}</td>
-              <td data-rotulo="Pago em">${p.pagoEm ? `${Hoje.br(p.pagoEm)} <small class="muted">${UI.esc(p.forma)}</small>` : '—'}</td>
+              <td data-rotulo="Pago em"><span>${p.pagoEm ? `${Hoje.br(p.pagoEm)} <small class="muted">${UI.esc(p.forma)}</small>` : '—'}</span></td>
               <td class="acoes">${p.pagoEm
-                ? `<button class="btn btn-pequeno" data-recibo="${UI.esc(p.id)}">Recibo</button><button class="btn btn-pequeno" data-estornar="${UI.esc(p.id)}">Estornar</button>`
-                : `<button class="btn btn-pequeno btn-ok" data-receber="${UI.esc(p.id)}">Receber</button><button class="btn btn-pequeno btn-perigo" data-excluir="${UI.esc(p.id)}" aria-label="Excluir cobrança">Excluir</button>`}
+                ? `<button class="btn btn-pequeno" data-recibo="${UI.esc(p.id)}">Recibo</button><button class="btn btn-pequeno" data-estornar="${UI.esc(p.id)}">Desfazer</button>`
+                : `<button class="btn btn-pequeno btn-ok" data-receber="${UI.esc(p.id)}">Receber</button><button class="btn btn-pequeno btn-discreto" data-excluir="${UI.esc(p.id)}" aria-label="Excluir cobrança">Excluir</button>`}
               </td>
             </tr>`).join('') : '<tr><td colspan="6" class="vazio">Nenhuma cobrança.</td></tr>'}
           </tbody>
@@ -259,6 +266,15 @@ const Fichas = {
     document.getElementById('nova-cobranca').onclick = () => this.modalCobranca(a.id);
     document.getElementById('imprimir-ficha').onclick = () => this.imprimir(a.id);
     document.getElementById('excluir-ficha').onclick = async () => {
+      // Com pagamentos, excluir apagaria o histórico do caixa: o certo é cancelar.
+      if (ps.some(p => p.pagoEm)) {
+        if (a.status === 'Cancelado') { UI.aviso('Esta ficha tem pagamentos e fica guardada como Cancelado para manter o histórico do caixa.', true); return; }
+        if (!await UI.confirmar('Esta ficha tem pagamentos', 'Excluir apagaria esses valores dos relatórios de caixa. Em vez disso, marque o aluno como Cancelado: as parcelas pendentes deixam de ser cobradas e o histórico continua.', { botao: 'Marcar como cancelado' })) return;
+        Dados.atualizarFicha(a.id, { status: 'Cancelado' });
+        UI.aviso('Aluno marcado como cancelado');
+        Telas.recarregar();
+        return;
+      }
       if (!await UI.confirmar('Excluir ficha?', `A ficha de ${a.nome} e todos os pagamentos dela serão apagados. Isso não pode ser desfeito.`, { botao: 'Excluir ficha', perigo: true })) return;
       Dados.excluirFicha(a.id);
       UI.aviso('Ficha excluída');
@@ -294,6 +310,15 @@ const Fichas = {
       UI.aviso('Cobrança adicionada');
       Telas.recarregar();
     };
+  },
+
+  /* "3× R$ 33,33" ou "2× R$ 33,33 + 1× R$ 33,34" (centavos na última). */
+  textoParcelas(restante, n) {
+    const c = Math.round(restante * 100);
+    n = Math.max(1, Math.min(n, c));
+    const base = Math.floor(c / n);
+    const ultima = c - base * (n - 1);
+    return ultima === base ? `${n}× ${Dinheiro.br(base / 100)}` : `${n - 1}× ${Dinheiro.br(base / 100)} + 1× ${Dinheiro.br(ultima / 100)}`;
   },
 
   htmlImpressao(id) {

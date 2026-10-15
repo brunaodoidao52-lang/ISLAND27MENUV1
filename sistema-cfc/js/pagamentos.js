@@ -7,22 +7,26 @@ const Pagamentos = {
   // ---------- Pagamentos realizados ----------
   realizados() {
     const f = this.filtroPagos;
-    if (!f.de) { f.de = Hoje.inicioMes(); f.ate = Hoje.fimMes(); }
+    // Período automático acompanha a virada do mês se o sistema ficar aberto.
+    if (!f.de || (f.auto && f.auto !== Hoje.inicioMes())) { f.de = Hoje.inicioMes(); f.ate = Hoje.fimMes(); f.auto = f.de; }
     UI.tela(`
       <div class="topo"><div><h1>Pagamentos realizados</h1><p>Tudo o que já entrou no caixa.</p></div></div>
       <div class="painel">
-        <div class="filtros">
-          <div class="campo"><label for="f-de">De</label><input type="date" id="f-de" value="${UI.esc(f.de)}"></div>
-          <div class="campo"><label for="f-ate">Até</label><input type="date" id="f-ate" value="${UI.esc(f.ate)}"></div>
-          <div class="campo"><label for="f-forma">Forma</label><select id="f-forma"><option value="">Todas</option>${UI.opcoes(FORMAS, f.forma)}</select></div>
-          <div class="campo busca"><label for="f-busca">Aluno</label><input id="f-busca" type="search" maxlength="100" placeholder="Nome do aluno" value="${UI.esc(f.busca)}"></div>
-        </div>
-        <div class="botoes" style="margin-bottom:14px">
+        <div class="botoes" style="margin-bottom:12px">
           <button class="btn btn-pequeno" data-periodo="hoje">Hoje</button>
           <button class="btn btn-pequeno" data-periodo="mes">Este mês</button>
           <button class="btn btn-pequeno" data-periodo="anterior">Mês passado</button>
           <button class="btn btn-pequeno" data-periodo="ano">Este ano</button>
         </div>
+        <details class="mais-filtros"${matchMedia('(min-width: 861px)').matches || f.forma || f.busca || !f.auto ? ' open' : ''}>
+          <summary>Período: ${Hoje.br(f.de)} a ${Hoje.br(f.ate)}${f.forma ? ' · ' + UI.esc(f.forma) : ''} — mudar filtros</summary>
+          <div class="filtros">
+            <div class="campo"><label for="f-de">De</label><input type="date" id="f-de" value="${UI.esc(f.de)}"></div>
+            <div class="campo"><label for="f-ate">Até</label><input type="date" id="f-ate" value="${UI.esc(f.ate)}"></div>
+            <div class="campo"><label for="f-forma">Forma</label><select id="f-forma"><option value="">Todas</option>${UI.opcoes(FORMAS, f.forma)}</select></div>
+            <div class="campo busca"><label for="f-busca">Aluno</label><input id="f-busca" type="search" maxlength="100" placeholder="Nome do aluno" value="${UI.esc(f.busca)}"></div>
+          </div>
+        </details>
         <div class="tabela-rolagem"><table class="tabela-cartoes">
           <thead><tr><th>Pago em</th><th>Aluno</th><th>Descrição</th><th>Forma</th><th class="num">Valor</th><th></th></tr></thead>
           <tbody id="corpo"></tbody>
@@ -33,7 +37,7 @@ const Pagamentos = {
 
     const ligar = (id, chave, evento = 'onchange') => {
       const el = document.getElementById(id);
-      el[evento] = () => { f[chave] = el.value; this.preencherRealizados(); };
+      el[evento] = () => { f[chave] = el.value; if (chave === 'de' || chave === 'ate') f.auto = null; this.preencherRealizados(); };
     };
     ligar('f-de', 'de'); ligar('f-ate', 'ate'); ligar('f-forma', 'forma'); ligar('f-busca', 'busca', 'oninput');
 
@@ -42,7 +46,8 @@ const Pagamentos = {
         const hoje = Hoje.iso();
         const p = b.dataset.periodo;
         if (p === 'hoje') { f.de = f.ate = hoje; }
-        if (p === 'mes') { f.de = Hoje.inicioMes(); f.ate = Hoje.fimMes(); }
+        f.auto = null;
+        if (p === 'mes') { f.de = Hoje.inicioMes(); f.ate = Hoje.fimMes(); f.auto = f.de; }
         if (p === 'anterior') { const m = Hoje.somarMeses(Hoje.inicioMes(), -1); f.de = m; f.ate = Hoje.fimMes(m); }
         if (p === 'ano') { f.de = hoje.slice(0, 4) + '-01-01'; f.ate = hoje.slice(0, 4) + '-12-31'; }
         this.realizados();
@@ -69,7 +74,7 @@ const Pagamentos = {
         <td data-rotulo="Descrição">${UI.esc(p.descricao)}${p.obs ? `<br><small class="muted">${UI.esc(p.obs)}</small>` : ''}</td>
         <td data-rotulo="Forma">${UI.esc(p.forma)}</td>
         <td class="num" data-rotulo="Valor">${Dinheiro.br(p.valorPago)}</td>
-        <td class="acoes"><button class="btn btn-pequeno" data-recibo="${UI.esc(p.id)}">Recibo</button><button class="btn btn-pequeno" data-estornar="${UI.esc(p.id)}">Estornar</button></td>
+        <td class="acoes"><button class="btn btn-pequeno" data-recibo="${UI.esc(p.id)}">Recibo</button><button class="btn btn-pequeno" data-estornar="${UI.esc(p.id)}">Desfazer</button></td>
       </tr>`).join('') : '<tr><td colspan="6" class="vazio">Nenhum pagamento neste período.</td></tr>';
 
     corpo.querySelectorAll('[data-recibo]').forEach(b => { b.onclick = () => this.recibo(b.dataset.recibo); });
@@ -172,11 +177,11 @@ const Pagamentos = {
       <form id="form-receber" novalidate>
         <div class="grade">
           <div class="campo"><label for="r-valor">Valor recebido (R$)</label><input id="r-valor" name="valor" inputmode="decimal" maxlength="15" value="${Dinheiro.campo(p.valor)}" required></div>
-          <div class="campo"><label for="r-data">Data do pagamento</label><input id="r-data" name="data" type="date" value="${Hoje.iso()}" max="${Hoje.somarDias(Hoje.iso(), 1)}" required></div>
+          <div class="campo"><label for="r-data">Data do pagamento</label><input id="r-data" name="data" type="date" value="${Hoje.iso()}" max="${Hoje.iso()}" required></div>
           <div class="campo c2"><label for="r-forma">Forma de pagamento</label><select id="r-forma" name="forma">${UI.opcoes(FORMAS, 'PIX')}</select></div>
           <div class="campo c2"><label for="r-obs">Observação</label><input id="r-obs" name="obs" maxlength="300" placeholder="Opcional"></div>
         </div>
-        <p class="dica">Se receber menos que ${Dinheiro.br(p.valor)}, o restante continua como pendente.</p>
+        <p class="dica">Valor desta parcela: ${Dinheiro.br(p.valor)}. Se receber menos, o restante continua pendente.</p>
         <p class="erro-texto" id="r-erro" role="alert"></p>
         <div class="botoes"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn btn-ok" id="r-ok">Confirmar recebimento</button></div>
       </form>
@@ -187,8 +192,8 @@ const Pagamentos = {
       const valor = Dinheiro.ler(d.valor);
       const erro = document.getElementById('r-erro');
       if (valor <= 0) { erro.textContent = 'Informe o valor recebido (ex.: 350,00).'; return; }
-      if (valor > p.valor * 10 + 1000) { erro.textContent = 'Valor muito acima do devido. Confira o número digitado.'; return; }
-      if (!Hoje.valida(d.data) || d.data > Hoje.somarDias(Hoje.iso(), 1)) { erro.textContent = 'Informe uma data de pagamento válida (não futura).'; return; }
+      if (Dinheiro.centavos(valor) > Dinheiro.centavos(p.valor)) { erro.textContent = `O valor é maior que o desta parcela (${Dinheiro.br(p.valor)}). Receba o excedente na próxima parcela.`; return; }
+      if (!Hoje.valida(d.data) || d.data > Hoje.iso()) { erro.textContent = 'A data do pagamento não pode ser futura.'; return; }
       document.getElementById('r-ok').disabled = true; // evita receber duas vezes com toque duplo
       try {
         Dados.receber(id, valor, d.data, d.forma, d.obs);
@@ -196,18 +201,17 @@ const Pagamentos = {
         UI.fecharModal(); UI.aviso('Esta parcela já tinha sido recebida.', true); Telas.recarregar(); return;
       }
       UI.fecharModal();
-      UI.aviso(`Recebido ${Dinheiro.br(valor)} de ${a.nome}`);
       Telas.recarregar();
-      this.recibo(id);
+      this.recibo(id, `Recebido ${Dinheiro.br(valor)} de ${a.nome}.`); // o próprio recibo confirma
     };
   },
 
   async estornar(id) {
     const p = Dados.parcela(id);
     if (!p) return;
-    if (!await UI.confirmar('Estornar pagamento?', `${p.descricao} (${Dinheiro.br(p.valorPago)}) volta a ficar pendente.`, { botao: 'Estornar', perigo: true })) return;
+    if (!await UI.confirmar('Desfazer pagamento?', `O pagamento de ${Dinheiro.br(p.valorPago)} (${p.descricao}) será cancelado e a parcela volta a ficar pendente.`, { botao: 'Desfazer pagamento', perigo: true })) return;
     Dados.estornar(id);
-    UI.aviso('Pagamento estornado');
+    UI.aviso('Pagamento desfeito');
     Telas.recarregar();
   },
 
@@ -218,6 +222,7 @@ const Pagamentos = {
       c.cnpj ? `CNPJ ${c.cnpj}` : '',
       '',
       `Recebemos de ${a.nome}${a.cpf ? `, CPF ${a.cpf}` : ''}, a importância de ${Dinheiro.br(p.valorPago)} referente a ${p.descricao} (${a.servico} — categoria ${a.categoria}, ficha nº ${a.numero}), paga em ${Hoje.br(p.pagoEm)} via ${p.forma}.`,
+      this.notaParcial(p),
       p.obs ? `Obs.: ${p.obs}` : '',
       '',
       `${c.cidade ? c.cidade + ', ' : ''}${Hoje.br(p.pagoEm)}`
@@ -235,13 +240,20 @@ const Pagamentos = {
           (${UI.esc(a.servico)} — categoria ${UI.esc(a.categoria)}, ficha nº ${a.numero}),
           paga em ${Hoje.br(p.pagoEm)} via ${UI.esc(p.forma)}.</p>
         ${p.obs ? `<p>Obs.: ${UI.esc(p.obs)}</p>` : ''}
+        ${this.notaParcial(p) ? `<p>${UI.esc(this.notaParcial(p))}</p>` : ''}
         <p>${UI.esc(c.cidade || '')}${c.cidade ? ', ' : ''}${Hoje.br(p.pagoEm)}</p>
         <div class="assinatura">${UI.esc(c.nomeCfc)}</div>
       </div>`;
     return via('via do aluno') + via('via do CFC');
   },
 
-  recibo(id) {
+  /* "Pagamento parcial: restam R$ X" quando ainda há saldo desta parcela. */
+  notaParcial(p) {
+    const r = Dados.restanteDe(p.id);
+    return r ? `Pagamento parcial: resta ${Dinheiro.br(r.valor)} com vencimento em ${Hoje.br(r.vencimento)}.` : '';
+  },
+
+  recibo(id, confirmacao = '') {
     const p = Dados.parcela(id);
     if (!p || !p.pagoEm) return;
     const a = Dados.aluno(p.alunoId);
@@ -250,6 +262,7 @@ const Pagamentos = {
     const zap = UI.whatsapp(a.telefone, texto);
     UI.abrirModal(`
       <h2>Recibo</h2>
+      ${confirmacao ? `<p class="confirmado">${UI.esc(confirmacao)}</p>` : ''}
       <div class="recibo-previa">${UI.esc(texto)}</div>
       <div class="botoes">
         <button type="button" class="btn" data-fechar>Fechar</button>

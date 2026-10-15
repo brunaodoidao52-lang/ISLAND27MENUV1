@@ -304,6 +304,29 @@ td.acoes .btn { margin-left: 4px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 
+
+/* Ajustes de usabilidade */
+.lembrete a { display: inline-block; padding: 6px 4px; }
+.item-valor { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.confirmado { color: var(--ok); font-weight: 600; margin: 6px 0 0; }
+.lembrete-ficha { background: var(--painel-2); border: 1px solid var(--borda-forte); border-radius: 10px; padding: 10px 14px; color: var(--texto-suave); }
+.btn-discreto { background: transparent; border-color: var(--borda); color: var(--apagado); }
+.btn-discreto:hover { border-color: var(--atraso); color: var(--atraso); }
+.mais-filtros { margin-bottom: 14px; }
+.mais-filtros summary { cursor: pointer; color: var(--texto-suave); font-size: 14px; padding: 8px 0; min-height: 40px; }
+.mais-filtros[open] summary { margin-bottom: 8px; }
+body.com-modal .aviso { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; }
+.modal-caixa .botoes { position: sticky; bottom: 0; background: var(--painel); padding-top: 10px; }
+@media (max-width: 860px) {
+  html { scroll-padding-bottom: calc(var(--altura-abas) + 16px); scroll-padding-top: 64px; }
+  /* Enquanto digita, as abas saem do caminho do teclado. */
+  body:has(main :is(input, textarea, select):focus) .menu { display: none; }
+  body:has(main :is(input, textarea, select):focus) { padding-bottom: 0; }
+  .tabela-cartoes tr { display: flex; flex-direction: column; }
+  .tabela-cartoes td.principal { order: -1; }
+  .tabela-cartoes td.acoes { order: 99; }
+}
+
 /* ===== Impressão (recibo / ficha, com o sistema aberto como arquivo) ===== */
 #impressao { display: none; }
 @media print {

@@ -82,23 +82,61 @@ const Seguranca = {
     });
   },
 
-  /* Tira os dados da tela e da memória e pede a senha de novo. */
-  async bloquear(mensagem) {
+  /* Tira tudo da tela na hora (antes de qualquer espera). */
+  limparTela() {
+    UI.fecharModal();
+    document.getElementById('tela').replaceChildren();
+    document.getElementById('impressao').replaceChildren();
+    document.body.classList.add('travado');
+  },
+
+  /* Lê os dados salvos; se não conseguir (sem internet), espera o usuário pedir de novo. */
+  async lerComInsistencia() {
+    for (;;) {
+      try { return await Cofre.armazem.ler(); } catch (e) {
+        const caixa = document.getElementById('bloqueio');
+        caixa.hidden = false;
+        caixa.innerHTML = `<div class="bloqueio-caixa"><h1>Sem conexão</h1>
+          <p class="muted">Não foi possível acessar os dados agora. Verifique a internet.</p>
+          <button class="btn btn-primario" id="tentar-de-novo">Tentar de novo</button></div>`;
+        await new Promise(r => { document.getElementById('tentar-de-novo').onclick = r; });
+      }
+    }
+  },
+
+  /* Tira os dados da tela e da memória e pede a senha de novo.
+   * remoto = a senha mudou em outro aparelho (não dá para salvar com a chave antiga). */
+  async bloquear(mensagem, remoto = false) {
     if (this.bloqueado) return;
     this.bloqueado = true;
-    if (Cofre.pendente && Cofre.cifrado) await Cofre.salvarAgora();
-    Cofre.esquecer();
-    const env = await Cofre.armazem.ler();
-    if (!env || !env.cifrado) { // a senha foi removida em outro aparelho
-      this.bloqueado = false;
-      Dados.estado = await Cofre.abrir(env);
-      Cofre.genBase = env && env.gen;
-      Telas.recarregar();
-      return;
+    this.limparTela();
+    if (!remoto) await Cofre.salvarAgora(); // grava o que faltava antes de esquecer
+    // Mudanças que não chegaram a ser salvas ficam guardadas CIFRADAS até o desbloqueio.
+    let guardado = null;
+    if (Cofre.pendente && Cofre.chave) {
+      try { guardado = { chave: Cofre.chave, blob: await Cripto.cifrar(Cofre.chave, JSON.stringify(Dados.estado)) }; } catch (e) { guardado = null; }
     }
-    const estado = await this.pedirSenha(env, mensagem);
+    Cofre.esquecer();
+    const env = await this.lerComInsistencia();
+    let estado;
+    if (!env || !env.cifrado) { // a senha foi removida em outro aparelho
+      document.getElementById('bloqueio').hidden = true;
+      document.body.classList.remove('travado');
+      this.bloqueado = false;
+      estado = await Cofre.abrir(env);
+    } else {
+      estado = await this.pedirSenha(env, mensagem);
+    }
+    if (guardado) {
+      try {
+        const local = Saneamento.estado(JSON.parse(await Cripto.decifrar(guardado.chave, guardado.blob.iv, guardado.blob.dados)));
+        estado = mesclarEstados(local, estado);
+      } catch (e) { /* sem como recuperar */ }
+    }
     Dados.estado = estado;
-    Cofre.genBase = env.gen;
+    Cofre.genBase = env && env.gen;
+    Cofre.aberto = true;
+    if (guardado) Cofre.agendarSalvamento();
     Telas.recarregar();
   },
 

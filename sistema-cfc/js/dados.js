@@ -74,6 +74,7 @@ const Dinheiro = {
   ler(texto) {
     let s = String(texto ?? '').trim().replace(/[R$\s]/g, '');
     if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // "2.500" = dois mil e quinhentos
     if (!/^\d*\.?\d*$/.test(s) || s === '' || s === '.') return 0;
     const n = Math.round(Number(s) * 100) / 100;
     return isFinite(n) && n <= VALOR_MAXIMO ? n : 0;
@@ -161,6 +162,8 @@ const Saneamento = {
       valorPago: pagoEm ? this.valor(p.valorPago) : null,
       forma: pagoEm ? this.lista(p.forma, FORMAS, 'Dinheiro') : null,
       obs: this.texto(p.obs, 300),
+      origemId: this.id(p.origemId),            // restante de pagamento parcial: de qual parcela veio
+      origemValor: this.id(p.origemId) ? this.valor(p.origemValor) : null, // valor que a parcela de origem ficou
       alteradoEm: this.carimbo(p.alteradoEm)
     };
   },
@@ -174,21 +177,46 @@ const Saneamento = {
     const alunos = unicos(e.alunos, this.aluno);
     const idsAlunos = new Set(alunos.map(a => a.id));
     // Parcela de aluno que não existe é descartada.
-    const parcelas = unicos(e.parcelas, this.parcela).filter(p => idsAlunos.has(p.alunoId));
+    const parcelas = limparRestantes(unicos(e.parcelas, this.parcela).filter(p => idsAlunos.has(p.alunoId)));
     const excluidos = Object.create(null);
     if (e.excluidos && typeof e.excluidos === 'object') {
       Object.keys(e.excluidos).slice(0, 100000).forEach(k => {
         if (this.id(k)) excluidos[k] = this.carimbo(e.excluidos[k]);
       });
     }
-    alunos.forEach(a => { if (!a.numero) a.numero = 0; });
     const maiorFicha = alunos.reduce((m, a) => Math.max(m, a.numero), 0);
-    // Fichas sem número (backup antigo/estragado) ganham um número novo.
+    // Fichas sem número (backup antigo/estragado) ganham um número novo; repetidos são corrigidos.
     let prox = Math.max(this.inteiro(e.proximaFicha, 1, 9999999, 1), maiorFicha + 1);
     alunos.filter(a => !a.numero).forEach(a => { a.numero = prox++; });
+    prox = Math.max(prox, corrigirNumeros(alunos) + 1);
     return { config: this.config(e.config), alunos, parcelas, excluidos, proximaFicha: prox };
   }
 };
+
+/* Um "restante" só vale enquanto a parcela de origem continuar com o valor
+ * parcial que o gerou. Se outro aparelho recebeu a parcela inteira (ou o
+ * pagamento parcial foi estornado), o restante pendente é descartado. */
+function limparRestantes(parcelas) {
+  const porId = new Map(parcelas.map(p => [p.id, p]));
+  return parcelas.filter(p => {
+    if (!p.origemId || p.pagoEm) return true;
+    const origem = porId.get(p.origemId);
+    return !origem || Dinheiro.centavos(origem.valor) === Dinheiro.centavos(p.origemValor);
+  });
+}
+
+/* Duas fichas com o mesmo número (criadas ao mesmo tempo em dois aparelhos):
+ * a mais nova ganha o próximo número livre. Todos os aparelhos chegam ao mesmo resultado. */
+function corrigirNumeros(alunos) {
+  const ordem = [...alunos].sort((a, b) => a.numero - b.numero || a.criadoEm.localeCompare(b.criadoEm) || a.id.localeCompare(b.id));
+  let maior = alunos.reduce((m, a) => Math.max(m, a.numero), 0);
+  const vistos = new Set();
+  ordem.forEach(a => {
+    if (vistos.has(a.numero)) a.numero = ++maior;
+    vistos.add(a.numero);
+  });
+  return maior;
+}
 
 /* ---------- Junta duas versões (ex.: celular e PC) sem perder lançamentos ---------- */
 function mesclarEstados(local, remoto) {
@@ -205,14 +233,15 @@ function mesclarEstados(local, remoto) {
     });
     return [...mapa.values()].filter(x => !(excluidos[x.id] >= x.alteradoEm));
   };
-  const alunos = juntar(local.alunos, remoto.alunos);
+  const alunos = juntar(local.alunos, remoto.alunos).map(a => Object.assign({}, a));
   const ids = new Set(alunos.map(a => a.id));
+  const maior = corrigirNumeros(alunos);
   return {
     config: remoto.config.alteradoEm > local.config.alteradoEm ? remoto.config : local.config,
     alunos,
-    parcelas: juntar(local.parcelas, remoto.parcelas).filter(p => ids.has(p.alunoId)),
+    parcelas: limparRestantes(juntar(local.parcelas, remoto.parcelas).filter(p => ids.has(p.alunoId))),
     excluidos,
-    proximaFicha: Math.max(local.proximaFicha, remoto.proximaFicha)
+    proximaFicha: Math.max(local.proximaFicha, remoto.proximaFicha, maior + 1)
   };
 }
 
@@ -293,7 +322,8 @@ const Dados = {
       });
     }
 
-    const n = Saneamento.inteiro(plano.parcelas, 1, MAX_PARCELAS, 1);
+    // Nunca mais parcelas que centavos a dividir (evita parcelas de R$ 0,00).
+    const n = Math.max(1, Math.min(Saneamento.inteiro(plano.parcelas, 1, MAX_PARCELAS, 1), restante));
     const primeiro = Hoje.valida(plano.primeiroVencimento) ? plano.primeiroVencimento : Hoje.iso();
     if (restante > 0) {
       const base = Math.floor(restante / n);
@@ -333,11 +363,13 @@ const Dados = {
     const pago = Dinheiro.centavos(Saneamento.valor(valorPago));
     if (pago <= 0 || !Hoje.valida(data)) throw new Error('Pagamento inválido');
     const devido = Dinheiro.centavos(p.valor);
+    if (pago > devido) throw new Error('Valor acima do devido');
     if (pago < devido) {
       this.estado.parcelas.push({
         id: this.novoId(), alunoId: p.alunoId, numero: p.numero,
-        descricao: Saneamento.texto(p.descricao + ' (restante)', 100), valor: (devido - pago) / 100,
-        vencimento: p.vencimento, pagoEm: null, valorPago: null, forma: null, obs: '', alteradoEm: Date.now()
+        descricao: Saneamento.texto(p.descricao.replace(/ \(restante\)$/, '') + ' (restante)', 100), valor: (devido - pago) / 100,
+        vencimento: p.vencimento, pagoEm: null, valorPago: null, forma: null, obs: '',
+        origemId: p.id, origemValor: pago / 100, alteradoEm: Date.now()
       });
       p.valor = pago / 100;
     }
@@ -349,10 +381,22 @@ const Dados = {
     this.salvar();
   },
 
-  /* Desfaz um pagamento (a parcela volta a ficar pendente). */
+  /* Restante ainda pendente gerado por um pagamento parcial desta parcela. */
+  restanteDe(id) {
+    return this.estado.parcelas.find(r => r.origemId === id && !r.pagoEm);
+  },
+
+  /* Desfaz um pagamento (a parcela volta a ficar pendente). Se foi parcial,
+   * o restante ainda em aberto volta para dentro da parcela original. */
   estornar(id) {
     const p = this.parcela(id);
     if (!p) return;
+    const r = this.restanteDe(id);
+    if (r) {
+      p.valor = (Dinheiro.centavos(p.valor) + Dinheiro.centavos(r.valor)) / 100;
+      this.estado.excluidos[r.id] = Date.now();
+      this.estado.parcelas = this.estado.parcelas.filter(x => x.id !== r.id);
+    }
     p.pagoEm = null; p.valorPago = null; p.forma = null;
     this.marcar(p);
     this.salvar();
@@ -411,9 +455,12 @@ const Dados = {
   resumoAluno(id) {
     const ps = this.parcelasDoAluno(id);
     const pagas = ps.filter(p => p.pagoEm);
-    const pendentes = ps.filter(p => !p.pagoEm);
+    // Aluno cancelado não deve mais nada: as parcelas pendentes deixam de ser cobradas.
+    const cancelado = (this.aluno(id) || {}).status === 'Cancelado';
+    const pendentes = cancelado ? [] : ps.filter(p => !p.pagoEm);
     return {
-      total: Dinheiro.somar(ps, 'valor'),
+      cancelado,
+      total: Dinheiro.somar(cancelado ? pagas : ps, 'valor'),
       pago: Dinheiro.somar(pagas, 'valorPago'),
       aberto: Dinheiro.somar(pendentes, 'valor'),
       atrasadas: pendentes.filter(p => this.situacao(p) === 'atrasado').length,

@@ -151,6 +151,14 @@ const ArmazemNuvem = {
     }
   },
 
+  /* Apaga partes de versões antigas (inclusive as que ficaram sem cifra antes da senha). */
+  async limparSobras(genAtual) {
+    const lista = await this.db.collection(this.base).get();
+    for (const d of lista.docs) {
+      if (d.id.startsWith('p-') && !d.id.startsWith(`p-${genAtual}-`)) await this.tentar(() => this.db.doc(`${this.base}/${d.id}`).delete());
+    }
+  },
+
   observar(aoMudar) {
     this.meta.onSnapshot(s => {
       if (s.exists && s.data().aba !== this.idAba && !s.metadata.hasPendingWrites) aoMudar();
@@ -183,6 +191,9 @@ const Cofre = {
   fila: Promise.resolve(),
   status: 'ok',      // ok | salvando | erro
   ouvintes: [],
+  aberto: false,     // true só quando Dados.estado tem os dados reais carregados (nunca durante o bloqueio)
+  epoca: 0,          // muda a cada bloqueio: gravações iniciadas antes dele são descartadas
+  liberarSemSenha: false,
 
   get cifrado() { return !!this.chave; },
   get modo() { return this.armazem ? this.armazem.tipo : 'memoria'; },
@@ -250,6 +261,13 @@ const Cofre = {
     this.chave = await Cripto.derivar(senha, sal);
     this.sal = Cripto.b64(sal); this.iter = ITERACOES;
     await this.salvarAgora();
+    await this.limparSobras(); // nenhuma cópia antiga legível fica para trás
+  },
+
+  async limparSobras() {
+    if (this.armazem.limparSobras && this.genBase) {
+      try { await this.armazem.limparSobras(this.genBase); } catch (e) { /* tenta de novo na próxima vez */ }
+    }
   },
 
   async conferirSenha(senha) {
@@ -260,13 +278,21 @@ const Cofre = {
 
   async removerSenha() {
     this.chave = null; this.sal = null;
-    await this.salvarAgora();
+    this.liberarSemSenha = true; // única situação em que se grava sem cifra por cima de dados cifrados
+    try { await this.salvarAgora(); } finally { this.liberarSemSenha = false; }
   },
 
-  /* Esquece a chave e os dados da memória (bloqueio). */
+  /* Esquece a chave e os dados da memória (bloqueio). Cancela qualquer
+   * gravação agendada para que nada vazio ou sem cifra seja salvo depois. */
   esquecer() {
+    clearTimeout(this.timer);
+    this.epoca++;
+    this.aberto = false;
+    this.pendente = false;
     this.chave = null;
     Dados.estado = Saneamento.estado(null);
+    const imp = document.getElementById('impressao');
+    if (imp) imp.replaceChildren();
   },
 
   agendarSalvamento() {
@@ -284,38 +310,47 @@ const Cofre = {
   },
 
   async gravar() {
+    if (!this.aberto) return; // bloqueado: não há dados reais para salvar
+    const epoca = this.epoca;
     this.pendente = false;
     this.status = 'salvando'; this.avisar();
     const liberar = await this.armazem.travar();
     try {
       // Se outro aparelho salvou desde a última leitura, junta antes de gravar.
       const atual = await this.armazem.ler();
+      // Nunca troca dados cifrados por dados sem cifra, a não ser ao remover a senha.
+      if (atual && atual.cifrado && !this.cifrado && !this.liberarSemSenha) throw new PrecisaSenha();
       if (atual && atual.gen !== this.genBase) {
         const remoto = await this.abrir(atual);
+        if (epoca !== this.epoca) return;
         Dados.estado = mesclarEstados(Dados.estado, remoto);
       }
       const env = await this.fechar(Dados.estado);
+      if (epoca !== this.epoca || !this.aberto) return; // bloqueou no meio: descarta
       await this.armazem.gravar(env);
       this.genBase = env.gen;
       this.status = 'ok';
     } catch (e) {
+      if (epoca !== this.epoca) return;
       this.status = 'erro';
       this.pendente = true;
-      if (e instanceof PrecisaSenha) { Seguranca.bloquear('A senha foi alterada em outro aparelho. Digite a nova senha.'); return; }
+      if (e instanceof PrecisaSenha) { Seguranca.bloquear('A senha foi alterada em outro aparelho. Digite a nova senha.', true); return; }
       const cheio = e && (e.name === 'QuotaExceededError' || e.code === 'quota_exceeded');
       UI.aviso(cheio ? 'Sem espaço para salvar. Baixe uma cópia de segurança e apague registros antigos.' : 'Não foi possível salvar agora. Tentando de novo…', true);
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.salvarAgora(), 5000);
     } finally {
       liberar();
+      if (this.status === 'salvando') this.status = 'ok';
       this.avisar();
     }
   },
 
   /* Outro aparelho/aba salvou: traz as mudanças para esta tela. */
   async sincronizar() {
-    if (Seguranca.bloqueado) return;
+    if (Seguranca.bloqueado || !this.aberto) return;
     this.fila = this.fila.then(async () => {
+      if (!this.aberto) return;
       const env = await this.armazem.ler();
       if (!env || env.gen === this.genBase) return;
       try {
@@ -325,7 +360,7 @@ const Cofre = {
         if (!env.cifrado) { this.chave = null; this.sal = null; } // senha removida no outro aparelho
         Telas.recarregarSeSeguro();
       } catch (e) {
-        if (e instanceof PrecisaSenha) Seguranca.bloquear('A proteção por senha foi alterada em outro aparelho.');
+        if (e instanceof PrecisaSenha) Seguranca.bloquear('A proteção por senha foi alterada em outro aparelho.', true);
       }
     }).catch(() => {});
   },
