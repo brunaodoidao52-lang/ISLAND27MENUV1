@@ -181,6 +181,9 @@ td.acoes .btn { margin-left: 4px; }
   main { padding: 18px 16px 50px; }
   .grade { grid-template-columns: 1fr 1fr; }
   .duas-colunas { grid-template-columns: 1fr; }
+  .cartoes { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cartao { padding: 12px 14px; }
+  .cartao strong { font-size: 20px; }
 }
 @media (max-width: 520px) {
   .grade, .modal-caixa .grade { grid-template-columns: 1fr; }

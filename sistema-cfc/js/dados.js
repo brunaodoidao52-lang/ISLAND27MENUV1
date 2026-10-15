@@ -81,7 +81,7 @@ const Dados = {
    */
   gerarParcelas(ficha, plano) {
     const lista = [];
-    const hoje = Hoje.iso();
+    const hoje = ficha.matricula || Hoje.iso(); // a entrada é lançada na data da matrícula
     const entrada = Dinheiro.centavos(plano.entrada);
     const restante = Dinheiro.centavos(plano.total) - Dinheiro.centavos(plano.desconto) - entrada;
 

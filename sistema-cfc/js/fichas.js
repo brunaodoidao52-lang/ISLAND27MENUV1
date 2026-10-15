@@ -116,7 +116,7 @@ const Fichas = {
             <div class="campo"><label>Nº de parcelas</label><input id="p-parcelas" type="number" min="1" max="48" value="1"></div>
             <div class="campo"><label>1º vencimento</label><input id="p-venc" type="date" value="${Hoje.somarMeses(Hoje.iso(), 1)}"></div>
             <div class="campo c2" style="justify-content:flex-end"><label style="display:flex;gap:8px;align-items:center;font-size:15px">
-              <input type="checkbox" id="p-entrada-paga" checked style="width:auto"> Entrada já foi paga hoje</label></div>
+              <input type="checkbox" id="p-entrada-paga" checked style="width:auto"> Entrada já foi paga (na data da matrícula)</label></div>
           </div>
           <div class="resumo-valores" id="previa"></div>
         </div>`}
