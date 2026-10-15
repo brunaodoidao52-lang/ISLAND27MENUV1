@@ -1,6 +1,95 @@
 /* inicio.js — painel com o resumo do dia e do mês. */
 
+const PERIODOS = [['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano'], ['personalizado', 'Personalizado']];
+
 const Inicio = {
+  // Período escolhido no painel "Entradas" (fica lembrado enquanto o sistema está aberto).
+  periodo: 'hoje',
+  de: null,
+  ate: null,
+
+  /* Datas de início e fim do período escolhido. Semana = segunda a domingo. */
+  intervalo() {
+    const hoje = Hoje.iso();
+    const [a, m, d] = hoje.split('-').map(Number);
+    switch (this.periodo) {
+      case 'semana': {
+        const dia = new Date(a, m - 1, d).getDay(); // 0 = domingo
+        const segunda = Hoje.somarDias(hoje, dia === 0 ? -6 : 1 - dia);
+        return { de: segunda, ate: Hoje.somarDias(segunda, 6), nome: 'nesta semana' };
+      }
+      case 'mes': return { de: Hoje.inicioMes(), ate: Hoje.fimMes(), nome: 'neste mês' };
+      case 'ano': return { de: `${a}-01-01`, ate: `${a}-12-31`, nome: `em ${a}` };
+      case 'personalizado': {
+        const de = Hoje.valida(this.de) ? this.de : Hoje.inicioMes();
+        const ate = Hoje.valida(this.ate) ? this.ate : hoje;
+        return { de, ate, nome: 'no período', invertido: de > ate };
+      }
+      default: return { de: hoje, ate: hoje, nome: 'hoje' };
+    }
+  },
+
+  /* Conteúdo do painel "Entradas" (redesenhado sozinho ao trocar o período). */
+  htmlEntradas() {
+    const iv = this.intervalo();
+    const pagos = iv.invertido ? [] : Dados.estado.parcelas.filter(p => p.pagoEm && p.pagoEm >= iv.de && p.pagoEm <= iv.ate && Dados.aluno(p.alunoId));
+    const total = Dinheiro.somar(pagos, 'valorPago');
+    const porForma = new Map();
+    pagos.forEach(p => porForma.set(p.forma, (porForma.get(p.forma) || 0) + Dinheiro.centavos(p.valorPago)));
+    const faixa = iv.de === iv.ate ? Hoje.br(iv.de) : `${Hoje.br(iv.de)} a ${Hoje.br(iv.ate)}`;
+    return `
+      <div class="entradas-cabeca">
+        <h2>Entradas</h2>
+        <div class="periodos" role="group" aria-label="Período">
+          ${PERIODOS.map(([v, t]) => `<button type="button" class="periodo${this.periodo === v ? ' ativo' : ''}" data-periodo-inicio="${v}" aria-pressed="${this.periodo === v}">${t}</button>`).join('')}
+        </div>
+      </div>
+      ${this.periodo === 'personalizado' ? `
+      <div class="filtros entradas-datas">
+        <div class="campo"><label for="ent-de">De</label><input type="date" id="ent-de" value="${UI.esc(iv.de)}"></div>
+        <div class="campo"><label for="ent-ate">Até</label><input type="date" id="ent-ate" value="${UI.esc(iv.ate)}"></div>
+      </div>` : ''}
+      ${iv.invertido ? '<p class="erro-texto">A data inicial está depois da final.</p>' : `
+      <div class="entradas-total">
+        <div>
+          <span class="muted">Entrou ${iv.nome} <small>(${faixa})</small></span>
+          <strong>${Dinheiro.br(total)}</strong>
+          <small class="muted">${pagos.length ? `${pagos.length} pagamento(s)` : 'Nenhum pagamento recebido neste período.'}</small>
+        </div>
+        ${pagos.length ? `<a class="btn btn-pequeno" href="#pagos" data-ver-entradas>Ver lista</a>` : ''}
+      </div>
+      ${porForma.size ? `<div class="entradas-formas">${[...porForma].sort((x, y) => y[1] - x[1]).map(([f, c]) => `<span class="forma-chip"><span>${UI.esc(f)}</span><strong>${Dinheiro.br(c / 100)}</strong></span>`).join('')}</div>` : ''}`}`;
+  },
+
+  ligarEntradas() {
+    const caixa = document.getElementById('painel-entradas');
+    if (!caixa) return;
+    caixa.querySelectorAll('[data-periodo-inicio]').forEach(b => {
+      b.onclick = () => {
+        this.periodo = b.dataset.periodoInicio;
+        if (this.periodo === 'personalizado' && !this.de) { this.de = Hoje.inicioMes(); this.ate = Hoje.iso(); }
+        this.atualizarEntradas();
+      };
+    });
+    const de = document.getElementById('ent-de');
+    const ate = document.getElementById('ent-ate');
+    if (de) de.onchange = () => { this.de = de.value; this.atualizarEntradas('ent-de'); };
+    if (ate) ate.onchange = () => { this.ate = ate.value; this.atualizarEntradas('ent-ate'); };
+    const ver = caixa.querySelector('[data-ver-entradas]');
+    if (ver) ver.addEventListener('click', () => {
+      // A lista de pagamentos abre com o mesmo período.
+      const iv = this.intervalo();
+      Object.assign(Pagamentos.filtroPagos, { de: iv.de, ate: iv.ate, auto: null, forma: '', busca: '' });
+    });
+  },
+
+  atualizarEntradas(foco) {
+    const caixa = document.getElementById('painel-entradas');
+    caixa.innerHTML = this.htmlEntradas();
+    this.ligarEntradas();
+    if (foco && document.getElementById(foco)) document.getElementById(foco).focus();
+  },
+
   mostrar() {
     const hoje = Hoje.iso();
     const ini = Hoje.inicioMes();
@@ -31,6 +120,8 @@ const Inicio = {
     const nomeMes = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     UI.tela(`
+      <section class="painel painel-entradas" id="painel-entradas" aria-live="polite">${this.htmlEntradas()}</section>
+
       <div class="topo">
         <div><h1>Olá!</h1><p>${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })} · resumo de ${nomeMes}</p></div>
         <div class="botoes">
@@ -73,6 +164,7 @@ const Inicio = {
       </div>
     `);
 
+    this.ligarEntradas();
     document.querySelectorAll('#tela [data-receber]').forEach(b => { b.onclick = () => Pagamentos.modalReceber(b.dataset.receber); });
     // Os atalhos de "atraso" já abrem a lista de pendentes filtrada.
     document.querySelectorAll('[data-atrasadas]').forEach(el => {

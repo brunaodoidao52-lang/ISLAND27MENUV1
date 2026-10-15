@@ -327,6 +327,27 @@ body.com-modal .aviso { top: calc(12px + env(safe-area-inset-top, 0px)); bottom:
   .tabela-cartoes td.acoes { order: 99; }
 }
 
+
+/* Painel "Entradas" no topo do Início */
+.painel-entradas { border-color: var(--borda-forte); }
+.entradas-cabeca { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.periodos { display: flex; flex-wrap: wrap; gap: 4px; background: var(--fundo-2); border: 1px solid var(--borda); border-radius: 10px; padding: 4px; }
+.periodo { background: transparent; border: 0; color: var(--texto-suave); font: 600 14px var(--fonte); padding: 7px 12px; border-radius: 7px; cursor: pointer; min-height: 36px; }
+.periodo:hover { color: var(--texto); }
+.periodo.ativo { background: var(--azul); color: var(--texto-botao); }
+.entradas-datas { margin-bottom: 12px; }
+.entradas-total { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.entradas-total > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.entradas-total strong { font-family: var(--fonte-titulo); font-size: 34px; color: var(--ok); font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: anywhere; }
+.entradas-formas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.forma-chip { display: inline-flex; gap: 8px; align-items: baseline; background: var(--marinho); border-radius: 99px; padding: 5px 12px; font-size: 13px; color: var(--texto-suave); }
+.forma-chip strong { color: var(--ciano); font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .periodos { width: 100%; }
+  .periodo { flex: 1 1 auto; padding: 7px 8px; font-size: 13px; }
+  .entradas-total strong { font-size: 28px; }
+}
+
 /* ===== Impressão (recibo / ficha, com o sistema aberto como arquivo) ===== */
 #impressao { display: none; }
 @media print {

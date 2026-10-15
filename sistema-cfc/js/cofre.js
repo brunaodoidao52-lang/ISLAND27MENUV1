@@ -179,6 +179,14 @@ const ArmazemNuvem = {
   }
 };
 
+/* Retrato do estado que não depende da ordem dos registros (para comparar duas versões). */
+function assinaturaEstado(bruto) {
+  // Passa pela mesma validação dos dados salvos: mesmos campos, na mesma ordem.
+  const e = Saneamento.estado(JSON.parse(JSON.stringify(bruto)));
+  const porId = lista => lista.map(x => JSON.stringify(x)).sort();
+  return JSON.stringify([e.config, e.proximaFicha, porId(e.alunos), porId(e.parcelas), Object.keys(e.excluidos).sort().map(k => [k, e.excluidos[k]])]);
+}
+
 /* ---------- O cofre ---------- */
 const Cofre = {
   armazem: null,
@@ -356,8 +364,11 @@ const Cofre = {
       try {
         const remoto = await this.abrir(env);
         Dados.estado = mesclarEstados(Dados.estado, remoto);
-        if (!this.pendente) this.genBase = env.gen;
+        this.genBase = env.gen;
         if (!env.cifrado) { this.chave = null; this.sal = null; } // senha removida no outro aparelho
+        // Se esta tela sabe algo que a versão recebida não tem (ex.: uma exclusão que a outra
+        // aba sobrescreveu), grava de novo. Assim as duas telas sempre terminam iguais.
+        if (assinaturaEstado(Dados.estado) !== assinaturaEstado(remoto)) this.agendarSalvamento();
         Telas.recarregarSeSeguro();
       } catch (e) {
         if (e instanceof PrecisaSenha) Seguranca.bloquear('A proteção por senha foi alterada em outro aparelho.', true);

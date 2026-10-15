@@ -240,7 +240,14 @@ async function lancarFicha(page, campos, plano = {}) {
     await c.evaluate(() => Dados.salvarConfig({ cidade: 'Santos/SP' }));
     const convergiu = async () => { for (let i = 0; i < 80; i++) { if (await nomes(a) === 'Feito na aba C' && await nomes(c) === 'Feito na aba C') return true; await a.waitForTimeout(100); } return false; };
     check(await convergiu(), 'ficha apagada não volta pela outra aba');
-    check(await a.evaluate(() => Dados.estado.config.cidade) === 'Santos/SP', 'configuração feita na outra aba chega');
+    let cidade = null;
+    for (let i = 0; i < 80 && cidade !== 'Santos/SP'; i++) { cidade = await a.evaluate(() => Dados.estado.config.cidade); if (cidade !== 'Santos/SP') await a.waitForTimeout(100); }
+    check(cidade === 'Santos/SP', 'configuração feita na outra aba chega');
+    await a.waitForTimeout(1500);
+    const g1 = await a.evaluate(() => JSON.parse(localStorage.getItem('island27-cfc-v2')).gen);
+    await a.waitForTimeout(2000);
+    const g2 = await a.evaluate(() => JSON.parse(localStorage.getItem('island27-cfc-v2')).gen);
+    check(g1 === g2, 'depois de entrarem em acordo, as abas param de regravar');
 
     await lancarFicha(a, { nome: 'Centavos' }, { total: '1000', parcelas: '3' });
     const vals = await a.evaluate(() => Dados.parcelasDoAluno(Dados.estado.alunos.find(x => x.nome === 'Centavos').id).map(p => p.valor));
@@ -399,6 +406,61 @@ async function lancarFicha(page, campos, plano = {}) {
     await outra.waitForSelector('#tentar-de-novo');
     check(await outra.evaluate(() => !document.getElementById('tela').innerText.includes('Maria') && Dados.estado.alunos.length === 0), 'sem conexão no bloqueio: tela limpa e botão "Tentar de novo"');
     check(page.erros.length + outra.erros.length === 0, 'sem erros JS: ' + page.erros.concat(outra.erros).join(' | '));
+    await ctx.close();
+  }
+
+  console.log('\n[9] Painel "Entradas" no topo do Início');
+  {
+    const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+    const page = await novaPagina(ctx);
+    // Pagamentos em datas conhecidas: hoje, há 3 dias (mesma semana ou não), mês passado, ano passado
+    const datas = await page.evaluate(() => {
+      const hoje = Hoje.iso();
+      const f = Dados.criarFicha({ nome: 'Teste Entradas' }, { total: 1000, parcelas: 4, primeiroVencimento: hoje });
+      const ps = Dados.parcelasDoAluno(f.id);
+      const ontemAno = Hoje.somarMeses(hoje, -12);
+      const mesPassado = Hoje.somarMeses(Hoje.inicioMes(), -1);
+      Dados.receber(ps[0].id, 250, hoje, 'PIX', '');
+      Dados.receber(ps[1].id, 100, hoje, 'Dinheiro', ''); // parcial: gera restante
+      Dados.receber(ps[2].id, 250, mesPassado, 'PIX', '');
+      Dados.receber(ps[3].id, 250, ontemAno, 'Boleto', '');
+      Telas.ir('inicio');
+      return { hoje, mesPassado, ontemAno };
+    });
+    const total = () => page.$eval('.entradas-total strong', el => el.textContent.replace(/\s/g, ' '));
+    const primeiro = await page.$eval('#tela > *:first-child', el => el.id);
+    check(primeiro === 'painel-entradas', 'painel "Entradas" é a primeira coisa da página');
+    check((await total()) === 'R$ 350,00', 'Hoje: R$ 350,00 (250 + 100)');
+    const formas = (await page.innerText('.entradas-formas')).replace(/\s+/g, ' ');
+    check(/PIX R\$ 250,00/.test(formas) && /Dinheiro R\$ 100,00/.test(formas), 'Hoje: separado por forma de pagamento (' + formas + ')');
+    await page.click('[data-periodo-inicio="mes"]');
+    check((await total()) === 'R$ 350,00', 'Mês: só o que entrou neste mês');
+    await page.click('[data-periodo-inicio="ano"]');
+    const esperadoAno = datas.mesPassado.slice(0, 4) === datas.hoje.slice(0, 4) ? 'R$ 600,00' : 'R$ 350,00';
+    check((await total()) === esperadoAno, `Ano: ${esperadoAno}`);
+    await page.click('[data-periodo-inicio="semana"]');
+    check((await total()) === 'R$ 350,00', 'Semana: inclui hoje');
+    await page.click('[data-periodo-inicio="personalizado"]');
+    await page.fill('#ent-de', datas.ontemAno); await page.dispatchEvent('#ent-de', 'change');
+    await page.fill('#ent-ate', datas.hoje); await page.dispatchEvent('#ent-ate', 'change');
+    check((await total()) === 'R$ 850,00', 'Personalizado: de um ano atrás até hoje = R$ 850,00');
+    await page.fill('#ent-de', datas.hoje); await page.dispatchEvent('#ent-de', 'change');
+    await page.fill('#ent-ate', datas.ontemAno); await page.dispatchEvent('#ent-ate', 'change');
+    check((await page.innerText('#painel-entradas')).includes('A data inicial está depois da final'), 'Personalizado: avisa datas invertidas');
+    await page.fill('#ent-de', datas.mesPassado); await page.dispatchEvent('#ent-de', 'change');
+    await page.fill('#ent-ate', datas.hoje); await page.dispatchEvent('#ent-ate', 'change');
+    await page.click('[data-ver-entradas]');
+    await page.waitForSelector('#totais');
+    const totais = (await page.innerText('#totais')).replace(/\s+/g, ' ');
+    check(await page.$eval('#f-de', el => el.value) === datas.mesPassado && /R\$ 600,00/.test(totais), '"Ver lista" abre os pagamentos do mesmo período (' + totais + ')');
+    await page.evaluate(() => Telas.ir('inicio'));
+    check(await page.$eval('.periodo.ativo', el => el.dataset.periodoInicio) === 'personalizado', 'período escolhido fica lembrado ao voltar');
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.screenshot({ path: path.join(OUT, 'entradas-celular.png') });
+    check(await page.evaluate(() => document.documentElement.scrollWidth) <= 360, 'celular 360px: sem rolagem lateral');
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.screenshot({ path: path.join(OUT, 'entradas-pc.png') });
+    check(page.erros.length === 0, 'sem erros JS: ' + page.erros.join(' | '));
     await ctx.close();
   }
 
