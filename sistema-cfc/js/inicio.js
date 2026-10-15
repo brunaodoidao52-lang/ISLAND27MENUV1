@@ -9,7 +9,7 @@ const Inicio = {
       const a = Dados.aluno(p.alunoId);
       return a && a.status !== 'Cancelado';
     });
-    const soma = (lista, campo = 'valor') => lista.reduce((s, p) => s + (p[campo] || 0), 0);
+    const soma = (lista, campo = 'valor') => Dinheiro.somar(lista, campo);
 
     const pagosMes = parcelas.filter(p => p.pagoEm && p.pagoEm >= ini && p.pagoEm <= fim);
     const pagosHoje = parcelas.filter(p => p.pagoEm === hoje);
@@ -22,7 +22,7 @@ const Inicio = {
 
     const item = p => {
       const a = Dados.aluno(p.alunoId);
-      return `<li><span><a href="#ficha/${a.id}">${UI.esc(a.nome)}</a><br><small class="muted">${UI.esc(p.descricao)} · ${Hoje.br(p.pagoEm || p.vencimento)}</small></span>
+      return `<li><span><a href="#ficha/${UI.esc(a.id)}">${UI.esc(a.nome)}</a><br><small class="muted">${UI.esc(p.descricao)} · ${Hoje.br(p.pagoEm || p.vencimento)}</small></span>
         <span style="text-align:right">${Dinheiro.br(p.pagoEm ? p.valorPago : p.valor)}<br>${UI.tag(p)}</span></li>`;
     };
     const ultimosPagos = parcelas.filter(p => p.pagoEm).sort((a, b) => b.pagoEm.localeCompare(a.pagoEm)).slice(0, 6);
@@ -30,7 +30,7 @@ const Inicio = {
 
     UI.tela(`
       <div class="topo">
-        <div><h1>Olá! 👋</h1><p>${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })} · resumo de ${nomeMes}</p></div>
+        <div><h1>Olá!</h1><p>${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })} · resumo de ${nomeMes}</p></div>
         <div class="botoes">
           <a class="btn btn-primario" href="#nova-ficha">＋ Lançar ficha</a>
           <a class="btn" href="#pendentes">Receber pagamento</a>
@@ -56,7 +56,7 @@ const Inicio = {
       <div class="duas-colunas">
         <div class="painel">
           <h2>Atrasados</h2>
-          <ul class="lista-simples">${atrasadas.length ? atrasadas.sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 6).map(item).join('') : '<li class="muted">Nenhum atraso. 👍</li>'}</ul>
+          <ul class="lista-simples">${atrasadas.length ? atrasadas.sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 6).map(item).join('') : '<li class="muted">Nenhum atraso.</li>'}</ul>
           ${atrasadas.length > 6 ? '<p><a href="#pendentes" data-atrasadas>Ver todos</a></p>' : ''}
         </div>
         <div class="painel">

@@ -2,45 +2,63 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ISLAND27 CFC</title>
+  <!--CSP-INICIO-->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <!--CSP-FIM-->
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#08090C">
   <link rel="icon" href="assets/logo.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <aside class="menu" id="menu">
     <a class="marca" href="#inicio">
-      <img src="assets/logo.png" alt="">
+      <img src="assets/logo.png" alt="" width="44" height="44">
       <span><strong>ISLAND27</strong><small id="nome-cfc">Gestão do CFC</small></span>
     </a>
-    <nav>
-      <a href="#inicio" data-rota="inicio"><span class="ico">⌂</span> Início</a>
-      <a href="#fichas" data-rota="fichas"><span class="ico">▤</span> Fichas</a>
-      <a href="#nova-ficha" data-rota="nova-ficha"><span class="ico">＋</span> Lançar ficha</a>
-      <a href="#pagos" data-rota="pagos"><span class="ico">✓</span> Pagamentos realizados</a>
-      <a href="#pendentes" data-rota="pendentes"><span class="ico">!</span> Pagamentos pendentes</a>
-      <a href="#config" data-rota="config"><span class="ico">⚙</span> Configurações</a>
+    <nav aria-label="Menu principal">
+      <a href="#inicio"><span class="ico" aria-hidden="true">⌂</span><span class="txt">Início</span><span class="txt-curto">Início</span></a>
+      <a href="#fichas"><span class="ico" aria-hidden="true">▤</span><span class="txt">Fichas</span><span class="txt-curto">Fichas</span></a>
+      <a href="#nova-ficha" class="nav-destaque"><span class="ico" aria-hidden="true">＋</span><span class="txt">Lançar ficha</span><span class="txt-curto">Lançar</span></a>
+      <a href="#pagos"><span class="ico" aria-hidden="true">✓</span><span class="txt">Pagamentos realizados</span><span class="txt-curto">Pagos</span></a>
+      <a href="#pendentes"><span class="ico" aria-hidden="true">!</span><span class="txt">Pagamentos pendentes</span><span class="txt-curto">Pendentes</span></a>
+      <a href="#config"><span class="ico" aria-hidden="true">⚙</span><span class="txt">Configurações</span><span class="txt-curto">Ajustes</span></a>
     </nav>
   </aside>
 
-  <main id="tela"></main>
+  <div class="conteudo">
+    <header class="barra-topo">
+      <a class="marca-curta" href="#inicio"><img src="assets/logo.png" alt="" width="30" height="30"><strong>ISLAND27</strong></a>
+      <span class="status-salvo" id="status-salvo" role="status">Abrindo…</span>
+    </header>
+    <div class="lembrete" id="lembrete" hidden>
+      Faz mais de 7 dias sem cópia de segurança. <a href="#config">Fazer agora</a>
+    </div>
+    <main id="tela"><div class="carregando">Abrindo o sistema…</div></main>
+  </div>
 
-  <!-- Janela usada pelos formulários rápidos (receber pagamento, nova cobrança) -->
+  <!-- Tela de senha (quando o sistema está protegido) -->
+  <div class="bloqueio" id="bloqueio" hidden></div>
+
+  <!-- Janela usada pelos formulários rápidos e confirmações -->
   <div class="modal-fundo" id="modal" hidden>
     <div class="modal-caixa" role="dialog" aria-modal="true">
       <div id="modal-conteudo"></div>
     </div>
   </div>
 
-  <div class="aviso" id="aviso" hidden></div>
+  <div class="aviso" id="aviso" role="status" hidden></div>
 
-  <!-- Área que só aparece na impressão (recibos e fichas) -->
+  <!-- Área que só aparece na impressão (sistema aberto como arquivo) -->
   <div id="impressao"></div>
 
   <script src="js/dados.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/cofre.js"></script>
+  <script src="js/seguranca.js"></script>
   <script src="js/inicio.js"></script>
   <script src="js/fichas.js"></script>
   <script src="js/pagamentos.js"></script>
