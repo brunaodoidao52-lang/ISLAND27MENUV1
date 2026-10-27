@@ -1,0 +1,83 @@
+name: ISLAND27 Editor - instaladores
+
+# Gera os instaladores para Windows, macOS e Linux.
+# - Manualmente: aba Actions > "ISLAND27 Editor - instaladores" > Run workflow (baixe em "Artifacts").
+# - Publicação: crie uma tag "editor-v1.0.0" e os instaladores vão para a página de Releases.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['editor-v*']
+    branches: ['**']
+    paths: ['video-editor/**', '.github/workflows/editor-instaladores.yml']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            args: --win --x64
+            test: true
+          - name: macos-apple-silicon
+            os: macos-14
+            args: --mac --arm64
+            test: true
+          - name: macos-intel
+            os: macos-14
+            args: --mac --x64
+            arch: x64
+            test: false
+          - name: linux
+            os: ubuntu-latest
+            args: --linux --x64
+            test: true
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: video-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: video-editor/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+        env:
+          # Baixa o FFmpeg da arquitetura certa (ex.: Intel num Mac Apple Silicon).
+          npm_config_arch: ${{ matrix.arch }}
+      - name: Testes de exportação
+        if: matrix.test
+        run: npm test
+      - name: Gerar instalador
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ISLAND27-Editor-${{ matrix.name }}
+          path: |
+            video-editor/dist/*.exe
+            video-editor/dist/*.dmg
+            video-editor/dist/*.AppImage
+            video-editor/dist/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/editor-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: instaladores
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ISLAND27 Editor ${{ github.ref_name }}
+          files: instaladores/*

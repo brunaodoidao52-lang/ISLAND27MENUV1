@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline'; media-src 'self' file: blob: data:; img-src 'self' file: data: blob:" />
+  <title>ISLAND27 Editor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">27</span><span>ISLAND27 <b>Editor</b></span></div>
+    <div class="group">
+      <button data-action="new" title="Novo projeto (Ctrl+N)">Novo</button>
+      <button data-action="open" title="Abrir projeto (Ctrl+O)">Abrir</button>
+      <button data-action="save" title="Salvar projeto (Ctrl+S)">Salvar</button>
+      <button data-action="saveAs" title="Salvar como">Salvar como</button>
+    </div>
+    <div class="group">
+      <button data-action="undo" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
+      <button data-action="redo" title="Refazer (Ctrl+Y)">↷ Refazer</button>
+    </div>
+    <div class="project-name" id="projectName">Projeto sem título</div>
+    <button class="primary" data-action="export" title="Exportar vídeo (Ctrl+E)">Exportar ⬇</button>
+  </header>
+
+  <main class="workspace">
+    <section class="stage" id="stage">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="preview"></canvas>
+        <div class="empty" id="emptyHint">
+          <div class="empty-icon">🎬</div>
+          <p>Arraste vídeos e fotos para cá</p>
+          <button class="primary" data-action="add">+ Adicionar vídeos e fotos</button>
+        </div>
+      </div>
+      <div class="transport">
+        <span class="time" id="timeLabel">00:00.0 / 00:00.0</span>
+        <div class="controls">
+          <button data-action="start" title="Início (Home)">⏮</button>
+          <button data-action="stepBack" title="Quadro anterior (←)">◀︎◀︎</button>
+          <button class="play" data-action="play" id="playBtn" title="Reproduzir (Espaço)">▶</button>
+          <button data-action="stepFwd" title="Próximo quadro (→)">▶︎▶︎</button>
+          <button data-action="end" title="Fim (End)">⏭</button>
+        </div>
+        <span class="ratio-chip" id="ratioChip">9:16</span>
+      </div>
+    </section>
+    <aside class="panel" id="panel"></aside>
+  </main>
+
+  <nav class="toolbar" id="toolbar"></nav>
+
+  <section class="timeline" id="timeline">
+    <div class="tl-head">
+      <span class="tl-hint" id="tlHint">Clique em um clipe para editar • arraste para reordenar • puxe as bordas para cortar</span>
+      <label class="zoom">🔍 <input type="range" id="tlZoom" min="10" max="300" value="80" /></label>
+    </div>
+    <div class="tl-body">
+      <div class="tl-labels">
+        <div class="tl-label ruler-label"></div>
+        <div class="tl-label">🎞 Vídeo</div>
+        <div class="tl-label">T Texto</div>
+        <div class="tl-label">♪ Áudio</div>
+      </div>
+      <div class="tl-scroll" id="tlScroll">
+        <div class="tl-inner" id="tlInner">
+          <div class="ruler" id="ruler"></div>
+          <div class="track video-track" id="videoTrack"></div>
+          <div class="track text-track" id="textTrack"></div>
+          <div class="track audio-track" id="audioTrack"></div>
+          <div class="playhead" id="playhead"><div class="ph-knob"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal hidden" id="exportModal">
+    <div class="dialog">
+      <h2>Exportar vídeo</h2>
+      <div id="exportForm">
+        <label class="field">Resolução
+          <div class="seg" data-name="resolution">
+            <button data-v="480">480p</button><button data-v="720">720p</button><button data-v="1080" class="on">1080p</button><button data-v="1440">2K</button><button data-v="2160">4K</button>
+          </div>
+        </label>
+        <label class="field">Quadros por segundo
+          <div class="seg" data-name="fps">
+            <button data-v="24">24</button><button data-v="25">25</button><button data-v="30" class="on">30</button><button data-v="50">50</button><button data-v="60">60</button>
+          </div>
+        </label>
+        <label class="field">Qualidade
+          <div class="seg" data-name="quality">
+            <button data-v="low">Menor arquivo</button><button data-v="medium">Recomendada</button><button data-v="high" class="on">Alta</button><button data-v="max">Máxima</button>
+          </div>
+        </label>
+        <p class="muted" id="exportInfo"></p>
+        <div class="dialog-actions">
+          <button data-action="closeExport">Cancelar</button>
+          <button class="primary" data-action="doExport">Exportar MP4</button>
+        </div>
+      </div>
+      <div id="exportProgress" class="hidden">
+        <div class="progress"><div class="bar" id="exportBar"></div></div>
+        <p id="exportStatus">Preparando…</p>
+        <div class="dialog-actions" id="exportActions">
+          <button data-action="cancelExport">Cancelar exportação</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+  <div class="drop-overlay hidden" id="dropOverlay">Solte para adicionar</div>
+
+  <script src="../shared/project.js"></script>
+  <script src="render.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

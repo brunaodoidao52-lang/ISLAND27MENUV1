@@ -1,0 +1,93 @@
+{
+  "name": "island27-video-editor",
+  "productName": "ISLAND27 Editor",
+  "version": "1.0.0",
+  "description": "Editor de vídeo completo para computador: cortar, juntar, velocidade, filtros, transições, textos, figurinhas, música e exportação em até 4K/60fps sem marca d'água.",
+  "author": "ISLAND27",
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.island27.videoeditor",
+    "productName": "ISLAND27 Editor",
+    "copyright": "ISLAND27",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "i27proj",
+        "name": "Projeto ISLAND27 Editor",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ISLAND27 Editor",
+      "artifactName": "ISLAND27-Editor-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video",
+      "icon": "build/icon.png",
+      "artifactName": "ISLAND27-Editor-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Usado para gravar narração nos seus vídeos."
+      }
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "maintainer": "ISLAND27 <contato@island27.app>",
+      "artifactName": "ISLAND27-Editor-${version}-${arch}.${ext}"
+    },
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brunaodoidao52-lang/ISLAND27MENUV1.git"
+  }
+}
