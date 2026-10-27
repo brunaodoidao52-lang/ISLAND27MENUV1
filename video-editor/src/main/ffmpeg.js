@@ -309,6 +309,7 @@ function runExport(project, opts, onProgress) {
   });
   return {
     done,
+    log: () => stderr,
     cancel() {
       proc.cancelled = true;
       proc.kill('SIGKILL');
