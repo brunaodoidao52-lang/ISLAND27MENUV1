@@ -243,9 +243,11 @@ function buildExportArgs(project, opts) {
     const start = Math.max(0, tr.start);
     const len = Math.min(tr.len, total - start);
     if (len <= 0.05 || tr.volume <= 0) return;
-    if (tr.loop) args.push('-stream_loop', '-1');
+    // Repetição finita + duração limitada: com -stream_loop -1 algumas versões do FFmpeg leem o arquivo para sempre.
+    const span = (tr.sourceDuration || len) - (tr.in || 0);
+    if (tr.loop && span > 0.05 && len > span) args.push('-stream_loop', String(Math.ceil(len / span)));
     if (tr.in > 0) args.push('-ss', fx(tr.in));
-    args.push('-i', tr.path);
+    args.push('-t', fx(len + 0.1), '-i', tr.path);
     const idx = input++;
     const f = [`atrim=0:${fx(len)}`, 'asetpts=PTS-STARTPTS', 'aformat=sample_rates=44100:channel_layouts=stereo'];
     if (tr.volume !== 1) f.push(`volume=${tr.volume.toFixed(3)}`);

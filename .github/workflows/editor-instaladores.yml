@@ -51,10 +51,6 @@ jobs:
         env:
           # Baixa o FFmpeg da arquitetura certa (ex.: Intel num Mac Apple Silicon).
           npm_config_arch: ${{ matrix.arch }}
-      - name: Diagnóstico do FFmpeg
-        if: matrix.name == 'macos-apple-silicon'
-        timeout-minutes: 15
-        run: node test/diagnostico.js
       - name: Testes de exportação
         if: matrix.test
         timeout-minutes: 10
