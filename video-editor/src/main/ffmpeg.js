@@ -15,7 +15,7 @@ function ffmpegPath() {
 
 function run(args, { onStdout } = {}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(ffmpegPath(), args, { windowsHide: true });
+    const proc = spawn(ffmpegPath(), ['-nostdin', ...args], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     proc.stderr.on('data', (d) => {
       stderr += d.toString();
@@ -281,7 +281,7 @@ function buildExportArgs(project, opts) {
 
 function runExport(project, opts, onProgress) {
   const { args, total, scriptPath } = buildExportArgs(project, opts);
-  const proc = spawn(ffmpegPath(), args, { windowsHide: true });
+  const proc = spawn(ffmpegPath(), args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
   let buf = '';
   proc.stderr.on('data', (d) => {
