@@ -187,7 +187,8 @@ function buildExportArgs(project, opts) {
       graph.push(`[${idx}:v]${vf.join(',')},${fg},pad=${W}:${H}:${ox}:${oy}:color=${color},${tail}[v${i}]`);
     }
 
-    const af = ['aformat=sample_rates=44100:channel_layouts=stereo', 'apad', `atrim=duration=${fx(D)}`, 'asetpts=PTS-STARTPTS'];
+    // Silêncio com duração finita: o FFmpeg 6.0 (Mac Apple Silicon) não encerra com fontes infinitas (apad/anullsrc).
+    const af = ['aformat=sample_rates=44100:channel_layouts=stereo', `apad=whole_dur=${fx(D)}`, `atrim=duration=${fx(D)}`, 'asetpts=PTS-STARTPTS'];
     if (c.type === 'video' && c.hasAudio && !c.muted && c.volume > 0) {
       const pre = ['asetpts=PTS-STARTPTS'];
       if (c.reverse) pre.push('areverse');
@@ -195,7 +196,7 @@ function buildExportArgs(project, opts) {
       if (c.volume !== 1) pre.push(`volume=${c.volume.toFixed(3)}`);
       graph.push(`[${idx}:a]${pre.concat(af).join(',')}[a${i}]`);
     } else {
-      graph.push(`anullsrc=r=44100:cl=stereo,${af.slice(2).join(',')}[a${i}]`);
+      graph.push(`anullsrc=r=44100:cl=stereo:d=${fx(D)},${af.slice(2).join(',')}[a${i}]`);
     }
   });
 
