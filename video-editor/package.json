@@ -8,7 +8,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/export.test.js",
     "dist": "electron-builder --publish never",
     "dist:win": "electron-builder --win --publish never",
     "dist:mac": "electron-builder --mac --publish never",
@@ -50,6 +50,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png"
@@ -84,7 +90,10 @@
       "maintainer": "ISLAND27 <contato@island27.app>",
       "artifactName": "ISLAND27-Editor-${version}-${arch}.${ext}"
     },
-    "publish": null
+    "publish": null,
+    "portable": {
+      "artifactName": "ISLAND27-Editor-${version}-Portatil.${ext}"
+    }
   },
   "repository": {
     "type": "git",
