@@ -297,13 +297,24 @@ function runExport(project, opts, onProgress) {
     for (const line of lines) {
       const m = /^out_time_(?:us|ms)=(\d+)/.exec(line);
       if (m && onProgress) onProgress(Math.min(1, Number(m[1]) / 1e6 / total));
+      // "progress=end" sai depois que o MP4 foi gravado por completo. O FFmpeg 6.0 do Mac Apple Silicon
+      // às vezes trava ao encerrar depois disso; se não sair sozinho, encerramos e usamos o arquivo pronto.
+      if (line.trim() === 'progress=end' && !proc.finishTimer) {
+        proc.finishTimer = setTimeout(() => {
+          proc.endedOk = true;
+          proc.kill('SIGKILL');
+        }, 3000);
+      }
     }
   });
   const done = new Promise((resolve, reject) => {
     proc.on('error', reject);
-    proc.on('close', (code, signal) => {
+    // 'exit' (e não 'close'): dispara mesmo se algum processo filho ainda segurar a saída aberta.
+    proc.on('exit', (code, signal) => {
+      clearTimeout(proc.finishTimer);
       fs.rm(scriptPath, { force: true }, () => {});
-      if (code === 0) resolve({ output: opts.output, duration: total });
+      const written = proc.endedOk && !proc.cancelled && fs.existsSync(opts.output) && fs.statSync(opts.output).size > 0;
+      if (code === 0 || written) resolve({ output: opts.output, duration: total });
       else if (signal || proc.cancelled) reject(new Error('Exportação cancelada.'));
       else reject(new Error(stderr.split('\n').filter(Boolean).slice(-8).join('\n')));
     });
