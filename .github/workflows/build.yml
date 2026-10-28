@@ -29,7 +29,7 @@ jobs:
         run: |
           node melodyforge/tests/make_golden.js
           git diff --exit-code melodyforge/tests/golden/golden.txt
-      - name: C++ core matches the JS core
+      - name: Melody Generator theory tests (C++)
         run: |
           cmake -S melodyforge/plugin -B mf-build -DMELODYFORGE_BUILD_PLUGIN=OFF
           cmake --build mf-build
@@ -48,6 +48,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Timbre bank (100 instruments from Fluid R3, MIT)
+        shell: bash
+        run: |
+          curl -sSL -o FluidR3_GM.sf2 https://github.com/pianobooster/fluid-soundfont/releases/download/v3.1/FluidR3_GM.sf2
+          python melodyforge/tools/make_soundbank.py FluidR3_GM.sf2
       - name: Configure
         shell: bash
         run: |
@@ -59,8 +67,9 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MelodyForge-ISLAND27-${{ matrix.name }}
+          name: Melody-Generator-${{ matrix.name }}
           path: |
+            melodyforge/plugin/LEIA-ME.txt
             mf-build/MelodyForge_artefacts/Release/Standalone
             mf-build/MelodyForge_artefacts/Release/VST3
             mf-build/MelodyForge_artefacts/Release/AU

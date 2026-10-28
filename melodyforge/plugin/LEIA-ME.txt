@@ -1,64 +1,92 @@
-MelodyForge ISLAND27 — versão 2.1 para Windows (64 bits)
-=========================================================
+Melody Generator (ISLAND27) — versão 3.0 para Windows (64 bits)
+=================================================================
+(antigo MelodyForge ISLAND27)
 
 O QUE TEM AQUI
-  MelodyForge ISLAND27.exe    app independente (não precisa de DAW nenhuma)
-  MelodyForge ISLAND27.vst3   plugin VST3 para o FL Studio (e outras DAWs)
-                              -> os timbres reais ficam dentro dela, em
-                                 Contents\Resources\MelodyForge-Timbres.sf2
+  Melody Generator.exe    app independente (não precisa de DAW nenhuma)
+  Melody Generator.vst3   plugin VST3 para o FL Studio (e outras DAWs)
+                          -> os timbres reais ficam dentro dela, em
+                             Contents\Resources\MelodyForge-Timbres.sf2
 
 APP INDEPENDENTE (.exe)
-  Deixe o .exe na MESMA pasta da pasta "MelodyForge ISLAND27.vst3" (como vem
+  Deixe o .exe na MESMA pasta da pasta "Melody Generator.vst3" (como vem
   no zip) ou instale o VST3 (abaixo): é de lá que ele carrega os timbres.
   Dê dois cliques. Se o Windows avisar "O Windows protegeu o computador",
   clique em "Mais informações" > "Executar assim mesmo" (o arquivo não tem
   assinatura digital). Em Options > Audio/MIDI Settings escolha a saída de áudio.
 
 INSTALAR O VST3 NO FL STUDIO
-  1. Copie a PASTA "MelodyForge ISLAND27.vst3" inteira (com a subpasta
+  1. Copie a PASTA "Melody Generator.vst3" inteira (com a subpasta
      Contents\Resources) para  C:\Program Files\Common Files\VST3\
+     Se você tinha a versão antiga, pode apagar "MelodyForge ISLAND27.vst3".
   2. FL Studio > Options > Manage plugins > Find more plugins.
-  3. Ele aparece como gerador: "MelodyForge ISLAND27" (Island27).
+  3. Ele aparece como gerador: "Melody Generator" (Island27).
      Adicione no Channel Rack.
 
-COMO USAR (modo Iniciante)
-  1. Escolha um estilo (Trap, Lo-fi, Funk BR...) e um clima (Alegre, Triste...).
-     O estilo também escolhe timbres que combinam (ex.: Trap = 808 no baixo).
-  2. Clique em "Gerar ideias" e em "Tocar".
-  3. "Curti" no que gostar, "Pular" no resto. No modo Avançado, "Evoluir"
-     cruza as melhores ideias e cria a próxima geração.
-  4. Arraste um dos blocos "Tudo / Melodia / Baixo / Acordes" para o piano
-     roll ou a playlist do FL Studio — ou use "Exportar MIDI...".
+COMO USAR
+  1. Escolha um estilo e um clima no topo.
+  2. Clique em "Gerar" e em "Tocar".
+  3. "Curti" no que gostar, "Pular" no resto (setas: ideia anterior/próxima).
+  4. Arraste "Tudo / Melodia / Baixo / Acordes" para o piano roll ou a
+     playlist do FL Studio — ou use "Exportar".
 
-  Os cartões MELODIA, BAIXO e ACORDES explicam o que é cada parte. Em cada um:
-  liga/desliga, timbre, volume, "Ouvir só" (toca só aquela parte) e
-  "Nova variação" (refaz só aquela parte).
+  Painel da direita:
+    Tom             "Qualquer tom" ou um dos 12 tons.
+    Escala          "Automática" (vem do clima) ou uma escala fixa. Principais:
+                    Maior, Menor natural, Menor melódica, Maior com 7ª e
+                    Menor com 7ª; também menor harmônica, dórico, mixolídio,
+                    frígio, lídio, pentatônicas e blues.
+    Ideias          de 4 a 64 ideias por vez.
+    Melodia afiada  melodias diferentes que miram na 7ª, 9ª e 13ª dos acordes
+                    e saltam oitavas — sempre dentro da escala e da progressão.
+    Complexidade, Volume e Ambiência.
+
+  Os acordes saem SEMPRE da escala escolhida, e a melodia cai numa nota do
+  acorde em todo tempo forte, então ela anda junto com a progressão.
+
+  Cada cartão (MELODIA, BAIXO, ACORDES) tem liga/desliga, timbre, volume,
+  "Solo" (toca só aquela parte) e "Variar" (refaz só aquela parte).
+
+  O botão "Avançado" mostra o resto: progressão (só as que funcionam na
+  escala), tamanho, travas, harmonia, semente, "Evoluir", troca de acorde
+  por compasso, transposição e as opções de som/MIDI.
+
+ESTILOS (25)
+  Livre, Trap, Lo-fi, Pop, R&B, Funk BR, Reggaeton, House, Ambiente, Jazz,
+  Drill, Boom Bap, Phonk, Afrobeats, Piseiro, Sertanejo, Pagode, Bossa Nova,
+  Gospel, Synthwave, Rock, Dancehall, Brega Funk, Drum & Bass, Cinemático.
+
+CLIMAS (16)
+  Neutro, Alegre, Triste, Sombrio, Sonhador, Enérgico, Relaxado, Romântico,
+  Melancólico, Épico, Misterioso, Nostálgico, Tenso, Esperançoso, Festa,
+  Sensual.
 
 TOCAR SEPARADO OU JUNTO COM O FL
-  Por padrão o MelodyForge NÃO toca quando você aperta espaço no FL: ele só
-  toca pelo botão "Tocar" dele. Para tocar junto com o projeto (no andamento
-  e na posição do FL), ligue "Tocar junto com o FL Studio".
+  Por padrão o Melody Generator NÃO toca quando você aperta espaço no FL: ele
+  só toca pelo botão "Tocar" dele. Para tocar junto com o projeto, abra o
+  "Avançado" e ligue "Tocar junto com o FL".
 
 TIMBRES REAIS
-  58 instrumentos gravados (piano, Rhodes, violões, baixos, cordas, coral,
-  metais, sax, flautas, sintetizadores, pads...) + 3 sons sintetizados
-  (808, pluck, seno). No modo Avançado, "SoundFont..." carrega qualquer
-  outro banco .sf2 seu; "Timbres padrão" volta para o banco original.
+  100 instrumentos gravados (pianos, Rhodes, órgãos, acordeão, violões,
+  guitarras limpa/overdrive/distorcida, baixos, cordas, coral, metais, sax,
+  flautas, sintetizadores, pads, instrumentos étnicos...) + 3 sons
+  sintetizados (808, pluck, seno). No "Avançado", "SoundFont..." carrega
+  qualquer outro banco .sf2 seu; "Padrão" volta para o banco original.
+  Bancos gratuitos que funcionam: MuseScore_General (MIT), GeneralUser GS.
 
 TELA CHEIA
-  Botão "Tela cheia" no canto superior direito; clique de novo para voltar
-  ao tamanho normal. Você também pode arrastar o canto da janela: o texto
-  cresce junto.
+  Botão no canto superior direito; clique de novo para voltar ao tamanho
+  normal. Você também pode arrastar o canto da janela: tudo cresce junto.
 
 MIDI PARA OUTROS INSTRUMENTOS
   No wrapper do plugin (engrenagem) defina uma porta em "MIDI > Output port"
   e use a mesma porta como "Input port" no instrumento.
   Melodia = canal 1, baixo = canal 2, acordes = canal 3.
 
-Tudo é salvo junto com o projeto do FL (ideias, semente, estilo, timbres e
-edições).
+Tudo é salvo junto com o projeto do FL (ideias, semente, estilo, escala,
+melodia afiada, timbres e edições).
 
 CRÉDITOS
-  Timbres: subconjunto do "Fluid (R3) General MIDI SoundFont", de Frank Wen
+  Timbres: parte do "Fluid (R3) General MIDI SoundFont", de Frank Wen
   e colaboradores, licença MIT.
   MelodyForge original: James The Giblet (MIT). Edição ISLAND27.

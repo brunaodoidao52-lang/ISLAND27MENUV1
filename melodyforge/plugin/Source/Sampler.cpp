@@ -346,6 +346,21 @@ std::array<int, 3> defaultsForStyle (int style)
         { 80, 39, 0 },            // House: lead quadrado, baixo sintético, piano
         { 98, 39, 95 },           // Ambiente: cristal, baixo sintético, pad varredura
         { 65, 32, 0 },            // Jazz: sax alto, baixo acústico, piano
+        { 0, builtin808, 49 },    // Drill: piano, 808, cordas lentas
+        { 26, 32, 4 },            // Boom Bap: guitarra jazz, baixo acústico, Rhodes
+        { 14, builtin808, 62 },   // Phonk: sinos, 808, metais sintéticos
+        { 114, 33, 27 },          // Afrobeats: steel drum, baixo elétrico, guitarra limpa
+        { 21, 38, 90 },           // Piseiro: acordeão, baixo sintético, polysynth
+        { 25, 33, 24 },           // Sertanejo: violão de aço, baixo elétrico, violão de nylon
+        { 24, 32, 4 },            // Pagode: violão de nylon, baixo acústico, Rhodes
+        { 73, 32, 24 },           // Bossa Nova: flauta, baixo acústico, violão de nylon
+        { 0, 33, 16 },            // Gospel: piano, baixo elétrico, órgão
+        { 81, 38, 90 },           // Synthwave: lead serra, baixo sintético, polysynth
+        { 29, 34, 30 },           // Rock: guitarra overdrive, baixo palheta, guitarra distorcida
+        { 114, builtin808, 90 },  // Dancehall: steel drum, 808, polysynth
+        { 81, builtin808, 62 },   // Brega Funk: lead serra, 808, metais sintéticos
+        { 98, 38, 95 },           // Drum & Bass: cristal, baixo sintético, pad varredura
+        { 40, 32, 49 },           // Cinemático: violino, baixo acústico, cordas lentas
     };
     return d[juce::jlimit (0, (int) std::size (d) - 1, style)];
 }

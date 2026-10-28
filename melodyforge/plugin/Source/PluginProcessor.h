@@ -81,6 +81,8 @@ public:
     bool isEdited() const { return pattern.edited; }
 
     void setSolo (int track);                         // -1 = all layers
+    void setSharp (bool on);                          // "melodias afiadas"
+    void setIdeaCount (int count);                    // 4..64 ideas per generation
     void setStyle (int newStyle, bool withInstruments);
     void setMood (int newMood);
 

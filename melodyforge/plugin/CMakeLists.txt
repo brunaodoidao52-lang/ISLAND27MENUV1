@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(MelodyForgeISLAND27 VERSION 2.0.0 LANGUAGES C CXX)
+project(MelodyGeneratorISLAND27 VERSION 3.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,10 +14,10 @@ set(MF_BANK ${CMAKE_CURRENT_SOURCE_DIR}/Resources/MelodyForge-Timbres.sf2)
 
 if(MELODYFORGE_BUILD_TESTS)
     enable_testing()
-    add_executable(mf_golden_test tests/golden_test.cpp)
+    add_executable(mf_theory_test tests/theory_test.cpp)
     # Presets.h uses juce::jlimit only; a tiny shim keeps this test free of JUCE
-    target_include_directories(mf_golden_test PRIVATE tests/shim)
-    add_test(NAME mf_golden_test COMMAND mf_golden_test ${CMAKE_CURRENT_SOURCE_DIR}/../tests/golden/golden.txt)
+    target_include_directories(mf_theory_test PRIVATE tests/shim)
+    add_test(NAME mf_theory_test COMMAND mf_theory_test)
 endif()
 
 if(MELODYFORGE_BUILD_PLUGIN)
@@ -45,7 +45,7 @@ if(MELODYFORGE_BUILD_PLUGIN)
         PLUGIN_MANUFACTURER_CODE Isl7
         PLUGIN_CODE Mfg7
         FORMATS ${MF_FORMATS}
-        PRODUCT_NAME "MelodyForge ISLAND27"
+        PRODUCT_NAME "Melody Generator"
         IS_SYNTH TRUE
         NEEDS_MIDI_INPUT TRUE
         NEEDS_MIDI_OUTPUT TRUE
@@ -130,7 +130,7 @@ if(MELODYFORGE_BUILD_PLUGIN AND MELODYFORGE_BUILD_TESTS AND NOT CMAKE_CROSSCOMPI
     target_sources(mf_processor_test PRIVATE tests/processor_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/Sampler.cpp)
     target_include_directories(mf_processor_test PRIVATE Source ${REPO_ROOT}/src/plugin)
     target_compile_definitions(mf_processor_test PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_FLAC=0 JUCE_USE_OGGVORBIS=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JucePlugin_Name="MelodyForge ISLAND27"
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_FLAC=0 JUCE_USE_OGGVORBIS=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JucePlugin_Name="Melody Generator"
         MELODYFORGE_DEV_BANK="${MF_BANK}")
     target_link_libraries(mf_processor_test PRIVATE
         MelodyForgeAssets juce::juce_audio_utils juce::juce_recommended_config_flags)

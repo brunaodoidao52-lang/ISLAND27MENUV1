@@ -1,4 +1,4 @@
-// Functional test of the MelodyForge plugin processor with a simulated host.
+// Functional test of the Melody Generator plugin processor with a simulated host.
 // Usage: mf_processor_test [editor-snapshot.png]
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -203,7 +203,7 @@ int main (int argc, char** argv)
     {
         static const char* names[] = { "Melodia", "Baixo", "Acordes" };
         auto bytes = proc.midiFor ({ 0, 1, 2 });
-        check (bytes == mf::toMidi (proc.pattern, { 0, 1, 2 }, "MelodyForge ISLAND27", names), "exported .mid bytes come from the shared core");
+        check (bytes == mf::toMidi (proc.pattern, { 0, 1, 2 }, "Melody Generator", names), "exported .mid bytes come from the shared core");
         std::string str (bytes.begin(), bytes.end());
         check (str.find ("Melodia") != std::string::npos && str.find ("Acordes") != std::string::npos, "MIDI track names are in Portuguese");
         check (proc.fileBaseName().contains ("-menor-") || proc.fileBaseName().contains ("-maior-") || proc.fileBaseName().contains ("-"),
@@ -232,12 +232,30 @@ int main (int argc, char** argv)
     proc.style = 1; proc.mood = 2;            // Trap + Sad
     mfplug::presets::apply (proc.settings, proc.style, proc.mood);
     proc.applySettings (true);
-    bool presetOk = std::all_of (proc.population.begin(), proc.population.end(), [] (const mf::Entry& e)
-        { return e.genome.bpm >= 130 && e.genome.bpm <= 160 && (e.genome.scale == 1 || e.genome.scale == 2 || e.genome.scale == 4); });
+    const auto sadScales = mfplug::presets::moods()[2].scales;   // menor natural, menor melódica, menor com 7ª
+    auto isSad = [&] (int sc) { return std::find (sadScales.begin(), sadScales.end(), sc) != sadScales.end() && mf::scales()[(size_t) sc].minor; };
+    bool presetOk = std::all_of (proc.population.begin(), proc.population.end(), [&] (const mf::Entry& e)
+        { return e.genome.bpm >= 130 && e.genome.bpm <= 160 && isSad (e.genome.scale); });
     for (int i = 0; i < 6; ++i) proc.evolveOnce();
-    presetOk = presetOk && std::all_of (proc.population.begin(), proc.population.end(), [] (const mf::Entry& e)
-        { return e.genome.scale == 1 || e.genome.scale == 2 || e.genome.scale == 4; });
+    presetOk = presetOk && std::all_of (proc.population.begin(), proc.population.end(), [&] (const mf::Entry& e) { return isSad (e.genome.scale); });
     check (presetOk, "Trap + Sad presets: 130-160 BPM and minor-family scales, also after evolving");
+
+    // ---- up to 64 ideas, afiada option saved with the project
+    proc.setIdeaCount (64);
+    check (proc.population.size() == 64, "64 ideas per generation");
+    proc.evolveOnce();
+    check (proc.population.size() == 64, "64 ideas after evolving");
+    proc.setIdeaCount (500);
+    check (proc.population.size() == 64, "never more than 64 ideas");
+    proc.setSharp (true);
+    {
+        juce::MemoryBlock st;
+        proc.getStateInformation (st);
+        MelodyForgeProcessor r;
+        r.setStateInformation (st.getData(), (int) st.getSize());
+        check (r.settings.sharp && r.settings.populationSize == 64, "afiada and idea count are saved with the project");
+    }
+    proc.setIdeaCount (12);
     juce::MemoryBlock presetState;
     proc.advancedMode = true;
     proc.getStateInformation (presetState);
@@ -372,17 +390,17 @@ int main (int argc, char** argv)
         juce::AudioBuffer<float> b (2, block);
         juce::MidiBuffer m;
         for (int i = 0; i < 60; ++i) { m.clear(); proc.processBlock (b, m); }
-        shot ("beginner", 1180, 760);
+        shot ("beginner", 900, 560);
         proc.advancedMode = true;
         ed.reset (proc.createEditor());
         mfEd = dynamic_cast<MelodyForgeEditor*> (ed.get());
-        shot ("advanced", 1180, 760);
+        shot ("advanced", 900, 560);
         proc.internalPlay = false;
-        ed->setSize (1180, 760);
+        ed->setSize (900, 560);
         mfEd->toggleFullScreen();
-        check (mfEd->isFullScreenMode() && ed->getWidth() > 1180, "full screen grows the window", std::to_string (ed->getWidth()) + "x" + std::to_string (ed->getHeight()));
+        check (mfEd->isFullScreenMode() && ed->getWidth() > 900, "full screen grows the window", std::to_string (ed->getWidth()) + "x" + std::to_string (ed->getHeight()));
         mfEd->toggleFullScreen();
-        check (! mfEd->isFullScreenMode() && ed->getWidth() == 1180 && ed->getHeight() == 760, "normal size restores the window");
+        check (! mfEd->isFullScreenMode() && ed->getWidth() == 900 && ed->getHeight() == 560, "normal size restores the window");
         proc.advancedMode = false;
         ed.reset (proc.createEditor());
         shot ("fullscreen", 1920, 1050);

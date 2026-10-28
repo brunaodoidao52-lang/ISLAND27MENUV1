@@ -1,10 +1,8 @@
-// MelodyForge core — C++ port of core/melodyforge-core.js (ISLAND27 edition).
+// Melody Generator core (ISLAND27) — started as a C++ port of core/melodyforge-core.js.
 //
-// Header-only, dependency-free C++17. It must stay bit-for-bit identical to the
-// JavaScript core: tests/golden_test.cpp replays tests/golden/golden.txt.
-// Rules for keeping parity: same RNG call order (beware of short-circuits),
-// evaluate rng calls into variables before combining them, and only use
-// +, -, *, /, floor and abs on doubles.
+// Header-only, dependency-free C++17. Since Melody Generator 3.0 the plugin core has its
+// own theory rules (more scales, chords that always fit the scale, "afiada" melodies,
+// up to 64 ideas) and no longer mirrors the web version; tests/theory_test.cpp checks it.
 #pragma once
 
 #include <algorithm>
@@ -23,6 +21,7 @@ constexpr int STEPS_PER_BAR = 16;
 constexpr int BAR = STEP * STEPS_PER_BAR;
 constexpr int NUM_TRACKS = 3;   // melody, bass, chords
 constexpr int NUM_GENES = 10;
+constexpr int MAX_IDEAS = 64;
 
 enum Track { Melody = 0, Bass = 1, Chords = 2 };
 inline const char* trackName (int t) { static const char* n[] = { "Melody", "Bass", "Chords" }; return n[t]; }
@@ -30,30 +29,57 @@ inline const char* trackId (int t) { static const char* n[] = { "melody", "bass"
 
 inline const char* noteNameOf (int pc) { static const char* n[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }; return n[pc]; }
 
-struct ScaleDef { const char* id; const char* name; std::vector<int> steps; std::array<int, 7> harmony; bool minor; int parentMajor; };
+// steps: notes the melody may use. harmony: the 7 notes the chords are built from (always
+// diatonic). sevenths: every chord gets its diatonic 7th ("Maior com 7ª", "Menor com 7ª").
+struct ScaleDef
+{
+    const char* id; const char* name; std::vector<int> steps; std::array<int, 7> harmony;
+    bool minor; int parentMajor; bool sevenths;
+};
+enum ScaleId { MajorScale, NaturalMinor, MelodicMinor, Major7, Minor7, HarmonicMinor, Dorian, Mixolydian,
+               Phrygian, Lydian, PentatonicMajor, PentatonicMinor, Blues };
 inline const std::vector<ScaleDef>& scales()
 {
     static const std::vector<ScaleDef> s = {
-        { "major",            "Major",            { 0, 2, 4, 5, 7, 9, 11 }, { 0, 2, 4, 5, 7, 9, 11 }, false, 0 },
-        { "minor",            "Minor",            { 0, 2, 3, 5, 7, 8, 10 }, { 0, 2, 3, 5, 7, 8, 10 }, true, 3 },
-        { "dorian",           "Dorian",           { 0, 2, 3, 5, 7, 9, 10 }, { 0, 2, 3, 5, 7, 9, 10 }, true, 10 },
-        { "mixolydian",       "Mixolydian",       { 0, 2, 4, 5, 7, 9, 10 }, { 0, 2, 4, 5, 7, 9, 10 }, false, 5 },
-        { "harmonic_minor",   "Harmonic minor",   { 0, 2, 3, 5, 7, 8, 11 }, { 0, 2, 3, 5, 7, 8, 11 }, true, 3 },
-        { "pentatonic_major", "Pentatonic major", { 0, 2, 4, 7, 9 },        { 0, 2, 4, 5, 7, 9, 11 }, false, 0 },
-        { "pentatonic_minor", "Pentatonic minor", { 0, 3, 5, 7, 10 },       { 0, 2, 3, 5, 7, 8, 10 }, true, 3 },
-        { "blues",            "Blues",            { 0, 3, 5, 6, 7, 10 },    { 0, 2, 3, 5, 7, 8, 10 }, true, 3 },
+        { "maior",             "Maior",              { 0, 2, 4, 5, 7, 9, 11 }, { 0, 2, 4, 5, 7, 9, 11 }, false, 0, false },
+        { "menor",             "Menor natural",      { 0, 2, 3, 5, 7, 8, 10 }, { 0, 2, 3, 5, 7, 8, 10 }, true, 3, false },
+        { "menor-melodica",    "Menor melódica",     { 0, 2, 3, 5, 7, 9, 11 }, { 0, 2, 3, 5, 7, 9, 11 }, true, 3, false },
+        { "maior-7",           "Maior com 7ª",       { 0, 2, 4, 5, 7, 9, 11 }, { 0, 2, 4, 5, 7, 9, 11 }, false, 0, true },
+        { "menor-7",           "Menor com 7ª",       { 0, 2, 3, 5, 7, 8, 10 }, { 0, 2, 3, 5, 7, 8, 10 }, true, 3, true },
+        { "menor-harmonica",   "Menor harmônica",    { 0, 2, 3, 5, 7, 8, 11 }, { 0, 2, 3, 5, 7, 8, 11 }, true, 3, false },
+        { "dorico",            "Dórico",             { 0, 2, 3, 5, 7, 9, 10 }, { 0, 2, 3, 5, 7, 9, 10 }, true, 10, false },
+        { "mixolidio",         "Mixolídio",          { 0, 2, 4, 5, 7, 9, 10 }, { 0, 2, 4, 5, 7, 9, 10 }, false, 5, false },
+        { "frigio",            "Frígio",             { 0, 1, 3, 5, 7, 8, 10 }, { 0, 1, 3, 5, 7, 8, 10 }, true, 8, false },
+        { "lidio",             "Lídio",              { 0, 2, 4, 6, 7, 9, 11 }, { 0, 2, 4, 6, 7, 9, 11 }, false, 7, false },
+        { "pentatonica-maior", "Pentatônica maior",  { 0, 2, 4, 7, 9 },        { 0, 2, 4, 5, 7, 9, 11 }, false, 0, false },
+        { "pentatonica-menor", "Pentatônica menor",  { 0, 3, 5, 7, 10 },       { 0, 2, 3, 5, 7, 8, 10 }, true, 3, false },
+        { "blues",             "Blues",              { 0, 3, 5, 6, 7, 10 },    { 0, 2, 3, 5, 7, 8, 10 }, true, 3, false },
     };
     return s;
 }
 
-struct ProgressionDef { const char* name; std::vector<int> degrees; };
+// tonality: 0 = any, 1 = major scales, 2 = minor scales. dimDegree: the one degree that may be a
+// diminished chord (e.g. the ii° of ii° - v - i in minor); -1 = none.
+struct ProgressionDef { const char* name; std::vector<int> degrees; int tonality; int dimDegree; };
 inline const std::vector<ProgressionDef>& progressions()
 {
     static const std::vector<ProgressionDef> p = {
-        { "I - IV - V - I", { 0, 3, 4, 0 } },  { "I - V - vi - IV", { 0, 4, 5, 3 } },
-        { "vi - IV - I - V", { 5, 3, 0, 4 } }, { "I - vi - IV - V", { 0, 5, 3, 4 } },
-        { "ii - V - I - I", { 1, 4, 0, 0 } },  { "i - VI - III - VII", { 0, 5, 2, 6 } },
-        { "i - iv - v - i", { 0, 3, 4, 0 } },  { "I - iii - IV - V", { 0, 2, 3, 4 } },
+        { "I - IV - V - I",     { 0, 3, 4, 0 }, 1, -1 },  // 0
+        { "I - V - vi - IV",    { 0, 4, 5, 3 }, 1, -1 },  // 1
+        { "vi - IV - I - V",    { 5, 3, 0, 4 }, 1, -1 },  // 2
+        { "I - vi - IV - V",    { 0, 5, 3, 4 }, 1, -1 },  // 3
+        { "ii - V - I - I",     { 1, 4, 0, 0 }, 1, -1 },  // 4
+        { "I - iii - IV - V",   { 0, 2, 3, 4 }, 1, -1 },  // 5
+        { "I - IV - vi - V",    { 0, 3, 5, 4 }, 1, -1 },  // 6
+        { "IV - V - iii - vi",  { 3, 4, 2, 5 }, 1, -1 },  // 7
+        { "i - VI - III - VII", { 0, 5, 2, 6 }, 2, -1 },  // 8
+        { "i - iv - v - i",     { 0, 3, 4, 0 }, 2, -1 },  // 9
+        { "i - VII - VI - VII", { 0, 6, 5, 6 }, 2, -1 },  // 10
+        { "i - iv - VII - III", { 0, 3, 6, 2 }, 2, -1 },  // 11
+        { "i - VI - iv - v",    { 0, 5, 3, 4 }, 2, -1 },  // 12
+        { "ii - v - i - i",     { 1, 4, 0, 0 }, 2, 1 },   // 13
+        { "i - ii - v - i",     { 0, 1, 4, 0 }, 2, -1 },  // 14
+        { "i - iv - ii - v",    { 0, 3, 1, 4 }, 2, -1 },  // 15
     };
     return p;
 }
@@ -101,6 +127,7 @@ struct Settings
     int key = 0, scale = 0, progression = 0, bpm = 120;
     int bpmLo = 70, bpmHi = 150;
     bool lockKey = false, lockScale = false, lockProgression = false, lockBpm = false;
+    bool sharp = false;   // "melodias afiadas": aim at 7ths, 9ths, 13ths and octave leaps (always in the scale)
     Targets targets;
     std::array<GeneRange, NUM_GENES> geneRanges {};
     std::vector<int> scalePool, progressionPool;   // empty = all
@@ -118,7 +145,7 @@ inline std::vector<int> validPool (const std::vector<int>& pool, int n)
 inline Settings normalize (Settings s)
 {
     s.bars = clampv (s.bars, 1, 8);
-    s.populationSize = clampv (s.populationSize, 4, 32);
+    s.populationSize = clampv (s.populationSize, 4, MAX_IDEAS);
     s.maxNotesPerBar = clampv (s.maxNotesPerBar, 2, 16);
     s.melodyLow = clampv (s.melodyLow, 36, 96);
     s.melodyHigh = clampv (s.melodyHigh, s.melodyLow + 7, 108);
@@ -135,6 +162,67 @@ inline Settings normalize (Settings s)
     s.scalePool = validPool (s.scalePool, (int) scales().size());
     s.progressionPool = validPool (s.progressionPool, (int) progressions().size());
     return s;
+}
+
+// ---------------------------------------------------------------- chords that fit the scale
+enum TriadKind { MajorTriad, MinorTriad, DimTriad, AugTriad, OtherTriad };
+
+inline int triadKind (int scaleIdx, int degree)
+{
+    const auto& h = scales()[(size_t) scaleIdx].harmony;
+    const int r = h[(size_t) (degree % 7)];
+    const int third = mod12 (h[(size_t) ((degree + 2) % 7)] - r), fifth = mod12 (h[(size_t) ((degree + 4) % 7)] - r);
+    if (third == 4 && fifth == 7) return MajorTriad;
+    if (third == 3 && fifth == 7) return MinorTriad;
+    if (third == 3 && fifth == 6) return DimTriad;
+    if (third == 4 && fifth == 8) return AugTriad;
+    return OtherTriad;
+}
+
+// A progression fits a scale when every chord is a plain major/minor chord of that scale
+// (diminished only where the progression asks for it, never augmented) and, when strict,
+// the progression was written for that kind of scale (major or minor).
+inline bool progressionFits (int progIdx, int scaleIdx, bool strict = true)
+{
+    const auto& p = progressions()[(size_t) progIdx];
+    const auto& sc = scales()[(size_t) scaleIdx];
+    if (strict && p.tonality != 0 && (p.tonality == 2) != sc.minor) return false;
+    for (int d : p.degrees)
+    {
+        const int k = triadKind (scaleIdx, d);
+        if (k == AugTriad || k == OtherTriad) return false;
+        if (k == DimTriad && d != p.dimDegree) return false;
+    }
+    return true;
+}
+
+// Progressions of the pool that fit the scale (falls back to every fitting one).
+inline std::vector<int> progressionCandidates (const std::vector<int>& pool, int scaleIdx)
+{
+    std::vector<int> out;
+    for (int p : pool) if (progressionFits (p, scaleIdx)) out.push_back (p);
+    if (out.empty()) for (int p = 0; p < (int) progressions().size(); ++p) if (progressionFits (p, scaleIdx)) out.push_back (p);
+    if (out.empty()) for (int p = 0; p < (int) progressions().size(); ++p) if (progressionFits (p, scaleIdx, false)) out.push_back (p);
+    if (out.empty()) out.push_back (0);
+    return out;
+}
+
+// Roman numerals of a progression as they sound in the given scale (Am in C = "vi", Bdim = "vii°").
+inline std::string progressionLabel (int progIdx, int scaleIdx)
+{
+    static const char* up[] = { "I", "II", "III", "IV", "V", "VI", "VII" };
+    static const char* low[] = { "i", "ii", "iii", "iv", "v", "vi", "vii" };
+    std::string out;
+    const auto& p = progressions()[(size_t) progIdx];
+    for (size_t i = 0; i < p.degrees.size(); ++i)
+    {
+        const int d = p.degrees[i] % 7, k = triadKind (scaleIdx, d);
+        if (i > 0) out += " - ";
+        out += (k == MajorTriad || k == AugTriad) ? up[d] : low[d];
+        if (k == DimTriad) out += "\xc2\xb0";   // °
+        if (k == AugTriad) out += "+";
+    }
+    return out;
 }
 
 struct Genome
@@ -179,7 +267,12 @@ inline Genome randomGenome (Rng& rng, const Settings& settings)
     Genome g;
     g.key = s.lockKey ? s.key : rng.integer (12);
     g.scale = s.lockScale ? s.scale : s.scalePool[(size_t) rng.integer ((int) s.scalePool.size())];
-    g.progression = s.lockProgression ? s.progression : s.progressionPool[(size_t) rng.integer ((int) s.progressionPool.size())];
+    if (s.lockProgression) g.progression = s.progression;
+    else
+    {
+        auto cands = progressionCandidates (s.progressionPool, g.scale);
+        g.progression = cands[(size_t) rng.integer ((int) cands.size())];
+    }
     g.bpm = s.lockBpm ? s.bpm : s.bpmLo + rng.integer (s.bpmHi - s.bpmLo + 1);
     g.seedMelody = rng.next();
     g.seedBass = rng.next();
@@ -195,6 +288,11 @@ inline Genome applyLocks (Genome g, const Settings& settings)
     if (s.lockKey) g.key = s.key;
     if (s.lockScale) g.scale = s.scale;
     if (s.lockProgression) g.progression = s.progression;
+    else if (! progressionFits (g.progression, g.scale))
+    {
+        auto cands = progressionCandidates (s.progressionPool, g.scale);
+        g.progression = cands[(size_t) (g.seedChords % (uint32_t) cands.size())];
+    }
     if (s.lockBpm) g.bpm = s.bpm;
     return g;
 }
@@ -236,10 +334,18 @@ inline std::vector<int> chordPitchClasses (int key, int scaleIdx, int degree, bo
     return pcs;
 }
 
-inline std::string chordName (int key, int scaleIdx, int degree)
+inline std::string chordName (int key, int scaleIdx, int degree, bool withSeventh = false)
 {
-    auto pcs = chordPitchClasses (key, scaleIdx, degree, false);
+    auto pcs = chordPitchClasses (key, scaleIdx, degree, withSeventh || scales()[(size_t) scaleIdx].sevenths);
     return std::string (noteNameOf (pcs[0])) + chordQualityName (pcs);
+}
+
+// Diatonic colour notes above a chord: 7th, 9th and 13th (6th) of the scale, as pitch classes.
+inline std::vector<int> extensionPitchClasses (int key, int scaleIdx, int degree)
+{
+    const auto& h = scales()[(size_t) scaleIdx].harmony;
+    return { mod12 (key + h[(size_t) ((degree + 6) % 7)]), mod12 (key + h[(size_t) ((degree + 1) % 7)]),
+             mod12 (key + h[(size_t) ((degree + 5) % 7)]) };
 }
 
 inline std::vector<int> voiceChord (const std::vector<int>& pcs, const std::vector<int>* prev)
@@ -295,8 +401,8 @@ inline ChordRender renderChords (const Genome& g, const Settings& s, Rng& rng)
     for (int bar = 0; bar < s.bars; ++bar)
     {
         int degree = chordDegreeForBar (g, bar);
-        bool seventh = false;
-        if (g.genes[ChordComplexity] > 0.3)
+        bool seventh = scales()[(size_t) g.scale].sevenths || s.sharp;
+        if (! seventh && g.genes[ChordComplexity] > 0.3)
         {
             double r = rng.real();
             seventh = r < g.genes[ChordComplexity] * 0.8;
@@ -396,7 +502,7 @@ inline std::vector<int> rhythmForBar (const Genome& g, const Settings& s, Rng& r
 
 inline std::vector<int> melodyPool (const Genome& g, const Settings& s)
 {
-    int span = 7 + (int) std::floor (g.genes[Range] * 12.0);
+    int span = 7 + (int) std::floor (g.genes[Range] * 12.0) + (s.sharp ? 6 : 0);   // afiada: room for octave leaps
     int center = (s.melodyLow + s.melodyHigh) / 2;
     int lo = std::max (s.melodyLow, center - span / 2);
     int hi = std::min (s.melodyHigh, lo + span);
@@ -411,9 +517,18 @@ inline std::vector<int> melodyPool (const Genome& g, const Settings& s)
     return pool;
 }
 
+// Index of the pool note closest to idx whose pitch class is in pcs (-1 if none within 4 notes).
+inline int findNearestTone (const std::vector<int>& pool, int idx, const std::vector<int>& pcs)
+{
+    for (int d = 0; d <= 4; ++d)
+        for (int i : { idx - d, idx + d })
+            if (i >= 0 && i < (int) pool.size() && contains (pcs, mod12 (pool[(size_t) i]))) return i;
+    return -1;
+}
+
 inline int nearestChordToneIndex (const std::vector<int>& pool, int idx, const std::vector<int>& pcs)
 {
-    for (int d = 0; d <= 3; ++d)
+    for (int d = 0; d < (int) pool.size(); ++d)   // the whole pool: a chord tone is always found if the scale has one
     {
         int cands[2] = { idx - d, idx + d };
         int count = d == 0 ? 1 : 2;
@@ -433,6 +548,7 @@ inline std::vector<Note> renderMelody (const Genome& g, const Settings& s, const
     std::vector<std::vector<int>> rhythms, pitchesByBar;
     std::vector<Note> notes;
     int poolLast = (int) pool.size() - 1;
+    const int scaleSize = (int) scales()[(size_t) g.scale].steps.size();
     int idx = nearestChordToneIndex (pool, (int) pool.size() / 2, chords[0].pcs);
     int totalSteps = s.bars * STEPS_PER_BAR;
     for (int bar = 0; bar < s.bars; ++bar)
@@ -450,6 +566,11 @@ inline std::vector<Note> renderMelody (const Genome& g, const Settings& s, const
             if (copyPitches && n < pitchesByBar[(size_t) bar - 2].size())
             {
                 idx = pitchesByBar[(size_t) bar - 2][n];
+                // a repeated phrase still follows this bar's chord on the strong beats
+                const auto& ch = chords[(size_t) bar];
+                const int pc = mod12 (pool[(size_t) idx]);
+                const bool fits = contains (ch.pcs, pc) || (s.sharp && contains (extensionPitchClasses (g.key, g.scale, ch.degree), pc));
+                if (onsets[n] % 4 == 0 && ! fits) idx = nearestChordToneIndex (pool, idx, ch.pcs);
             }
             else if (! (bar == 0 && n == 0))
             {
@@ -460,24 +581,40 @@ inline std::vector<Note> renderMelody (const Genome& g, const Settings& s, const
                 double r2 = rng.real();
                 int move = 1;
                 if (! (r2 < 0.1 + g.genes[Stepwise] * 0.85)) move = 2 + rng.integer (3);
+                if (s.sharp)
+                {
+                    // afiada: now and then jump a whole octave (same note of the scale, 8 notes away)
+                    double r4 = rng.real();
+                    if (r4 < 0.14) move = scaleSize;
+                }
                 idx += dir * move;
                 if (idx < 0) idx = -idx;
                 if (idx > poolLast) idx = 2 * poolLast - idx;
                 idx = clampv (idx, 0, poolLast);
                 if (onsets[n] % 4 == 0)
                 {
-                    double r3 = rng.real();
-                    if (r3 < 0.85) idx = nearestChordToneIndex (pool, idx, chords[(size_t) bar].pcs);
+                    // strong beats always land on a note of the bar's chord, so the melody walks the
+                    // progression; afiada melodies often pick the chord's 7th, 9th or 13th instead
+                    const auto& ch = chords[(size_t) bar];
+                    bool colour = false;
+                    if (s.sharp) { double r3 = rng.real(); colour = r3 < 0.5; }
+                    int target = colour ? findNearestTone (pool, idx, extensionPitchClasses (g.key, g.scale, ch.degree)) : -1;
+                    idx = target >= 0 ? target : nearestChordToneIndex (pool, idx, ch.pcs);
                 }
             }
             barPitches.push_back (idx);
         }
         pitchesByBar.push_back (barPitches);
     }
+    // the phrase ends on a note of the last chord, preferably one it shares with the tonic chord
     auto tonicPcs = chordPitchClasses (g.key, g.scale, 0, false);
     int lastBar = s.bars - 1;
+    const auto& lastChord = chords[(size_t) lastBar].pcs;
+    std::vector<int> ending;
+    for (int pc : lastChord) if (contains (tonicPcs, pc)) ending.push_back (pc);
     auto& lp = pitchesByBar[(size_t) lastBar];
-    lp.back() = nearestChordToneIndex (pool, lp.back(), tonicPcs);
+    int end = findNearestTone (pool, lp.back(), ending.empty() ? lastChord : ending);
+    lp.back() = end >= 0 ? end : nearestChordToneIndex (pool, lp.back(), lastChord);
 
     for (int b = 0; b < s.bars; ++b)
     {
@@ -589,7 +726,10 @@ inline Fitness evaluate (const Pattern& pattern, const Genome* genome, const Set
         {
             int cb = std::min (pattern.bars - 1, n.start / BAR);
             ++strong;
-            if (contains (chords[(size_t) cb].pcs, mod12 (n.pitch))) ++strongChord;
+            const int pc = mod12 (n.pitch);
+            if (contains (chords[(size_t) cb].pcs, pc)
+                || (s.sharp && contains (extensionPitchClasses (pattern.key, pattern.scale, chords[(size_t) cb].degree), pc)))
+                ++strongChord;
         }
     }
     double chordToneRatio = strong ? (double) strongChord / strong : 0.0;
@@ -702,7 +842,9 @@ inline Genome& mutate (Genome& g, const Settings& s, Rng& rng)
     if (! s.lockProgression)
     {
         double r = rng.real();
-        if (r < rate * 0.5) g.progression = s.progressionPool[(size_t) rng.integer ((int) s.progressionPool.size())];
+        auto cands = progressionCandidates (s.progressionPool, g.scale);
+        if (r < rate * 0.5 || ! progressionFits (g.progression, g.scale))
+            g.progression = cands[(size_t) rng.integer ((int) cands.size())];
     }
     { double r = rng.real(); if (r < rate) g.seedMelody = rng.next(); }
     { double r = rng.real(); if (r < rate * 0.5) g.seedBass = rng.next(); }
@@ -863,7 +1005,7 @@ inline Bytes trackChunk (const std::string& name, int channel, const std::vector
 
 // Standard MIDI File, format 1: a tempo/meta track plus one track per selected layer.
 inline Bytes toMidi (const Pattern& p, const std::vector<int>& layers = { Melody, Bass, Chords },
-                     const std::string& title = "MelodyForge ISLAND27",
+                     const std::string& title = "Melody Generator",
                      const char* const* trackNames = nullptr)   // optional display names (e.g. translated)
 {
     uint32_t usPerQuarter = (uint32_t) (60000000 / p.bpm);

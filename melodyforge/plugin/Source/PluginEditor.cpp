@@ -14,8 +14,7 @@ static juce::String keyNamePt (int pc)
 
 static juce::String scaleNamePt (int i)
 {
-    static const char* n[] = { "maior", "menor", "dórico", "mixolídio", "menor harmônica", "pentatônica maior", "pentatônica menor", "blues" };
-    return pt (n[juce::jlimit (0, 7, i)]);
+    return pt (mf::scales()[(size_t) juce::jlimit (0, (int) mf::scales().size() - 1, i)].name);
 }
 
 static void setAccent (juce::Button& b, juce::Colour c) { b.getProperties().set ("accent", (juce::int64) c.getARGB()); }
@@ -174,7 +173,7 @@ void PatternView::paint (juce::Graphics& g)
     const auto& p = proc.pattern;
     if (p.bars <= 0) return;
     auto area = r.reduced (10.0f, 8.0f);
-    auto chordStrip = area.removeFromTop (28.0f);
+    auto chordStrip = area.removeFromTop (24.0f);
     area.removeFromTop (4.0f);
     const float totalTicks = (float) (p.bars * mf::BAR);
     const double ph = proc.playheadTicks.load();
@@ -217,11 +216,8 @@ void PatternView::paint (juce::Graphics& g)
         g.setColour (now ? N::cyan : N::line);
         g.drawRoundedRectangle (cell, 8.0f, 1.0f);
         g.setColour (now ? juce::Colours::white : N::cyan);
-        g.setFont (juce::Font (15.5f, juce::Font::bold));
-        g.drawText (p.chords[(size_t) bar].name, cell.reduced (10, 0), juce::Justification::centredLeft);
-        g.setColour (N::muted);
-        g.setFont (12.5f);
-        g.drawText (pt ("compasso ") + juce::String (bar + 1), cell.reduced (10, 0), juce::Justification::centredRight);
+        g.setFont (juce::Font (14.0f, juce::Font::bold));
+        g.drawFittedText (p.chords[(size_t) bar].name, cell.reduced (6, 0).toNearestInt(), juce::Justification::centred, 1, 0.7f);
     }
 
     // notes; the ones under the playhead light up
@@ -259,30 +255,6 @@ void PatternView::paint (juce::Graphics& g)
         line.lineTo (x, area.getBottom());
         N::glowPath (g, line, juce::Colours::white, 1.8f, 1.0f);
     }
-    else
-    {
-        g.setFont (13.5f);
-        const auto hint = pt ("Clique aqui ou em Tocar para ouvir");
-        auto box = area.reduced (6, 4).removeFromBottom (20.0f).removeFromRight ((float) g.getCurrentFont().getStringWidth (hint) + 16.0f);
-        g.setColour (N::bg.withAlpha (0.8f));
-        g.fillRoundedRectangle (box, 6.0f);
-        g.setColour (N::muted);
-        g.drawText (hint, box, juce::Justification::centred);
-    }
-
-    // legend
-    auto legend = area.removeFromTop (20.0f).removeFromRight (290.0f);
-    g.setColour (N::bg.withAlpha (0.8f));
-    g.fillRoundedRectangle (legend.expanded (4.0f, 1.0f), 6.0f);
-    for (int t = mf::NUM_TRACKS - 1; t >= 0; --t)
-    {
-        auto item = legend.removeFromRight (95.0f);
-        g.setColour (N::layer[t]);
-        g.fillEllipse (item.getX(), item.getCentreY() - 4.0f, 8.0f, 8.0f);
-        g.setColour (N::textSoft);
-        g.setFont (13.0f);
-        g.drawText (MelodyForgeProcessor::layerName (t), item.withTrimmedLeft (13), juce::Justification::centredLeft);
-    }
 }
 
 // ============================================================================ drag tile
@@ -295,9 +267,9 @@ void DragTile::paint (juce::Graphics& g)
     g.fillRoundedRectangle (r, 10.0f);
     g.setColour (over ? colour : colour.withAlpha (0.55f));
     g.drawRoundedRectangle (r, 10.0f, 1.4f);
-    g.setFont (juce::Font (15.0f, juce::Font::bold));
+    g.setFont (juce::Font (13.5f, juce::Font::bold));
     const float textW = (float) g.getCurrentFont().getStringWidth (text);
-    const float iconS = 16.0f;
+    const float iconS = 14.0f;
     float x0 = r.getCentreX() - (textW + iconS + 8.0f) * 0.5f;
     drawIcon (g, Icon::Download, { x0, r.getCentreY() - iconS * 0.5f, iconS, iconS }, colour);
     g.setColour (over ? juce::Colours::white : N::text);
@@ -309,7 +281,7 @@ void DragTile::mouseDrag (const juce::MouseEvent& e)
     if (dragging || e.getDistanceFromDragStart() < 6) return;
     auto* container = juce::DragAndDropContainer::findParentDragContainerFor (this);
     if (container == nullptr) return;
-    auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MelodyForge-ISLAND27");
+    auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("Melody Generator");
     dir.createDirectory();
     static const char* ids[] = { "melodia", "baixo", "acordes" };
     juce::String suffix = layerList.size() == 1 ? juce::String ("-") + ids[layerList[0]] : juce::String();
@@ -323,19 +295,13 @@ void DragTile::mouseDrag (const juce::MouseEvent& e)
 }
 
 // ============================================================================ layer card
-static const char* layerExplain[] = {
-    "A parte principal, que você cantaria ou assobiaria. Notas mais agudas, uma de cada vez.",
-    "A base grave que dá peso e segura o ritmo. Notas graves que acompanham os acordes.",
-    "Várias notas tocadas juntas que criam o clima (alegre, triste, tenso...). É o fundo da música.",
-};
-
 static std::vector<int> recommendedFor (int track)
 {
     switch (track)
     {
-        case mf::Melody: return { 0, 10, 11, 8, 24, 73, 65, 81, 98 };
-        case mf::Bass:   return { instruments::builtin808, 33, 32, 34, 36, 38, 39 };
-        default:         return { 0, 4, 48, 89, 90, 95, 52, 61, 19 };
+        case mf::Melody: return { 0, 10, 11, 8, 13, 24, 21, 29, 73, 74, 78, 65, 81, 80, 98 };
+        case mf::Bass:   return { instruments::builtin808, 33, 32, 34, 35, 36, 37, 38, 39 };
+        default:         return { 0, 2, 4, 48, 51, 89, 90, 95, 97, 52, 61, 19, 21 };
     }
 }
 
@@ -356,7 +322,7 @@ LayerCard::LayerCard (MelodyForgeProcessor& p, int t, NeonLookAndFeel& l) : proc
         proc.setLayerEnabled (track, onOff.getToggleState());
         if (onNotify) onNotify (MelodyForgeProcessor::layerName (track) + (onOff.getToggleState() ? pt (" ligada") : pt (" desligada")));
     };
-    soloBtn.setButtonText (pt ("Ouvir só"));
+    soloBtn.setButtonText (pt ("Solo"));
     soloBtn.setTooltip (pt ("Toca só esta camada, para você ouvir o que ela faz"));
     soloBtn.onClick = [this]
     {
@@ -365,7 +331,7 @@ LayerCard::LayerCard (MelodyForgeProcessor& p, int t, NeonLookAndFeel& l) : proc
         if (solo && ! proc.internalPlay.load() && ! (proc.syncsWithHost() && proc.hostPlaying.load())) proc.internalPlay = true;
         if (onNotify) onNotify (solo ? pt ("Ouvindo só: ") + MelodyForgeProcessor::layerName (track) : pt ("Ouvindo todas as camadas"));
     };
-    rerollBtn.setButtonText (pt ("Nova variação"));
+    rerollBtn.setButtonText (pt ("Variar"));
     rerollBtn.setTooltip (pt ("Cria outra versão só desta camada; as outras continuam iguais"));
     rerollBtn.onClick = [this]
     {
@@ -391,7 +357,7 @@ LayerCard::LayerCard (MelodyForgeProcessor& p, int t, NeonLookAndFeel& l) : proc
     addAndMakeVisible (instrumentBox);
 
     volume.setSliderStyle (juce::Slider::LinearHorizontal);
-    volume.setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 20);
+    volume.setTextBoxStyle (juce::Slider::TextBoxRight, false, 52, 18);
     volume.setTextValueSuffix (" dB");
     volume.setColour (juce::Slider::trackColourId, c);
     volume.setTooltip (pt ("Volume desta camada no som interno"));
@@ -475,106 +441,32 @@ void LayerCard::refresh (bool adv)
 
 void LayerCard::resized()
 {
-    auto r = getLocalBounds().reduced (12, 10);
-    auto head = r.removeFromTop (advanced ? 46 : 58);
-    illustration = head.removeFromLeft (advanced ? 56 : 70).toFloat().reduced (2.0f);
-    onOff.setBounds (head.removeFromRight (44).withSizeKeepingCentre (44, 28));
-    r.removeFromTop (advanced ? 4 : 62);   // beginner: room for the explanation text
-    instrumentBox.setBounds (r.removeFromTop (32));
-    r.removeFromTop (6);
-    auto volRow = r.removeFromTop (28);
+    auto r = getLocalBounds().reduced (10, 7);
+    auto head = r.removeFromTop (22);
+    onOff.setBounds (head.removeFromRight (44).withSizeKeepingCentre (44, 22));
+    r.removeFromTop (4);
+    instrumentBox.setBounds (r.removeFromTop (26));
+    r.removeFromTop (4);
+    auto volRow = r.removeFromTop (22);
     if (advanced)
     {
-        upBtn.setBounds (volRow.removeFromRight (44));
-        downBtn.setBounds (volRow.removeFromRight (44));
-        volRow.removeFromRight (2);
+        upBtn.setBounds (volRow.removeFromRight (36));
+        downBtn.setBounds (volRow.removeFromRight (36));
     }
     volume.setBounds (volRow);
-    r.removeFromTop (6);
-    auto row = r.removeFromTop (36);
+    r.removeFromTop (4);
+    auto row = r.removeFromTop (26);
     if (advanced)
     {
-        const int w = row.getWidth();
-        soloBtn.setBounds (row.removeFromLeft (w * 30 / 100));
-        rerollBtn.setBounds (row.removeFromLeft (w * 40 / 100));
+        const int w = row.getWidth() / 3;
+        soloBtn.setBounds (row.removeFromLeft (w));
+        rerollBtn.setBounds (row.removeFromLeft (w));
         viewBtn.setBounds (row);
     }
     else
     {
-        soloBtn.setBounds (row.removeFromLeft (row.getWidth() * 42 / 100));
+        soloBtn.setBounds (row.removeFromLeft (row.getWidth() / 2));
         rerollBtn.setBounds (row);
-    }
-}
-
-void LayerCard::drawIllustration (juce::Graphics& g, juce::Rectangle<float> r)
-{
-    const auto c = N::layer[track];
-    const float pulse = activity > 0.02f ? 0.5f + 0.5f * std::sin (animPhase * 2.0f) : 0.0f;
-    const float glowAmt = 0.4f + 1.6f * activity + 0.4f * pulse * activity;
-    g.setColour (c.withAlpha (0.08f + 0.12f * activity));
-    g.fillRoundedRectangle (r, 10.0f);
-    g.setColour (c.withAlpha (0.35f + 0.5f * activity));
-    g.drawRoundedRectangle (r, 10.0f, 1.2f);
-    auto a = r.reduced (r.getWidth() * 0.1f, r.getHeight() * 0.14f);
-    auto P = [&] (float fx, float fy) { return juce::Point<float> (a.getX() + fx * a.getWidth(), a.getY() + fy * a.getHeight()); };
-    const float head = a.getHeight() * 0.2f;
-    auto noteHead = [&] (juce::Point<float> at, float scale = 1.0f)
-    {
-        g.fillEllipse (juce::Rectangle<float> (head * 1.3f * scale, head * scale).withCentre (at));
-    };
-
-    if (track == mf::Melody)
-    {
-        // a singing line with notes going up and down
-        g.setColour (juce::Colours::white.withAlpha (0.08f));
-        for (int i = 0; i < 3; ++i) g.drawHorizontalLine ((int) P (0, 0.3f + 0.25f * (float) i).y, a.getX(), a.getRight());
-        juce::Path line;
-        const float pts[][2] = { { 0.05f, 0.75f }, { 0.3f, 0.35f }, { 0.55f, 0.55f }, { 0.8f, 0.15f }, { 0.95f, 0.3f } };
-        line.startNewSubPath (P (pts[0][0], pts[0][1]));
-        for (int i = 1; i < 5; ++i)
-        {
-            auto prev = P (pts[i - 1][0], pts[i - 1][1]), cur = P (pts[i][0], pts[i][1]);
-            line.cubicTo ({ (prev.x + cur.x) * 0.5f, prev.y }, { (prev.x + cur.x) * 0.5f, cur.y }, cur);
-        }
-        N::glowPath (g, line, c, 1.6f, glowAmt);
-        g.setColour (c);
-        for (int i = 0; i < 4; ++i) noteHead (P (pts[i][0], pts[i][1]), i == (int) (animPhase * 1.5f) % 4 && activity > 0.02f ? 1.4f : 1.0f);
-    }
-    else if (track == mf::Bass)
-    {
-        // a deep, thick wave with big low notes
-        juce::Path wave;
-        for (int i = 0; i <= 40; ++i)
-        {
-            float t = (float) i / 40.0f;
-            auto pnt = P (t, 0.62f + 0.22f * std::sin (t * 6.283f + animPhase * (activity > 0.02f ? 1.0f : 0.0f)));
-            if (i == 0) wave.startNewSubPath (pnt); else wave.lineTo (pnt);
-        }
-        N::glowPath (g, wave, c, 3.2f, glowAmt);
-        g.setColour (c);
-        noteHead (P (0.22f, 0.2f), 1.35f);
-        g.fillRect (juce::Rectangle<float> (2.0f, a.getHeight() * 0.32f).withPosition (P (0.22f, 0.2f).x + head * 0.8f, P (0.22f, 0.2f).y - a.getHeight() * 0.32f + 2.0f));
-        noteHead (P (0.7f, 0.25f), 1.35f);
-        g.fillRect (juce::Rectangle<float> (2.0f, a.getHeight() * 0.32f).withPosition (P (0.7f, 0.25f).x + head * 0.8f, P (0.7f, 0.25f).y - a.getHeight() * 0.32f + 2.0f));
-    }
-    else
-    {
-        // stacked notes (chords) above a small keyboard with three keys lit
-        auto keys = juce::Rectangle<float> (a.getX(), P (0, 0.62f).y, a.getWidth(), a.getHeight() * 0.38f);
-        const int nk = 7;
-        const float kw = keys.getWidth() / nk;
-        for (int k = 0; k < nk; ++k)
-        {
-            auto key = juce::Rectangle<float> (keys.getX() + (float) k * kw, keys.getY(), kw - 1.5f, keys.getHeight());
-            const bool lit = k == 0 || k == 2 || k == 4;
-            g.setColour (lit ? c.withAlpha (0.55f + 0.45f * activity) : juce::Colours::white.withAlpha (0.18f));
-            g.fillRoundedRectangle (key, 1.5f);
-        }
-        g.setColour (c);
-        for (int col = 0; col < 3; ++col)
-            for (int k = 0; k < 3; ++k)
-                noteHead (P (0.15f + 0.35f * (float) col, 0.45f - 0.17f * (float) k - (col == 1 ? 0.06f : 0.0f)), 0.85f);
-        if (activity > 0.02f) N::glow (g, keys, 2.0f, c, glowAmt, 2);
     }
 }
 
@@ -583,35 +475,21 @@ void LayerCard::paint (juce::Graphics& g)
     auto r = getLocalBounds().toFloat().reduced (3.0f);
     const auto c = N::layer[track];
     const bool on = proc.layerOn[(size_t) track];
-    if (activity > 0.02f) N::glow (g, r, 14.0f, c, 0.4f + activity);
-    g.setGradientFill (juce::ColourGradient (N::panelHi, r.getX(), r.getY(), N::panel, r.getX(), r.getBottom(), false));
-    g.fillRoundedRectangle (r, 14.0f);
-    g.setColour (on ? c.withAlpha (0.45f + 0.5f * activity) : N::line);
-    g.drawRoundedRectangle (r, 14.0f, 1.4f);
-    // coloured top edge
+    if (activity > 0.02f) N::glow (g, r, 12.0f, c, 0.5f + activity);
+    g.setGradientFill (juce::ColourGradient (c.withAlpha (on ? 0.22f : 0.06f).overlaidWith (N::panelHi.withAlpha (0.8f)), r.getX(), r.getY(),
+                                             N::panel, r.getX(), r.getBottom(), false));
+    g.fillRoundedRectangle (r, 12.0f);
+    g.setColour (on ? c.withAlpha (0.7f + 0.3f * activity) : N::line);
+    g.drawRoundedRectangle (r, 12.0f, on ? 1.8f : 1.2f);
+    // solid colour bar on the left
     g.setColour (on ? c : c.withAlpha (0.3f));
-    g.fillRoundedRectangle (r.withHeight (4.0f).reduced (14.0f, 0.0f), 2.0f);
+    g.fillRoundedRectangle (r.withWidth (5.0f).reduced (0.0f, 12.0f), 2.5f);
 
-    drawIllustration (g, illustration);
-
-    auto head = getLocalBounds().reduced (12, 10).removeFromTop (advanced ? 46 : 58).toFloat();
-    head.removeFromLeft (illustration.getWidth() + 12.0f);
+    auto head = getLocalBounds().reduced (10, 7).removeFromTop (22).toFloat();
     head.removeFromRight (48.0f);
-    g.setColour (on ? c : N::muted);
-    g.setFont (lnf.headingFont (advanced ? 18.0f : 20.0f));
-    g.drawText (MelodyForgeProcessor::layerName (track).toUpperCase(), head.removeFromTop (head.getHeight() * 0.58f), juce::Justification::bottomLeft);
-    g.setColour (N::muted);
-    g.setFont (lnf.bodyFont (13.0f));
-    static const char* sub[] = { "canal MIDI 1", "canal MIDI 2", "canal MIDI 3" };
-    g.drawText (pt (sub[track]) + (on ? juce::String() : pt ("  ·  desligada")), head, juce::Justification::topLeft);
-
-    if (! advanced)
-    {
-        auto text = getLocalBounds().reduced (14, 10).withTrimmedTop (62).removeFromTop (58);
-        g.setColour (N::textSoft);
-        g.setFont (lnf.bodyFont (14.5f));
-        g.drawFittedText (pt (layerExplain[track]), text, juce::Justification::topLeft, 3, 0.9f);
-    }
+    g.setColour (on ? c.brighter (0.25f) : N::muted);
+    g.setFont (lnf.headingFont (16.0f));
+    g.drawText (MelodyForgeProcessor::layerName (track).toUpperCase(), head.withTrimmedLeft (4.0f), juce::Justification::centredLeft);
 }
 
 // ============================================================================ editor
@@ -633,17 +511,15 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     content.onPaint = [this] (juce::Graphics& g) { paintContent (g); };
     logo = juce::ImageCache::getFromMemory (IslandAssets::logo_png, IslandAssets::logo_pngSize);
 
-    title.setText ("MELODYFORGE", juce::dontSendNotification);
-    title.setFont (lnf.headingFont (28.0f));
+    title.setText ("MELODY GENERATOR", juce::dontSendNotification);
+    title.setFont (lnf.headingFont (22.0f));
     title.setColour (juce::Label::textColourId, N::text);
-    subtitle.setText (pt ("Gerador de ideias musicais  ·  ISLAND27"), juce::dontSendNotification);
-    subtitle.setFont (lnf.bodyFont (14.5f));
-    subtitle.setColour (juce::Label::textColourId, N::cyan);
-    for (auto* c : { &title, &subtitle }) content.addAndMakeVisible (c);
+    title.setMinimumHorizontalScale (0.8f);
+    content.addAndMakeVisible (title);
 
     // style / mood / mode / full screen
-    makeLabel (styleLabel, pt ("Estilo")).setFont (lnf.bodyFont (13.0f));
-    makeLabel (moodLabel, pt ("Clima")).setFont (lnf.bodyFont (13.0f));
+    makeLabel (styleLabel, pt ("Estilo")).setFont (lnf.bodyFont (11.5f));
+    makeLabel (moodLabel, pt ("Clima")).setFont (lnf.bodyFont (11.5f));
     for (size_t i = 0; i < presets::styles().size(); ++i) styleBox.addItem (pt (presets::styles()[i].name), (int) i + 1);
     for (size_t i = 0; i < presets::moods().size(); ++i) moodBox.addItem (pt (presets::moods()[i].name), (int) i + 1);
     styleBox.setTooltip (pt ("Estilo musical: andamento, ritmo, harmonia e timbres sugeridos"));
@@ -653,7 +529,7 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
         if (updating) return;
         proc.setStyle (styleBox.getSelectedItemIndex(), true);
         markStep (0);
-        notify (pt ("Estilo: ") + styleBox.getText() + pt (" - timbres do estilo aplicados"));
+        notify (pt ("Estilo: ") + styleBox.getText());
     };
     moodBox.onChange = [this]
     {
@@ -662,40 +538,32 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
         markStep (0);
         notify (pt ("Clima: ") + moodBox.getText());
     };
-    beginnerBtn.setButtonText (pt ("Iniciante"));
     advancedBtn.setButtonText (pt ("Avançado"));
-    beginnerBtn.setTooltip (pt ("Só o essencial, com explicações"));
-    advancedBtn.setTooltip (pt ("Todos os controles: escala, progressão, travas, semente, evolução..."));
-    beginnerBtn.onClick = [this] { proc.advancedMode = false; applyModeVisibility(); };
-    advancedBtn.onClick = [this] { proc.advancedMode = true; applyModeVisibility(); };
-    fullBtn.setButtonText (pt ("Tela cheia"));
+    advancedBtn.setTooltip (pt ("Mostra todos os controles: progressão, tamanho, travas, semente, evolução..."));
+    advancedBtn.onClick = [this] { proc.advancedMode = ! proc.advancedMode; applyModeVisibility(); };
     fullBtn.setTooltip (pt ("Tela cheia / tamanho normal"));
     fullBtn.onClick = [this] { toggleFullScreen(); };
-    for (auto* c : std::initializer_list<juce::Component*> { &styleBox, &moodBox, &beginnerBtn, &advancedBtn, &fullBtn })
+    for (auto* c : std::initializer_list<juce::Component*> { &styleBox, &moodBox, &advancedBtn, &fullBtn })
         content.addAndMakeVisible (c);
-
-    hintLabel.setFont (lnf.bodyFont (14.5f));
-    hintLabel.setColour (juce::Label::textColourId, N::textSoft);
-    content.addAndMakeVisible (hintLabel);
 
     // idea area
     view.setTooltip (pt ("Piano roll da ideia: cada cor é uma camada. Clique para tocar ou parar."));
     view.onClick = [this] { playBtn.triggerClick(); };
     content.addAndMakeVisible (view);
     candidateLabel.setJustificationType (juce::Justification::centred);
-    candidateLabel.setFont (lnf.bodyFont (15.5f, true));
+    candidateLabel.setFont (lnf.bodyFont (14.0f, true));
     candidateLabel.setColour (juce::Label::textColourId, N::text);
-    statusLabel.setFont (lnf.bodyFont (14.5f, true));
+    statusLabel.setFont (lnf.bodyFont (13.0f, true));
     statusLabel.setColour (juce::Label::textColourId, N::cyan);
-    fitnessLabel.setFont (lnf.bodyFont (14.0f));
-    fitnessLabel.setColour (juce::Label::textColourId, N::muted);
+    fitnessLabel.setFont (lnf.bodyFont (13.0f));
+    fitnessLabel.setColour (juce::Label::textColourId, N::textSoft);
     fitnessLabel.setJustificationType (juce::Justification::centredRight);
     for (auto* c : { &candidateLabel, &statusLabel, &fitnessLabel }) content.addAndMakeVisible (c);
 
     prevBtn.setTooltip (pt ("Ideia anterior"));
     nextBtn.setTooltip (pt ("Próxima ideia"));
-    playBtn.setTooltip (pt ("Toca a ideia aqui no MelodyForge (independente do play do FL Studio)"));
-    newBtn.setButtonText (pt ("Gerar ideias"));
+    playBtn.setTooltip (pt ("Toca a ideia aqui no Melody Generator (independente do play do FL Studio)"));
+    newBtn.setButtonText (pt ("Gerar"));
     newBtn.setTooltip (pt ("Cria um novo grupo de ideias com o estilo e o clima escolhidos"));
     evolveBtn.setButtonText (pt ("Evoluir"));
     evolveBtn.setTooltip (pt ("Cruza as melhores ideias (e as que você curtiu) para criar a próxima geração"));
@@ -703,7 +571,7 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     likeBtn.setTooltip (pt ("Marca esta ideia como boa: ela será favorecida ao evoluir"));
     skipBtn.setButtonText (pt ("Pular"));
     skipBtn.setTooltip (pt ("Não gostou? Penaliza esta ideia e mostra a próxima"));
-    revertBtn.setButtonText (pt ("Desfazer edições"));
+    revertBtn.setButtonText (pt ("Desfazer"));
     revertBtn.setTooltip (pt ("Volta a ideia ao original (desfaz transposições)"));
     for (auto* b : std::initializer_list<juce::Component*> { &prevBtn, &nextBtn, &playBtn, &newBtn, &evolveBtn, &likeBtn, &skipBtn, &revertBtn })
         content.addAndMakeVisible (b);
@@ -722,11 +590,11 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     {
         proc.newPopulation ((uint32_t) juce::Random::getSystemRandom().nextInt());
         markStep (1);
-        notify (pt ("Novas ideias criadas - semente ") + juce::String ((juce::int64) proc.sessionSeed));
+        notify (juce::String ((int) proc.population.size()) + pt (" ideias novas"));
     };
     evolveBtn.onClick = [this] { proc.evolveOnce(); notify (pt ("Geração ") + juce::String (proc.generation)); };
-    likeBtn.onClick = [this] { proc.like(); markStep (2); notify (pt ("Curtida! Ideias parecidas serão favorecidas")); };
-    skipBtn.onClick = [this] { proc.skip(); markStep (2); notify (pt ("Pulada - mostrando a próxima")); };
+    likeBtn.onClick = [this] { proc.like(); markStep (2); notify (pt ("Curtida!")); };
+    skipBtn.onClick = [this] { proc.skip(); markStep (2); notify (pt ("Pulada")); };
     revertBtn.onClick = [this] { proc.revertEdits(); notify (pt ("Edições desfeitas")); };
 
     // layer cards
@@ -741,21 +609,24 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     // side panel
     keyBox.addItem (pt ("Qualquer tom"), 100);
     for (int k = 0; k < 12; ++k) keyBox.addItem (keyNamePt (k) + " (" + mf::noteNameOf (k) + ")", k + 1);
-    for (size_t i = 0; i < mf::scales().size(); ++i) scaleBox.addItem (scaleNamePt ((int) i).substring (0, 1).toUpperCase() + scaleNamePt ((int) i).substring (1), (int) i + 1);
-    for (size_t i = 0; i < mf::progressions().size(); ++i) progressionBox.addItem (mf::progressions()[i].name, (int) i + 1);
+    scaleBox.addItem (pt ("Automática"), 100);
+    scaleBox.addSeparator();
+    for (size_t i = 0; i < mf::scales().size(); ++i)
+    {
+        if (i == 5) scaleBox.addSeparator();   // the five main scales first
+        scaleBox.addItem (scaleNamePt ((int) i), (int) i + 1);
+    }
     for (int b : { 1, 2, 4, 8 }) barsBox.addItem (juce::String (b) + (b == 1 ? pt (" compasso") : pt (" compassos")), b);
-    for (int n : { 4, 8, 12, 16, 24, 32 }) popBox.addItem (juce::String (n) + pt (" ideias"), n);
-    keyBox.setTooltip (pt ("Tom da música. \"Qualquer tom\" deixa o MelodyForge escolher."));
-    scaleBox.setTooltip (pt ("Escala: quais notas soam \"dentro\" da música"));
-    progressionBox.setTooltip (pt ("Sequência de acordes (graus da escala)"));
+    keyBox.setTooltip (pt ("Tom da música. \"Qualquer tom\" deixa o Melody Generator escolher."));
+    scaleBox.setTooltip (pt ("Escala: as notas da melodia e os acordes saem sempre dela. \"Automática\" usa as escalas do clima."));
+    progressionBox.setTooltip (pt ("Sequência de acordes. Só aparecem as que funcionam na escala escolhida."));
     barsBox.setTooltip (pt ("Tamanho da ideia em compassos"));
-    popBox.setTooltip (pt ("Quantas ideias por geração"));
     auto lockChange = [this]
     {
         if (updating) return;
         proc.settings.key = juce::jmax (0, keyBox.getSelectedId() - 1);
-        proc.settings.scale = scaleBox.getSelectedItemIndex();
-        proc.settings.progression = progressionBox.getSelectedItemIndex();
+        if (scaleBox.getSelectedId() > 0 && scaleBox.getSelectedId() != 100) proc.settings.scale = scaleBox.getSelectedId() - 1;
+        if (progressionBox.getSelectedId() > 0 && progressionBox.getSelectedId() != 100) proc.settings.progression = progressionBox.getSelectedId() - 1;
         proc.settings.lockKey = lockKey.getToggleState();
         proc.settings.lockScale = lockScale.getToggleState();
         proc.settings.lockProgression = lockProgression.getToggleState();
@@ -768,16 +639,50 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
         lockChange();
         notify (pt ("Tom: ") + keyBox.getText());
     };
-    scaleBox.onChange = [this, lockChange] { if (! updating) { lockScale.setToggleState (true, juce::dontSendNotification); lockChange(); } };
-    progressionBox.onChange = [this, lockChange] { if (! updating) { lockProgression.setToggleState (true, juce::dontSendNotification); lockChange(); } };
+    scaleBox.onChange = [this, lockChange]
+    {
+        if (updating) return;
+        const bool automatic = scaleBox.getSelectedId() == 100;
+        lockScale.setToggleState (! automatic, juce::dontSendNotification);
+        // a fixed progression may not fit the new scale: let the generator pick one that does
+        if (! automatic && proc.settings.lockProgression && ! mf::progressionFits (proc.settings.progression, scaleBox.getSelectedId() - 1))
+            lockProgression.setToggleState (false, juce::dontSendNotification);
+        lockChange();
+        notify (pt ("Escala: ") + scaleBox.getText());
+    };
+    progressionBox.onChange = [this, lockChange]
+    {
+        if (updating) return;
+        lockProgression.setToggleState (progressionBox.getSelectedId() != 100, juce::dontSendNotification);
+        lockChange();
+    };
     for (auto* l : { &lockKey, &lockScale, &lockProgression })
     {
-        l->setButtonText (pt ("fixo"));
+        l->setButtonText ({});
         l->onClick = lockChange;
         l->setTooltip (pt ("Mantém fixo ao gerar e evoluir"));
     }
     barsBox.onChange = [this] { if (! updating) { proc.settings.bars = barsBox.getSelectedId(); proc.applySettings (false); } };
-    popBox.onChange = [this] { if (! updating) { proc.settings.populationSize = popBox.getSelectedId(); proc.applySettings (true); } };
+    ideasSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    ideasSlider.setRange (4, mf::MAX_IDEAS, 1);
+    ideasSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 34, 20);
+    ideasSlider.setTooltip (pt ("Quantas ideias gerar de uma vez (até 64)"));
+    auto applyIdeas = [this]
+    {
+        if (updating || (int) ideasSlider.getValue() == proc.settings.populationSize) return;
+        proc.setIdeaCount ((int) ideasSlider.getValue());
+        notify (juce::String ((int) proc.population.size()) + pt (" ideias"));
+    };
+    ideasSlider.onDragEnd = applyIdeas;
+    ideasSlider.onValueChange = [this, applyIdeas] { if (! ideasSlider.isMouseButtonDown()) applyIdeas(); };
+    sharpToggle.setButtonText (pt ("Melodia afiada"));
+    sharpToggle.setTooltip (pt ("Melodias diferentes: miram na 7ª, 9ª e 13ª dos acordes e saltam oitavas,\n"
+                                "sempre dentro da escala e da progressão. Os acordes ganham a 7ª."));
+    sharpToggle.onClick = [this]
+    {
+        proc.setSharp (sharpToggle.getToggleState());
+        notify (sharpToggle.getToggleState() ? pt ("Melodia afiada ligada") : pt ("Melodia afiada desligada"));
+    };
     for (auto* s : { &complexitySlider, &harmonySlider })
     {
         s->setSliderStyle (juce::Slider::LinearHorizontal);
@@ -804,15 +709,15 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
         proc.newPopulation ((uint32_t) seedEditor.getText().getLargeIntValue());
         notify (pt ("Ideias da semente ") + juce::String ((juce::int64) proc.sessionSeed));
     };
-    syncToggle.setButtonText (pt ("Tocar junto com o FL Studio"));
-    syncToggle.setTooltip (pt ("Desligado (padrão): o MelodyForge só toca quando você aperta Tocar aqui; o espaço do FL não o dispara.\n"
+    syncToggle.setButtonText (pt ("Tocar junto com o FL"));
+    syncToggle.setTooltip (pt ("Desligado (padrão): o Melody Generator só toca quando você aperta Tocar aqui; o espaço do FL não o dispara.\n"
                                "Ligado: toca junto com o play do FL Studio, no andamento e na posição do projeto."));
     syncToggle.onClick = [this] { notify (syncToggle.getToggleState() ? pt ("Agora toca junto com o FL Studio") : pt ("Separado do FL Studio: use o botão Tocar")); };
     previewToggle.setButtonText (pt ("Som interno"));
     previewToggle.setTooltip (pt ("Toca os timbres dentro do plugin"));
-    midiOutToggle.setButtonText (pt ("Enviar MIDI para o FL"));
+    midiOutToggle.setButtonText (pt ("Enviar MIDI"));
     midiOutToggle.setTooltip (pt ("Envia as notas como MIDI (canais 1-3) enquanto toca"));
-    hostTempoToggle.setButtonText (pt ("Seguir o andamento do projeto"));
+    hostTempoToggle.setButtonText (pt ("Seguir o BPM do projeto"));
     hostTempoToggle.setTooltip (pt ("Usa o BPM do projeto na reprodução e nos arquivos exportados"));
     loadBankBtn.setButtonText (pt ("SoundFont..."));
     loadBankBtn.setTooltip (pt ("Carregar outro banco de timbres (.sf2)"));
@@ -828,15 +733,12 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
                               });
     };
     defaultBankBtn.setButtonText (pt ("Timbres padrão"));
-    defaultBankBtn.setTooltip (pt ("Volta para o banco de timbres que vem com o MelodyForge"));
+    defaultBankBtn.setTooltip (pt ("Volta para o banco de timbres que vem com o Melody Generator"));
     defaultBankBtn.onClick = [this] { proc.loadBank ({}); };
-    bankLabel.setFont (lnf.bodyFont (13.0f));
-    bankLabel.setColour (juce::Label::textColourId, N::muted);
-    bankLabel.setMinimumHorizontalScale (0.7f);
-    for (auto* c : std::initializer_list<juce::Component*> { &keyBox, &scaleBox, &progressionBox, &barsBox, &popBox, &lockKey, &lockScale,
+    for (auto* c : std::initializer_list<juce::Component*> { &keyBox, &scaleBox, &progressionBox, &barsBox, &ideasSlider, &sharpToggle, &lockKey, &lockScale,
                                                               &lockProgression, &complexitySlider, &harmonySlider, &volumeSlider, &reverbSlider,
                                                               &seedEditor, &seedBtn, &syncToggle, &previewToggle, &midiOutToggle,
-                                                              &hostTempoToggle, &loadBankBtn, &defaultBankBtn, &bankLabel })
+                                                              &hostTempoToggle, &loadBankBtn, &defaultBankBtn })
         content.addAndMakeVisible (c);
     syncAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "syncHost", syncToggle);
     previewAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "preview", previewToggle);
@@ -860,11 +762,11 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
     makeLabel (reverbLabel, pt ("Ambiência"));
 
     // export
-    exportBtn.setButtonText (pt ("Exportar MIDI..."));
+    exportBtn.setButtonText (pt ("Exportar"));
     exportBtn.setTooltip (pt ("Salva a ideia como arquivo .mid"));
     exportBtn.onClick = [this] { exportMidi(); };
-    dragLabel.setText (pt ("Arraste para o FL Studio:"), juce::dontSendNotification);
-    dragLabel.setFont (lnf.bodyFont (15.0f, true));
+    dragLabel.setText (pt ("Arraste para o FL:"), juce::dontSendNotification);
+    dragLabel.setFont (lnf.bodyFont (13.0f, true));
     dragLabel.setColour (juce::Label::textColourId, N::text);
     dragLabel.setJustificationType (juce::Justification::centredRight);
     dragAll = std::make_unique<DragTile> (proc, pt ("Tudo"), std::vector<int> { mf::Melody, mf::Bass, mf::Chords }, N::cyan);
@@ -882,8 +784,8 @@ MelodyForgeEditor::MelodyForgeEditor (MelodyForgeProcessor& p)
 
     proc.addChangeListener (this);
     setResizable (true, true);
-    setResizeLimits (1000, 650, 3840, 2400);
-    setSize (1180, 760);
+    setResizeLimits (780, 485, 3840, 2400);
+    setSize (designWidth, designHeight);
     refresh();
     applyModeVisibility();
     startTimerHz (30);
@@ -906,7 +808,6 @@ void MelodyForgeEditor::markStep (int step)
 {
     if (step < 0 || step >= 4 || stepDone[(size_t) step]) return;
     stepDone[(size_t) step] = true;
-    content.repaint (guideArea);
 }
 
 void MelodyForgeEditor::toggleFullScreen()
@@ -924,23 +825,22 @@ void MelodyForgeEditor::toggleFullScreen()
         auto& displays = juce::Desktop::getInstance().getDisplays();
         const auto* d = isShowing() ? displays.getDisplayForRect (getScreenBounds()) : displays.getPrimaryDisplay();
         auto area = d != nullptr ? d->userArea : juce::Rectangle<int> (1920, 1040);
-        setSize (juce::jlimit (1000, 3840, area.getWidth()), juce::jlimit (650, 2400, area.getHeight() - 40));
+        setSize (juce::jlimit (780, 3840, area.getWidth()), juce::jlimit (485, 2400, area.getHeight() - 40));
         fullScreen = true;
     }
     else
     {
-        setSize (normalBounds.getWidth() > 0 ? normalBounds.getWidth() : 1180, normalBounds.getHeight() > 0 ? normalBounds.getHeight() : 760);
+        setSize (normalBounds.getWidth() > 0 ? normalBounds.getWidth() : designWidth, normalBounds.getHeight() > 0 ? normalBounds.getHeight() : designHeight);
         fullScreen = false;
     }
     fullBtn.setIcon (fullScreen ? Icon::ExitFullScreen : Icon::FullScreen);
-    fullBtn.setButtonText (fullScreen ? pt ("Tamanho normal") : pt ("Tela cheia"));
 }
 
 void MelodyForgeEditor::buildChordBoxes()
 {
     const auto& p = proc.pattern;
     juce::String key;
-    key << proc.genome.key << "/" << proc.genome.scale << "/" << p.bars;
+    key << proc.genome.key << "/" << proc.genome.scale << "/" << p.bars << "/" << (proc.settings.sharp ? 1 : 0);
     if (key != lastChordKey)
     {
         lastChordKey = key;
@@ -949,7 +849,7 @@ void MelodyForgeEditor::buildChordBoxes()
         {
             auto* box = chordBoxes.add (new juce::ComboBox());
             for (int d = 0; d < 7; ++d)
-                box->addItem (juce::String (bar + 1) + ": " + mf::chordName (proc.genome.key, proc.genome.scale, d), d + 1);
+                box->addItem (juce::String (bar + 1) + ": " + mf::chordName (proc.genome.key, proc.genome.scale, d, proc.settings.sharp), d + 1);
             box->setTooltip (pt ("Acorde do compasso ") + juce::String (bar + 1));
             box->onChange = [this, bar, box]
             {
@@ -966,20 +866,36 @@ void MelodyForgeEditor::buildChordBoxes()
     for (auto* b : chordBoxes) b->setVisible (proc.advancedMode);
 }
 
+void MelodyForgeEditor::buildProgressionBox()
+{
+    const int scale = proc.settings.lockScale ? proc.settings.scale : proc.genome.scale;
+    juce::String key;
+    key << scale << "/" << (proc.settings.lockProgression ? proc.settings.progression : -1);
+    if (key == lastProgressionKey) return;
+    lastProgressionKey = key;
+    progressionBox.clear (juce::dontSendNotification);
+    progressionBox.addItem (pt ("Automática"), 100);
+    progressionBox.addSeparator();
+    for (int i = 0; i < (int) mf::progressions().size(); ++i)
+        if (mf::progressionFits (i, scale) || (proc.settings.lockProgression && proc.settings.progression == i))
+            progressionBox.addItem (juce::String::fromUTF8 (mf::progressionLabel (i, scale).c_str()), i + 1);
+}
+
 void MelodyForgeEditor::refresh()
 {
     juce::ScopedValueSetter<bool> guard (updating, true);
     const auto& p = proc.pattern;
-    candidateLabel.setText (proc.current >= 0 ? pt ("Ideia ") + juce::String (proc.current + 1) + pt (" de ") + juce::String ((int) proc.population.size())
-                                              : (proc.isEdited() ? pt ("Ideia editada") : pt ("Ideia")),
+    candidateLabel.setText (proc.current >= 0 ? juce::String (proc.current + 1) + " / " + juce::String ((int) proc.population.size())
+                                              : (proc.isEdited() ? pt ("editada") : pt ("ideia")),
                             juce::dontSendNotification);
-    auto f = proc.currentFitness();
     juce::String info;
-    info << keyNamePt (p.key) << " " << scaleNamePt (p.scale) << pt ("  ·  ") << p.bpm << pt (" BPM  ·  pontuação ")
-         << juce::roundToInt (f.total * 100.0);
+    info << keyNamePt (p.key) << " " << scaleNamePt (p.scale).toLowerCase() << pt ("  ·  ") << p.bpm << " BPM";
+    if (proc.settings.sharp) info << pt ("  ·  afiada");
     if (proc.advancedMode)
-        info << pt (" (melodia ") << juce::roundToInt (f.melodic * 100.0) << pt (" · harmonia ") << juce::roundToInt (f.harmonic * 100.0)
-             << pt (" · ritmo ") << juce::roundToInt (f.rhythmic * 100.0) << pt (")  ·  geração ") << proc.generation;
+    {
+        auto f = proc.currentFitness();
+        info << pt ("  ·  nota ") << juce::roundToInt (f.total * 100.0) << pt ("  ·  geração ") << proc.generation;
+    }
     fitnessLabel.setText (info, juce::dontSendNotification);
     const bool playing = proc.internalPlay.load();
     playBtn.setButtonText (playing ? pt ("Parar") : pt ("Tocar"));
@@ -987,22 +903,24 @@ void MelodyForgeEditor::refresh()
     playBtn.setToggleState (playing, juce::dontSendNotification);
     revertBtn.setEnabled (proc.isEdited());
     keyBox.setSelectedId (proc.settings.lockKey ? proc.settings.key + 1 : 100, juce::dontSendNotification);
-    scaleBox.setSelectedItemIndex (proc.settings.lockScale ? proc.settings.scale : proc.genome.scale, juce::dontSendNotification);
-    progressionBox.setSelectedItemIndex (proc.settings.lockProgression ? proc.settings.progression : proc.genome.progression, juce::dontSendNotification);
+    scaleBox.setSelectedId (proc.settings.lockScale ? proc.settings.scale + 1 : 100, juce::dontSendNotification);
+    buildProgressionBox();
+    progressionBox.setSelectedId (proc.settings.lockProgression ? proc.settings.progression + 1 : 100, juce::dontSendNotification);
     lockKey.setToggleState (proc.settings.lockKey, juce::dontSendNotification);
     lockScale.setToggleState (proc.settings.lockScale, juce::dontSendNotification);
     lockProgression.setToggleState (proc.settings.lockProgression, juce::dontSendNotification);
     barsBox.setSelectedId (proc.settings.bars, juce::dontSendNotification);
-    popBox.setSelectedId (proc.settings.populationSize, juce::dontSendNotification);
+    if (! ideasSlider.isMouseButtonDown()) ideasSlider.setValue (proc.settings.populationSize, juce::dontSendNotification);
+    sharpToggle.setToggleState (proc.settings.sharp, juce::dontSendNotification);
+    advancedBtn.setToggleState (proc.advancedMode, juce::dontSendNotification);
     complexitySlider.setValue (proc.complexity, juce::dontSendNotification);
     harmonySlider.setValue (proc.harmony, juce::dontSendNotification);
     if (! seedEditor.hasKeyboardFocus (true)) seedEditor.setText (juce::String ((juce::int64) proc.sessionSeed), false);
     styleBox.setSelectedItemIndex (proc.style, juce::dontSendNotification);
     moodBox.setSelectedItemIndex (proc.mood, juce::dontSendNotification);
-    hintLabel.setText (pt (presets::styles()[(size_t) proc.style].name) + ": " + pt (presets::styles()[(size_t) proc.style].hint) + pt ("   ·   ")
-                           + pt (presets::moods()[(size_t) proc.mood].name) + ": " + pt (presets::moods()[(size_t) proc.mood].hint),
-                       juce::dontSendNotification);
-    bankLabel.setText (proc.getBankMessage(), juce::dontSendNotification);
+    styleBox.setTooltip (pt (presets::styles()[(size_t) proc.style].hint));
+    moodBox.setTooltip (pt (presets::moods()[(size_t) proc.mood].hint));
+    loadBankBtn.setTooltip (pt ("Carregar outro banco de timbres (.sf2). Atual: ") + proc.getBankMessage());
     for (auto& c : cards) c->refresh (proc.advancedMode);
     buildChordBoxes();
     view.repaint();
@@ -1030,11 +948,6 @@ void MelodyForgeEditor::timerCallback()
         activity[(size_t) t] = std::max (a, activity[(size_t) t] * 0.82f);
         cards[t]->setActivity (activity[(size_t) t] < 0.02f ? 0.0f : activity[(size_t) t]);
         cards[t]->tick (phase);
-    }
-    if (! proc.advancedMode)
-    {
-        // the next step of the guide glows
-        content.repaint (guideArea);
     }
     if (playing || proc.soloLayer >= 0) view.repaint();
     const int bankState = (int) proc.getBankState();
@@ -1065,14 +978,13 @@ void MelodyForgeEditor::exportMidi()
 void MelodyForgeEditor::applyModeVisibility()
 {
     bool adv = proc.advancedMode;
-    beginnerBtn.setToggleState (! adv, juce::dontSendNotification);
     advancedBtn.setToggleState (adv, juce::dontSendNotification);
-    std::initializer_list<juce::Component*> advancedOnly { &scaleBox, &progressionBox, &barsBox, &popBox, &lockKey, &lockScale, &lockProgression,
-                                                           &harmonySlider, &seedEditor, &seedBtn, &evolveBtn, &revertBtn, &scaleLabel,
-                                                           &progressionLabel, &barsLabel, &popLabel, &harmonyLabel, &seedLabel,
-                                                           &previewToggle, &midiOutToggle, &hostTempoToggle, &loadBankBtn, &defaultBankBtn };
+    std::initializer_list<juce::Component*> advancedOnly { &progressionBox, &barsBox, &lockKey, &lockScale, &lockProgression,
+                                                           &harmonySlider, &seedEditor, &seedBtn, &evolveBtn, &revertBtn,
+                                                           &progressionLabel, &barsLabel, &harmonyLabel, &seedLabel,
+                                                           &syncToggle, &previewToggle, &midiOutToggle, &hostTempoToggle,
+                                                           &loadBankBtn, &defaultBankBtn };
     for (auto* c : advancedOnly) c->setVisible (adv);
-    hintLabel.setVisible (adv);
     if (! updating) refresh();
     layout();
     content.repaint();
@@ -1086,95 +998,30 @@ void MelodyForgeEditor::paintContent (juce::Graphics& g)
     const auto bounds = content.getLocalBounds().toFloat();
     g.setGradientFill (juce::ColourGradient (N::bg2, 0, 0, N::bg, 0, bounds.getHeight(), false));
     g.fillAll();
-    // faint neon grid in the background
-    g.setColour (N::cyan.withAlpha (0.025f));
-    for (float x = 0; x < bounds.getWidth(); x += 32.0f) g.drawVerticalLine ((int) x, 0, bounds.getHeight());
-    for (float y = 0; y < bounds.getHeight(); y += 32.0f) g.drawHorizontalLine ((int) y, 0, bounds.getWidth());
 
     auto h = headerArea.toFloat();
-    g.setGradientFill (juce::ColourGradient (N::deep.withAlpha (0.7f), h.getX(), h.getY(), N::bg.withAlpha (0.0f), h.getRight() * 0.7f, h.getBottom(), false));
+    g.setGradientFill (juce::ColourGradient (N::deep, h.getX(), h.getY(), N::bg.withAlpha (0.0f), h.getRight() * 0.75f, h.getBottom(), false));
     g.fillRect (h);
     {
         juce::Path line;
         line.startNewSubPath (0, h.getBottom());
         line.lineTo (bounds.getWidth(), h.getBottom());
-        N::glowPath (g, line, N::cyan.withAlpha (0.7f), 1.0f, 0.8f);
+        N::glowPath (g, line, N::cyan, 1.4f, 1.0f);
     }
     if (logo.isValid())
     {
-        float lh = h.getHeight() - 14.0f, lw = lh * (float) logo.getWidth() / (float) logo.getHeight();
+        float lh = h.getHeight() - 12.0f, lw = lh * (float) logo.getWidth() / (float) logo.getHeight();
         g.setOpacity (1.0f);
-        g.drawImage (logo, juce::Rectangle<float> (h.getX() + 16.0f, h.getY() + 7.0f, lw, lh), juce::RectanglePlacement::centred);
+        g.drawImage (logo, juce::Rectangle<float> (h.getX() + 12.0f, h.getY() + 6.0f, lw, lh), juce::RectanglePlacement::centred);
     }
 
     for (auto area : { sideArea, exportArea })
     {
         auto a = area.toFloat();
-        g.setColour (N::panel.withAlpha (0.92f));
-        g.fillRoundedRectangle (a, 14.0f);
+        g.setColour (N::panel);
+        g.fillRoundedRectangle (a, 12.0f);
         g.setColour (N::line);
-        g.drawRoundedRectangle (a.reduced (0.5f), 14.0f, 1.2f);
-    }
-    g.setColour (N::cyan);
-    g.setFont (lnf.headingFont (17.0f));
-    g.drawText (proc.advancedMode ? pt ("GERADOR") : pt ("AJUSTES RÁPIDOS"), sideArea.reduced (16, 12).removeFromTop (22), juce::Justification::left);
-
-    // beginner guide: four steps, done ones checked, the next one glowing
-    if (! proc.advancedMode)
-    {
-        static const char* steps[] = { "Escolha estilo e clima", "Gere ideias", "Toque, curta ou pule", "Arraste para o FL Studio" };
-        int next = 0;
-        while (next < 4 && stepDone[(size_t) next]) ++next;
-        for (int i = 0; i < 4; ++i)
-        {
-            auto r = stepAreas[(size_t) i];
-            const bool done = stepDone[(size_t) i], isNext = i == next;
-            if (isNext) N::glow (g, r, r.getHeight() * 0.5f, N::cyan, 0.7f + 0.5f * std::sin (phase));
-            g.setColour (done ? N::cyan.withAlpha (0.16f) : (isNext ? N::panelHi : N::panel));
-            g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
-            g.setColour (done || isNext ? N::cyan : N::line);
-            g.drawRoundedRectangle (r, r.getHeight() * 0.5f, 1.2f);
-            auto circle = r.withWidth (r.getHeight()).reduced (5.0f);
-            g.setColour (done || isNext ? N::cyan : N::muted);
-            g.fillEllipse (circle);
-            if (done)
-            {
-                juce::Path tick;
-                tick.startNewSubPath (circle.getX() + circle.getWidth() * 0.25f, circle.getCentreY());
-                tick.lineTo (circle.getX() + circle.getWidth() * 0.45f, circle.getBottom() - circle.getHeight() * 0.28f);
-                tick.lineTo (circle.getRight() - circle.getWidth() * 0.22f, circle.getY() + circle.getHeight() * 0.3f);
-                g.setColour (N::onPrimary);
-                g.strokePath (tick, juce::PathStrokeType (2.2f));
-            }
-            else
-            {
-                g.setColour (N::onPrimary);
-                g.setFont (lnf.bodyFont (14.0f, true));
-                g.drawText (juce::String (i + 1), circle, juce::Justification::centred);
-            }
-            g.setColour (done || isNext ? N::text : N::muted);
-            g.setFont (lnf.bodyFont (14.5f, isNext));
-            g.drawFittedText (pt (steps[i]), r.withTrimmedLeft (r.getHeight() + 2.0f).withTrimmedRight (10.0f).toNearestInt(), juce::Justification::centredLeft, 1, 0.85f);
-            if (i < 3)
-            {
-                juce::Path arrow;
-                const float ax = r.getRight() + 7.0f, ay = r.getCentreY();
-                arrow.startNewSubPath (ax - 3, ay - 5); arrow.lineTo (ax + 2, ay); arrow.lineTo (ax - 3, ay + 5);
-                g.setColour (N::muted);
-                g.strokePath (arrow, juce::PathStrokeType (1.6f));
-            }
-        }
-    }
-
-    // explanation for the sync switch
-    if (! proc.advancedMode && syncToggle.isVisible())
-    {
-        auto r = syncToggle.getBounds().translated (0, syncToggle.getHeight()).withHeight (40).withTrimmedLeft (48);
-        g.setColour (N::muted);
-        g.setFont (lnf.bodyFont (13.0f));
-        g.drawFittedText (syncToggle.getToggleState() ? pt ("Ligado: toca quando você dá play (espaço) no FL.")
-                                                      : pt ("Desligado: o espaço do FL não toca o MelodyForge. Use o botão Tocar."),
-                          r, juce::Justification::topLeft, 2, 0.9f);
+        g.drawRoundedRectangle (a.reduced (0.5f), 12.0f, 1.2f);
     }
 }
 
@@ -1190,101 +1037,84 @@ void MelodyForgeEditor::layout()
 {
     const bool adv = proc.advancedMode;
     auto r = content.getLocalBounds();
-    headerArea = r.removeFromTop (76);
+
+    // header: logo, title, style, mood, advanced, full screen
+    headerArea = r.removeFromTop (54);
     {
-        auto h = headerArea.reduced (16, 12);
-        int logoW = logo.isValid() ? (int) ((76 - 14) * logo.getWidth() / (float) logo.getHeight()) : 0;
-        h.removeFromLeft (logoW + 14);
-        auto titleCol = h.removeFromLeft (290);
-        title.setBounds (titleCol.removeFromTop (30));
-        subtitle.setBounds (titleCol);
-        fullBtn.setBounds (h.removeFromRight (fullScreen ? 168 : 136).withSizeKeepingCentre (fullScreen ? 168 : 136, 42));
+        auto h = headerArea.reduced (12, 6);
+        int logoW = logo.isValid() ? (int) ((54 - 12) * logo.getWidth() / (float) logo.getHeight()) : 0;
+        h.removeFromLeft (logoW + 10);
+        fullBtn.setBounds (h.removeFromRight (38).withSizeKeepingCentre (38, 34));
+        h.removeFromRight (6);
+        advancedBtn.setBounds (h.removeFromRight (100).withSizeKeepingCentre (100, 34));
+        h.removeFromRight (12);
+        auto moodCol = h.removeFromRight (150);
+        moodLabel.setBounds (moodCol.removeFromTop (14));
+        moodBox.setBounds (moodCol.reduced (0, 1));
+        h.removeFromRight (8);
+        auto styleCol = h.removeFromRight (150);
+        styleLabel.setBounds (styleCol.removeFromTop (14));
+        styleBox.setBounds (styleCol.reduced (0, 1));
         h.removeFromRight (10);
-        auto modeRow = h.removeFromRight (230).withSizeKeepingCentre (230, 42);
-        beginnerBtn.setBounds (modeRow.removeFromLeft (112));
-        modeRow.removeFromLeft (6);
-        advancedBtn.setBounds (modeRow);
-        h.removeFromRight (18);
-        auto moodCol = h.removeFromRight (160);
-        moodLabel.setBounds (moodCol.removeFromTop (18));
-        moodBox.setBounds (moodCol.withSizeKeepingCentre (160, 32));
-        h.removeFromRight (10);
-        auto styleCol = h.removeFromRight (160);
-        styleLabel.setBounds (styleCol.removeFromTop (18));
-        styleBox.setBounds (styleCol.withSizeKeepingCentre (160, 32));
+        title.setBounds (h);
     }
-    r.reduce (14, 10);
-    guideArea = r.removeFromTop (38);
-    hintLabel.setBounds (guideArea);
-    {
-        auto g = guideArea.toFloat().reduced (0, 2);
-        const float w = (g.getWidth() - 3 * 16.0f) / 4.0f;
-        for (int i = 0; i < 4; ++i)
-        {
-            stepAreas[(size_t) i] = g.removeFromLeft (w);
-            g.removeFromLeft (16.0f);
-        }
-    }
-    r.removeFromTop (8);
-    exportArea = r.removeFromBottom (64);
-    r.removeFromBottom (10);
-    sideArea = r.removeFromRight (310);
-    r.removeFromRight (14);
+    r.reduce (12, 10);
+    exportArea = r.removeFromBottom (46);
+    r.removeFromBottom (8);
+    sideArea = r.removeFromRight (250);
+    r.removeFromRight (12);
     ideaArea = r;
 
     // idea column: transport
     auto idea = ideaArea;
-    auto top = idea.removeFromTop (48);
-    prevBtn.setBounds (top.removeFromLeft (44));
-    candidateLabel.setBounds (top.removeFromLeft (112));
-    nextBtn.setBounds (top.removeFromLeft (44));
-    top.removeFromLeft (8);
-    const int bw = (top.getWidth() - 4 * 4) / (adv ? 18 : 15);   // shares of the remaining width
-    playBtn.setBounds (top.removeFromLeft (bw * 4));
-    top.removeFromLeft (4);
-    newBtn.setBounds (top.removeFromLeft (bw * 4 + bw / 2));
-    top.removeFromLeft (4);
-    if (evolveBtn.isVisible()) { evolveBtn.setBounds (top.removeFromLeft (bw * 3)); top.removeFromLeft (4); }
-    likeBtn.setBounds (top.removeFromLeft (bw * 3 + bw / 4));
-    top.removeFromLeft (4);
+    auto top = idea.removeFromTop (38);
+    prevBtn.setBounds (top.removeFromLeft (34));
+    candidateLabel.setBounds (top.removeFromLeft (64));
+    nextBtn.setBounds (top.removeFromLeft (34));
+    top.removeFromLeft (6);
+    const int shares = adv ? 5 : 4;
+    const int bw = (top.getWidth() - (shares - 1) * 4) / shares;
+    playBtn.setBounds (top.removeFromLeft (bw)); top.removeFromLeft (4);
+    newBtn.setBounds (top.removeFromLeft (bw)); top.removeFromLeft (4);
+    if (adv) { evolveBtn.setBounds (top.removeFromLeft (bw)); top.removeFromLeft (4); }
+    likeBtn.setBounds (top.removeFromLeft (bw)); top.removeFromLeft (4);
     skipBtn.setBounds (top);
     idea.removeFromTop (6);
     if (adv && ! chordBoxes.isEmpty())
     {
-        auto row = idea.removeFromTop (32);
-        revertBtn.setBounds (row.removeFromRight (150).expanded (0, 3));
+        auto row = idea.removeFromTop (28);
+        revertBtn.setBounds (row.removeFromRight (96).expanded (0, 2));
         row.removeFromRight (4);
         int w = row.getWidth() / chordBoxes.size();
-        for (auto* b : chordBoxes) b->setBounds (row.removeFromLeft (w).reduced (3, 0));
+        for (auto* b : chordBoxes) b->setBounds (row.removeFromLeft (w).reduced (2, 0));
         idea.removeFromTop (6);
     }
-    cardsArea = idea.removeFromBottom (adv ? 184 : 262);
+    cardsArea = idea.removeFromBottom (130);
     idea.removeFromBottom (6);
-    auto infoRow = idea.removeFromBottom (26);
+    auto infoRow = idea.removeFromBottom (20);
     fitnessLabel.setBounds (infoRow);
     statusLabel.setBounds (infoRow.removeFromLeft (infoRow.getWidth() / 2));
     idea.removeFromBottom (4);
     view.setBounds (idea);
     {
         auto c = cardsArea;
-        const int w = (c.getWidth() - 2 * 10) / 3;
+        const int w = (c.getWidth() - 2 * 8) / 3;
         for (int t = 0; t < mf::NUM_TRACKS; ++t)
         {
             cards[t]->setBounds (c.removeFromLeft (w));
-            c.removeFromLeft (10);
+            c.removeFromLeft (8);
         }
     }
 
     // side panel
-    auto c = sideArea.reduced (16, 12);
-    c.removeFromTop (30);
-    const int rowH = adv ? 30 : 36, gap = adv ? 3 : 8;
+    auto c = sideArea.reduced (12, 10);
+    const int rowH = adv ? 26 : 30, gap = adv ? 2 : 6;
     auto addRow = [&] (juce::Label& label, juce::Component& comp, juce::Component* lock)
     {
         if (! comp.isVisible()) return;
         auto row = c.removeFromTop (rowH);
-        label.setBounds (row.removeFromLeft (100));
-        if (lock != nullptr && lock->isVisible()) { lock->setBounds (row.removeFromRight (78)); row.removeFromRight (4); }
+        label.setBounds (row.removeFromLeft (84));
+        if (lock != nullptr && lock->isVisible()) { lock->setBounds (row.removeFromRight (40)); row.removeFromRight (2); }
         comp.setBounds (row.reduced (0, 1));
         c.removeFromTop (gap);
     };
@@ -1292,38 +1122,41 @@ void MelodyForgeEditor::layout()
     addRow (scaleLabel, scaleBox, &lockScale);
     addRow (progressionLabel, progressionBox, &lockProgression);
     addRow (barsLabel, barsBox, nullptr);
-    addRow (popLabel, popBox, nullptr);
+    addRow (popLabel, ideasSlider, nullptr);
+    sharpToggle.setBounds (c.removeFromTop (rowH));
+    c.removeFromTop (gap);
     addRow (complexityLabel, complexitySlider, nullptr);
     addRow (harmonyLabel, harmonySlider, nullptr);
     if (seedEditor.isVisible())
     {
         auto row = c.removeFromTop (rowH);
-        seedLabel.setBounds (row.removeFromLeft (100));
-        seedBtn.setBounds (row.removeFromRight (84));
+        seedLabel.setBounds (row.removeFromLeft (84));
+        seedBtn.setBounds (row.removeFromRight (64));
         row.removeFromRight (4);
         seedEditor.setBounds (row.reduced (0, 2));
         c.removeFromTop (gap);
     }
     addRow (volumeLabel, volumeSlider, nullptr);
     addRow (reverbLabel, reverbSlider, nullptr);
-    c.removeFromTop (adv ? 2 : 6);
-    syncToggle.setBounds (c.removeFromTop (30));
-    if (! adv) c.removeFromTop (42);   // explanation text under the switch
-    for (auto* t : { (juce::Component*) &previewToggle, (juce::Component*) &midiOutToggle, (juce::Component*) &hostTempoToggle })
-        if (t->isVisible()) t->setBounds (c.removeFromTop (adv ? 26 : 28));
-    bankLabel.setBounds (c.removeFromBottom (20));
-
-    // export row
-    auto e = exportArea.reduced (12, 8);
-    exportBtn.setBounds (e.removeFromLeft (190));
     if (adv)
     {
-        defaultBankBtn.setBounds (e.removeFromRight (150));
-        loadBankBtn.setBounds (e.removeFromRight (150));
-        e.removeFromRight (6);
+        c.removeFromTop (2);
+        for (auto* t : std::initializer_list<juce::Component*> { &syncToggle, &hostTempoToggle, &previewToggle, &midiOutToggle })
+            t->setBounds (c.removeFromTop (23));
     }
-    dragLabel.setBounds (e.removeFromLeft (210));
-    e.removeFromLeft (6);
+
+    // export row
+    auto e = exportArea.reduced (8, 6);
+    exportBtn.setBounds (e.removeFromLeft (112));
+    if (adv)
+    {
+        defaultBankBtn.setBounds (e.removeFromRight (84));
+        loadBankBtn.setBounds (e.removeFromRight (112));
+        e.removeFromRight (4);
+        defaultBankBtn.setButtonText (pt ("Padrão"));
+    }
+    dragLabel.setBounds (e.removeFromLeft (128));
+    e.removeFromLeft (4);
     int w = e.getWidth() / 4;
     for (auto* t : { dragAll.get(), dragMelody.get(), dragBass.get(), dragChords.get() }) t->setBounds (e.removeFromLeft (w));
 }

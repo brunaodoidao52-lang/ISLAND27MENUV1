@@ -63,7 +63,7 @@ private:
     bool dragging = false;
 };
 
-// One card per layer: illustration + what it is (beginner), instrument, volume and actions.
+// One compact card per layer: name, on/off, instrument, volume and actions.
 class LayerCard : public juce::Component
 {
 public:
@@ -72,8 +72,8 @@ public:
     void resized() override;
     void refresh (bool advanced);
     void rebuildInstruments();
-    void setActivity (float a) { if (std::abs (a - activity) > 0.01f) { activity = a; repaint (illustration.toNearestInt().expanded (8)); repaint (getLocalBounds().removeFromTop (4)); } }
-    void tick (float phase) { animPhase = phase; if (activity > 0.02f) repaint (illustration.toNearestInt().expanded (8)); }
+    void setActivity (float a) { if (std::abs (a - activity) > 0.01f) { activity = a; repaint(); } }
+    void tick (float phase) { animPhase = phase; }
     std::function<void (const juce::String&)> onNotify;
     std::function<void (int)> onView;
 
@@ -83,13 +83,10 @@ public:
     juce::Slider volume;
 
 private:
-    void drawIllustration (juce::Graphics&, juce::Rectangle<float>);
-
     MelodyForgeProcessor& proc;
     NeonLookAndFeel& lnf;
     const int track;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volumeAtt;
-    juce::Rectangle<float> illustration;
     const SoundBank* builtFor = nullptr;
     MelodyForgeProcessor::BankState builtState = MelodyForgeProcessor::BankState::Idle;
     bool advanced = false;
@@ -111,7 +108,7 @@ public:
     void toggleFullScreen();
     bool isFullScreenMode() const { return fullScreen; }
 
-    static constexpr int designWidth = 1120, designHeight = 720;
+    static constexpr int designWidth = 900, designHeight = 560;   // compact layout; scales up with the window
 
 private:
     // Everything lives in this component; it is scaled so text grows with the window.
@@ -131,6 +128,7 @@ private:
     void notify (const juce::String& text);
     void exportMidi();
     void buildChordBoxes();
+    void buildProgressionBox();
     void applyModeVisibility();
     void markStep (int step);
     juce::Label& makeLabel (juce::Label&, const juce::String& text);
@@ -142,14 +140,11 @@ private:
     juce::TooltipWindow tooltips { this, 500 };
 
     // header
-    juce::Label title, subtitle, styleLabel, moodLabel;
-    juce::TextButton beginnerBtn, advancedBtn;
+    juce::Label title, styleLabel, moodLabel;
+    juce::TextButton advancedBtn;
     IconButton fullBtn { {}, Icon::FullScreen };
     juce::ComboBox styleBox, moodBox;
 
-    // guide / hint
-    juce::Label hintLabel;
-    std::array<juce::Rectangle<float>, 4> stepAreas;
     std::array<bool, 4> stepDone { false, false, false, false };
 
     // idea area
@@ -164,15 +159,14 @@ private:
     std::unique_ptr<LayerCard> cards[mf::NUM_TRACKS];
 
     // side panel
-    juce::ComboBox keyBox, scaleBox, progressionBox, barsBox, popBox;
-    juce::ToggleButton lockKey, lockScale, lockProgression;
-    juce::Slider complexitySlider, harmonySlider, volumeSlider, reverbSlider;
+    juce::ComboBox keyBox, scaleBox, progressionBox, barsBox;
+    juce::ToggleButton lockKey, lockScale, lockProgression, sharpToggle;
+    juce::Slider ideasSlider, complexitySlider, harmonySlider, volumeSlider, reverbSlider;
     juce::TextEditor seedEditor;
     juce::TextButton seedBtn;
     juce::ToggleButton syncToggle, previewToggle, midiOutToggle, hostTempoToggle;
     IconButton loadBankBtn { {}, Icon::Folder };
     juce::TextButton defaultBankBtn;
-    juce::Label bankLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAtt, previewAtt, midiOutAtt, hostTempoAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volumeAtt, reverbAtt;
     juce::Label keyLabel, scaleLabel, progressionLabel, barsLabel, popLabel, complexityLabel, harmonyLabel, seedLabel, volumeLabel, reverbLabel;
@@ -183,8 +177,8 @@ private:
     juce::Label dragLabel;
     std::unique_ptr<juce::FileChooser> chooser;
 
-    juce::Rectangle<int> headerArea, guideArea, sideArea, exportArea, ideaArea, cardsArea;
-    juce::String lastChordKey;
+    juce::Rectangle<int> headerArea, sideArea, exportArea, ideaArea, cardsArea;
+    juce::String lastChordKey, lastProgressionKey;
     juce::Rectangle<int> normalBounds;
     bool fullScreen = false;
     int notifyTicks = 0;

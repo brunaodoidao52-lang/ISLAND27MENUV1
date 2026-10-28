@@ -1,4 +1,4 @@
-// MelodyForge look: the ISLAND27 palette pushed to neon blue, bigger text and glowing
+// Melody Generator look: the ISLAND27 palette pushed to neon blue, bigger text and glowing
 // controls. Builds on the shared IslandLookAndFeel (fonts) without changing the EQ.
 #pragma once
 
@@ -9,23 +9,24 @@ namespace mfplug
 
 namespace Neon
 {
-    const juce::Colour bg (0xff03050b);
-    const juce::Colour bg2 (0xff060b18);
-    const juce::Colour panel (0xff0a1222);
-    const juce::Colour panelHi (0xff0f1b33);
-    const juce::Colour line (0x3300e5ff);
-    const juce::Colour lineStrong (0x6600e5ff);
-    const juce::Colour cyan (0xff00e5ff);
-    const juce::Colour sky (0xff3fb8ff);
-    const juce::Colour blue (0xff1f6bff);
-    const juce::Colour deep (0xff0b2a6b);
-    const juce::Colour text (0xfff2f8ff);
-    const juce::Colour textSoft (0xffc3d6ee);
-    const juce::Colour muted (0xff8ea3c4);
-    const juce::Colour onPrimary (0xff021019);
+    // Melody Generator 3: stronger, more saturated neon
+    const juce::Colour bg (0xff02030a);
+    const juce::Colour bg2 (0xff060c22);
+    const juce::Colour panel (0xff0a1738);
+    const juce::Colour panelHi (0xff10245a);
+    const juce::Colour line (0x6600f0ff);
+    const juce::Colour lineStrong (0xaa00f0ff);
+    const juce::Colour cyan (0xff00f0ff);
+    const juce::Colour sky (0xff38b6ff);
+    const juce::Colour blue (0xff1f55ff);
+    const juce::Colour deep (0xff0b2f9a);
+    const juce::Colour text (0xffffffff);
+    const juce::Colour textSoft (0xffdbe8ff);
+    const juce::Colour muted (0xff9ab3e0);
+    const juce::Colour onPrimary (0xff000a14);
 
     // Melodia, Baixo, Acordes
-    const juce::Colour layer[3] = { juce::Colour (0xff00e5ff), juce::Colour (0xff2f8bff), juce::Colour (0xff7a8cff) };
+    const juce::Colour layer[3] = { juce::Colour (0xff00f0ff), juce::Colour (0xff3d7bff), juce::Colour (0xffb44dff) };
 
     // Soft outer glow around a rounded rectangle.
     inline void glow (juce::Graphics& g, juce::Rectangle<float> r, float radius, juce::Colour c, float strength = 1.0f, int layers = 4)

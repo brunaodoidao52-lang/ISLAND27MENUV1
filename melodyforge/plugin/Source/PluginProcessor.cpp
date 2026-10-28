@@ -119,7 +119,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout MelodyForgeProcessor::create
     p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "midiOut", 1 }, pt ("Enviar MIDI"), true));
     p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "hostTempo", 1 }, pt ("Seguir o andamento do projeto"), true));
     p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volume", 1 }, pt ("Volume geral"), db (-36.0f, 6.0f), -6.0f));
-    // off by default: pressing play in the DAW must not start MelodyForge
+    // off by default: pressing play in the DAW must not start Melody Generator
     p.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "syncHost", 2 }, pt ("Tocar junto com o projeto"), false));
     p.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "reverb", 2 }, pt ("Reverberação"),
                                                               juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
@@ -132,7 +132,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout MelodyForgeProcessor::create
 // Loads a SoundFont off the message and audio threads.
 struct MelodyForgeProcessor::Loader : public juce::Thread
 {
-    Loader (MelodyForgeProcessor& p, juce::File f) : juce::Thread ("MelodyForge bank loader"), owner (p), file (std::move (f)) {}
+    Loader (MelodyForgeProcessor& p, juce::File f) : juce::Thread ("Melody Generator bank loader"), owner (p), file (std::move (f)) {}
     void run() override
     {
         juce::String error;
@@ -168,13 +168,17 @@ juce::File MelodyForgeProcessor::findDefaultBank()
     candidates.add (exe.getSiblingFile (name));                                                   // next to the .exe
     candidates.add (exe.getParentDirectory().getSiblingFile ("Resources").getChildFile (name));   // inside the .vst3 bundle
     candidates.add (exe.getParentDirectory().getParentDirectory().getSiblingFile (name));         // next to the .vst3 bundle
-    const juce::String inBundle ("MelodyForge ISLAND27.vst3/Contents/Resources/" + name);
-    candidates.add (exe.getSiblingFile (inBundle));                                               // .exe next to the .vst3 (zip layout)
-   #if JUCE_WINDOWS
-    candidates.add (juce::File::getSpecialLocation (juce::File::globalApplicationsDirectory).getChildFile ("Common Files/VST3/" + inBundle));
-   #endif
-    for (auto where : { juce::File::userDocumentsDirectory, juce::File::commonApplicationDataDirectory, juce::File::userApplicationDataDirectory })
-        candidates.add (juce::File::getSpecialLocation (where).getChildFile ("MelodyForge ISLAND27").getChildFile (name));
+    // "Melody Generator" is the current name; "MelodyForge ISLAND27" keeps older installs working
+    for (const char* product : { "Melody Generator", "MelodyForge ISLAND27" })
+    {
+        const juce::String inBundle (juce::String (product) + ".vst3/Contents/Resources/" + name);
+        candidates.add (exe.getSiblingFile (inBundle));                                           // .exe next to the .vst3 (zip layout)
+       #if JUCE_WINDOWS
+        candidates.add (juce::File::getSpecialLocation (juce::File::globalApplicationsDirectory).getChildFile ("Common Files/VST3/" + inBundle));
+       #endif
+        for (auto where : { juce::File::userDocumentsDirectory, juce::File::commonApplicationDataDirectory, juce::File::userApplicationDataDirectory })
+            candidates.add (juce::File::getSpecialLocation (where).getChildFile (product).getChildFile (name));
+    }
    #ifdef MELODYFORGE_DEV_BANK
     candidates.add (juce::File (MELODYFORGE_DEV_BANK));
    #endif
@@ -326,7 +330,7 @@ void MelodyForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     auto data = std::atomic_load (&playback);
     if (data == nullptr || n == 0) return;
 
-    // The DAW transport only drives MelodyForge when "Tocar junto com o projeto" is on;
+    // The DAW transport only drives Melody Generator when "Tocar junto com o projeto" is on;
     // otherwise only the plugin's own Play button does.
     const bool followHost = syncParam->load() > 0.5f;
     bool playing = false;
@@ -537,6 +541,18 @@ void MelodyForgeProcessor::applySliders()
     showGenome (g);
 }
 
+void MelodyForgeProcessor::setSharp (bool on)
+{
+    settings.sharp = on;
+    applySettings (false);   // same ideas, re-rendered with (or without) colour notes
+}
+
+void MelodyForgeProcessor::setIdeaCount (int count)
+{
+    settings.populationSize = juce::jlimit (4, mf::MAX_IDEAS, count);
+    applySettings (true);
+}
+
 void MelodyForgeProcessor::setSolo (int track)
 {
     soloLayer = juce::jlimit (-1, mf::NUM_TRACKS - 1, track);
@@ -581,14 +597,14 @@ juce::String MelodyForgeProcessor::layerName (int track)
 mf::Bytes MelodyForgeProcessor::midiFor (const std::vector<int>& layers) const
 {
     static const char* names[] = { "Melodia", "Baixo", "Acordes" };
-    return mf::toMidi (pattern, layers, "MelodyForge ISLAND27", names);
+    return mf::toMidi (pattern, layers, "Melody Generator", names);
 }
 
 juce::String MelodyForgeProcessor::fileBaseName() const
 {
     juce::String key = juce::String (mf::noteNameOf (pattern.key)).replace ("#", "s");
-    static const char* scaleIds[] = { "maior", "menor", "dorico", "mixolidio", "menor-harmonica", "pentatonica-maior", "pentatonica-menor", "blues" };
-    return "MelodyForge-" + key + "-" + scaleIds[juce::jlimit (0, 7, pattern.scale)] + "-" + juce::String (pattern.bpm) + "bpm";
+    const auto& sc = mf::scales()[(size_t) juce::jlimit (0, (int) mf::scales().size() - 1, pattern.scale)];
+    return "MelodyGenerator-" + key + "-" + sc.id + (settings.sharp ? "-afiada" : "") + "-" + juce::String (pattern.bpm) + "bpm";
 }
 
 // ============================================================================ state
@@ -604,6 +620,7 @@ void MelodyForgeProcessor::getStateInformation (juce::MemoryBlock& dest)
     root.setAttribute ("style", style);
     root.setAttribute ("mood", mood);
     root.setAttribute ("advanced", advancedMode ? 1 : 0);
+    root.setAttribute ("sharp", settings.sharp ? 1 : 0);
     root.setAttribute ("layers", juce::String (layerOn[0] ? "1" : "0") + (layerOn[1] ? "1" : "0") + (layerOn[2] ? "1" : "0"));
     root.setAttribute ("instruments", juce::String (instrumentOf (0)) + "," + juce::String (instrumentOf (1)) + "," + juce::String (instrumentOf (2)));
     if (userBank != juce::File()) root.setAttribute ("bank", userBank.getFullPathName());
@@ -644,6 +661,7 @@ void MelodyForgeProcessor::setStateInformation (const void* data, int size)
         settings.lockProgression = locks[2] == '1'; settings.lockBpm = locks[3] == '1';
         settings = mf::normalize (settings);
     }
+    settings.sharp = xml->getIntAttribute ("sharp", 0) != 0;
     sessionSeed = (uint32_t) xml->getStringAttribute ("seed", "1").getLargeIntValue();
     generation = xml->getIntAttribute ("generation");
     complexity = xml->getIntAttribute ("complexity", 5);

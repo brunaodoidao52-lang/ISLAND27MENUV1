@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds MelodyForge-Timbres.sf2: a subset of the Fluid (R3) General MIDI SoundFont
+"""Builds MelodyForge-Timbres.sf2 (Melody Generator's default bank): the melodic part of the Fluid (R3) General MIDI SoundFont
 (MIT licence, Frank Wen) with the instruments the plugin offers.
 
     python3 tools/make_soundbank.py [/usr/share/sounds/sf2/FluidR3_GM.sf2] [out.sf2]
@@ -14,16 +14,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sf2lib import SF2, write_subset  # noqa: E402
 
-PROGRAMS = [
-    0, 4, 6, 7, 8, 16, 19, 22,                 # teclas
-    9, 10, 11, 12, 14, 108, 114,               # percussão melódica
-    24, 25, 26, 27, 46, 104, 105,              # cordas dedilhadas
-    32, 33, 34, 36, 38, 39, 87,                # baixos
-    40, 48, 49, 50,                            # cordas
-    52, 53,                                    # vozes
-    56, 57, 61, 62, 65, 68, 71, 73, 75, 79,    # metais e sopros
-    80, 81, 82, 84, 88, 89, 90, 91, 92, 94, 95, 98, 99,   # sintetizadores
-]
+# 100 melodic General MIDI programs (pianos, organs, accordions, guitars, basses, strings,
+# choirs, brass, reeds, pipes, synth leads/pads/FX and ethnic instruments). Left out: the
+# sound effects and drum-like programs (115-127), the contrabass (silent above its low range)
+# and the instruments whose samples would push the bank past ~90 MB (so the Windows zip
+# stays under GitHub's 100 MB file limit).
+LEFT_OUT = {5, 17, 18, 23, 41, 42, 43, 45, 60, 64, 66, 67, 69, 102, 109}
+PROGRAMS = [p for p in range(115) if p not in LEFT_OUT]
 
 
 def main():
