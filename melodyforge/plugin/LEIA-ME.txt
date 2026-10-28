@@ -16,6 +16,11 @@ APP INDEPENDENTE (.exe)
   assinatura digital). Em Options > Audio/MIDI Settings escolha a saída de áudio.
 
 INSTALAR O VST3 NO FL STUDIO
+  Jeito fácil: extraia o .rar e dê dois cliques em INSTALAR.bat (ele pede
+  permissão de administrador e copia o plugin para a pasta certa). Depois
+  siga o passo 2 abaixo.
+
+  Jeito manual:
   1. Copie a PASTA "Melody Generator.vst3" inteira (com a subpasta
      Contents\Resources) para  C:\Program Files\Common Files\VST3\
      Se você tinha a versão antiga, pode apagar "MelodyForge ISLAND27.vst3".

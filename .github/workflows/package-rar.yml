@@ -1,0 +1,35 @@
+name: package-rar
+
+# Repackages the Windows build published by "build" (release melody-generator-3.0)
+# into a .rar with the VST3, the app, the LEIA-ME and INSTALAR.bat.
+on:
+  push:
+    paths:
+      - .github/workflows/package-rar.yml
+      - melodyforge/plugin/INSTALAR.bat
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rar:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install WinRAR (command line)
+        run: choco install winrar -y --no-progress
+      - name: Build the .rar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download melody-generator-3.0 -p Melody-Generator-windows-x64.zip
+          mkdir -p "pkg/Melody Generator ISLAND27"
+          7z x Melody-Generator-windows-x64.zip -o"pkg/Melody Generator ISLAND27" > /dev/null
+          cp melodyforge/plugin/INSTALAR.bat "pkg/Melody Generator ISLAND27/"
+          cp melodyforge/plugin/LEIA-ME.txt "pkg/Melody Generator ISLAND27/"
+          cd pkg
+          "/c/Program Files/WinRAR/Rar.exe" a -r -m5 -idq ../Melody-Generator-ISLAND27-windows.rar "Melody Generator ISLAND27"
+          cd ..
+          gh release upload melody-generator-3.0 Melody-Generator-ISLAND27-windows.rar --clobber
