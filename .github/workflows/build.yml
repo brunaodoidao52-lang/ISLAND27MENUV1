@@ -37,6 +37,8 @@ jobs:
 
   melodyforge-plugin:
     needs: melodyforge-tests
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -63,7 +65,33 @@ jobs:
           if [ "$RUNNER_OS" == "macOS" ]; then extra="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"; fi
           cmake -S melodyforge/plugin -B mf-build -DCMAKE_BUILD_TYPE=Release -DMELODYFORGE_BUILD_TESTS=OFF $extra
       - name: Build
-        run: cmake --build mf-build --config Release --parallel 4
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build mf-build --config Release --parallel 4 2>&1 | tee build-${{ matrix.name }}.log
+      - name: Publish build log (on failure)
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -nE "error|Error" build-${{ matrix.name }}.log | head -200 > errors-${{ matrix.name }}.txt || true
+          gh release view ci-logs >/dev/null 2>&1 || gh release create ci-logs --prerelease --title "CI logs" --notes "Logs de compilação" --target "$GITHUB_SHA"
+          gh release upload ci-logs build-${{ matrix.name }}.log errors-${{ matrix.name }}.txt --clobber
+      - name: Publish Windows package
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          R=mf-build/MelodyForge_artefacts/Release
+          mkdir -p pkg
+          cp -r "$R/VST3/Melody Generator.vst3" pkg/
+          cp "$R/Standalone/Melody Generator.exe" pkg/
+          cp melodyforge/plugin/LEIA-ME.txt pkg/
+          (cd pkg && 7z a -tzip ../Melody-Generator-windows-x64.zip . > /dev/null)
+          gh release view melody-generator-3.0 >/dev/null 2>&1 || gh release create melody-generator-3.0 --prerelease --title "Melody Generator 3.0 (teste)" --notes "VST3 + app para Windows" --target "$GITHUB_SHA"
+          gh release upload melody-generator-3.0 Melody-Generator-windows-x64.zip --clobber
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
