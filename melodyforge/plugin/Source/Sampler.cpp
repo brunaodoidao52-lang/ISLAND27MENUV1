@@ -1,6 +1,7 @@
 #include "Sampler.h"
 
 #include <cmath>
+#include <cstddef>
 #include <map>
 #include <mutex>
 
@@ -91,7 +92,7 @@ std::shared_ptr<const SoundBank> SoundBank::load (const juce::File& f, juce::Str
             if (kind == "INFO" && sid == "INAM")
             {
                 juce::MemoryBlock b;
-                in.readIntoMemoryBlock (b, (ssize_t) ssize);
+                in.readIntoMemoryBlock (b, (std::ptrdiff_t) ssize);
                 bank->name = juce::String::fromUTF8 ((const char*) b.getData(), (int) strnlen ((const char*) b.getData(), ssize));
             }
             else if (kind == "sdta" && sid == "smpl")
@@ -116,7 +117,7 @@ std::shared_ptr<const SoundBank> SoundBank::load (const juce::File& f, juce::Str
                 juce::MemoryBlock* target = sid == "phdr" ? &phdr : sid == "pbag" ? &pbag : sid == "pgen" ? &pgen
                                           : sid == "inst" ? &inst : sid == "ibag" ? &ibag : sid == "igen" ? &igen
                                           : sid == "shdr" ? &shdr : nullptr;
-                if (target != nullptr) in.readIntoMemoryBlock (*target, (ssize_t) ssize);
+                if (target != nullptr) in.readIntoMemoryBlock (*target, (std::ptrdiff_t) ssize);
             }
             in.setPosition (next);
         }
