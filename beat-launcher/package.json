@@ -1,0 +1,101 @@
+{
+  "name": "island27-beat-launcher",
+  "productName": "ISLAND27 Beat Launcher",
+  "version": "1.0.0",
+  "description": "Lança beats no automático: você manda beat, capa e nome; ele cria o vídeo do YouTube, o Reels do Instagram, a miniatura e os textos, e publica nos horários do dia.",
+  "author": "ISLAND27",
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "bin": {
+    "island27-beats": "src/cli.js"
+  },
+  "scripts": {
+    "start": "electron .",
+    "gerar": "node src/cli.js",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.island27.beatlauncher",
+    "productName": "ISLAND27 Beat Launcher",
+    "copyright": "ISLAND27",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**",
+      "node_modules/@resvg/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ISLAND27 Beat Launcher",
+      "artifactName": "ISLAND27-Beat-Launcher-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "ISLAND27-Beat-Launcher-${version}-Portatil.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.music",
+      "icon": "build/icon.png",
+      "artifactName": "ISLAND27-Beat-Launcher-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "maintainer": "ISLAND27 <contato@island27.app>",
+      "artifactName": "ISLAND27-Beat-Launcher-${version}-${arch}.${ext}"
+    },
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brunaodoidao52-lang/ISLAND27MENUV1.git"
+  }
+}

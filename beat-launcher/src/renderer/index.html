@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data:; media-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self' file:" />
+  <title>ISLAND27 Beat Launcher</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="side">
+    <div class="logo">ISLAND<span>27</span><small>Beat Launcher</small></div>
+    <nav>
+      <button data-page="novo" class="active"><i>＋</i>Novo lançamento</button>
+      <button data-page="fila"><i>☰</i>Fila <b id="count-fila" class="badge hidden">0</b></button>
+      <button data-page="loop"><i>↻</i>Loop da capa</button>
+      <button data-page="config"><i>⚙</i>Configurações</button>
+    </nav>
+    <div class="side-status">
+      <div class="conn" id="conn-yt"><span class="dot"></span>YouTube</div>
+      <div class="conn" id="conn-ig"><span class="dot"></span>Instagram</div>
+      <label class="switch" title="Gera os vídeos, marca horário e publica sozinho"><input type="checkbox" id="autopilot" /><span></span>Piloto automático</label>
+      <label class="switch" title="Faz tudo, menos publicar de verdade"><input type="checkbox" id="simulation" /><span></span>Modo teste</label>
+    </div>
+  </aside>
+
+  <main>
+    <div id="banner-test" class="banner hidden">🧪 <b>Modo teste ligado:</b> tudo funciona, mas nada é publicado de verdade. Desligue na barra lateral quando as contas estiverem conectadas.</div>
+
+    <!-- NOVO -->
+    <section id="page-novo" class="page">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Passo 1</p>
+          <h1>Manda o beat, a capa e o nome</h1>
+          <p class="muted">O resto é com o Launcher: vídeo do YouTube, Reels do Instagram, miniatura, título, descrição, tags e legenda.</p>
+        </div>
+      </header>
+
+      <div id="drop" class="drop">
+        <div class="drop-icon">⇪</div>
+        <b>Arraste aqui um ou vários beats + capas</b>
+        <span class="muted">Mesmo nome = mesmo lançamento: <code>Noite.mp3</code> + <code>Noite.jpg</code>. Um <code>Noite.txt</code> com “artista: … / genero: … / bpm: … / tom: …” preenche o resto.</span>
+        <button id="btn-pick-many" class="ghost">Escolher arquivos</button>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ou preencha um por um</h3>
+          <div class="files">
+            <button class="file-btn" id="pick-audio"><span class="fi">♪</span><span><b>Beat</b><small id="audio-name">MP3, WAV, FLAC…</small></span></button>
+            <button class="file-btn cover" id="pick-cover"><img id="cover-prev" class="hidden" alt="" /><span class="fi" id="cover-icon">▣</span><span><b>Capa</b><small id="cover-name">JPG, PNG, WEBP…</small></span></button>
+            <button class="file-btn" id="pick-bg"><span class="fi">▶</span><span><b>Fundo em vídeo</b><small id="bg-name">Opcional (loop, clipe)</small></span></button>
+          </div>
+          <div class="form">
+            <label>Nome do beat<input id="f-nome" placeholder="Ex.: Noite em Niterói" /></label>
+            <label><span class="lbl">Artista de referência <span class="hint">(para o “type beat”)</span></span><input id="f-artista" placeholder="Ex.: Veigh, MC Cabelinho…" /></label>
+            <label>Gênero<select id="f-genero"></select></label>
+            <div class="row">
+              <label>BPM<input id="f-bpm" type="number" min="40" max="250" placeholder="auto" /></label>
+              <button id="btn-detect" class="ghost small" title="Descobre o BPM pelo áudio">Detectar</button>
+              <label>Tom<input id="f-tom" placeholder="Ex.: Cm" /></label>
+            </div>
+            <label>Animação da capa
+              <select id="f-motion">
+                <option value="auto">Automática (pulsa na batida)</option>
+                <option value="breath">Respirar (zoom suave)</option>
+                <option value="drift">Deriva (movimento lento)</option>
+                <option value="none">Parada</option>
+              </select>
+            </label>
+            <div class="row checks">
+              <label class="check"><input type="checkbox" id="f-yt" checked />YouTube</label>
+              <label class="check"><input type="checkbox" id="f-ig" checked />Instagram (Reels)</label>
+            </div>
+            <label>Quando lançar
+              <select id="f-when-mode">
+                <option value="next">No próximo horário livre</option>
+                <option value="later">Só gerar (escolho depois)</option>
+                <option value="now">Assim que ficar pronto</option>
+                <option value="custom">Escolher data e hora</option>
+              </select>
+            </label>
+            <input id="f-when" type="datetime-local" class="hidden" />
+            <button id="btn-add" class="primary big">Adicionar à fila</button>
+          </div>
+        </div>
+
+        <div class="card preview">
+          <h3>Prévia dos textos</h3>
+          <p class="label">Título do YouTube</p>
+          <div id="pv-title" class="pv mono"></div>
+          <p class="label">Legenda do Instagram</p>
+          <div id="pv-caption" class="pv"></div>
+          <p class="muted small">Dá para editar tudo depois, na Fila. Os modelos ficam em Configurações → Textos.</p>
+          <div id="next-slots" class="next-slots"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FILA -->
+    <section id="page-fila" class="page hidden">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Passo 2</p>
+          <h1>Fila de lançamentos</h1>
+          <p class="muted">Cada beat vira 2 vídeos diferentes. O YouTube é enviado já agendado; o Reels sai na hora marcada (deixe o app aberto ou na bandeja).</p>
+        </div>
+        <div class="head-actions">
+          <button id="btn-clear-times" class="ghost">Limpar horários</button>
+          <button id="btn-distribute" class="primary">Distribuir nos horários</button>
+        </div>
+      </header>
+      <div id="queue" class="queue"></div>
+      <div id="queue-empty" class="empty hidden">
+        <div class="drop-icon">♪</div>
+        <b>Nenhum beat na fila ainda.</b>
+        <span class="muted">Vá em “Novo lançamento” ou jogue os arquivos na pasta de entrada.</span>
+      </div>
+    </section>
+
+    <!-- LOOP -->
+    <section id="page-loop" class="page hidden">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Ferramenta</p>
+          <h1>Loop animado da capa</h1>
+          <p class="muted">Transforma uma foto ou capa num clipe curto que emenda sem pulo, para Stories, fundo de Reels, Spotify Canvas ou post.</p>
+        </div>
+      </header>
+      <div class="grid-2">
+        <div class="card form">
+          <button class="file-btn cover" id="loop-pick"><img id="loop-prev" class="hidden" alt="" /><span class="fi" id="loop-icon">▣</span><span><b>Foto ou capa</b><small id="loop-name">JPG, PNG, WEBP…</small></span></button>
+          <label>Formato
+            <select id="loop-format">
+              <option value="9:16">9:16 (Stories, Reels, Canvas)</option>
+              <option value="1:1">1:1 (post quadrado)</option>
+              <option value="4:5">4:5 (post vertical)</option>
+              <option value="16:9">16:9 (YouTube)</option>
+            </select>
+          </label>
+          <label>Movimento
+            <select id="loop-style">
+              <option value="breath">Respirar (zoom suave)</option>
+              <option value="pulse">Pulso na batida</option>
+              <option value="drift">Deriva (câmera passeando)</option>
+            </select>
+          </label>
+          <div class="row">
+            <label>Duração
+              <select id="loop-seconds"><option>5</option><option selected>8</option><option>10</option><option>15</option></select>
+            </label>
+            <label id="loop-bpm-wrap" class="hidden">BPM<input id="loop-bpm" type="number" value="140" /></label>
+          </div>
+          <div class="row checks">
+            <label class="check"><input type="checkbox" id="loop-grain" />Granulado de filme</label>
+            <label class="check"><input type="checkbox" id="loop-brand" checked />Marca ISLAND27</label>
+          </div>
+          <button id="loop-go" class="primary big">Gerar loop</button>
+          <div id="loop-progress" class="progress hidden"><div></div></div>
+        </div>
+        <div class="card loop-out">
+          <video id="loop-video" class="hidden" autoplay loop muted playsinline></video>
+          <div id="loop-empty" class="empty small-empty"><span class="muted">O loop aparece aqui.</span></div>
+          <div class="row hidden" id="loop-actions"><button id="loop-show" class="ghost">Mostrar na pasta</button></div>
+          <div class="tips">
+            <b>Onde conseguir clipes animados (sem problema de direitos)</b>
+            <ul>
+              <li><b>Pexels</b> e <b>Pixabay</b> (vídeos): grátis, inclusive para uso comercial.</li>
+              <li><b>Mixkit</b> e <b>Coverr</b>: clipes curtos grátis, bons para fundo.</li>
+              <li><b>IA (foto → vídeo):</b> Runway, Kling, Luma ou Pika animam a sua capa com movimento “de verdade”.</li>
+              <li><b>CapCut:</b> efeitos de “foto animada” e 3D zoom.</li>
+              <li>Evite trechos de filme, anime e clipe de outros artistas: o YouTube e o Instagram derrubam ou bloqueiam.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section id="page-config" class="page hidden">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Ajustes</p>
+          <h1>Configurações</h1>
+        </div>
+      </header>
+
+      <div class="grid-2">
+        <div class="card form">
+          <h3>Links (vão na descrição e na legenda)</h3>
+          <label>Loja de beats (BeatStars, site…)<input id="s-loja" placeholder="https://…" /></label>
+          <label>WhatsApp para compra no Pix<input id="s-whatsapp" placeholder="https://wa.me/55…" /></label>
+          <label>Download grátis (uso não comercial)<input id="s-download" placeholder="https://…" /></label>
+          <label>Instagram<input id="s-instagram" placeholder="@island27" /></label>
+          <h3>Horários</h3>
+          <label><span class="lbl">Horários do dia <span class="hint">(separados por vírgula)</span></span><input id="s-slots" placeholder="12:00, 18:00, 21:00" /></label>
+          <div class="days" id="s-days"></div>
+          <div class="row">
+            <label>Folga mínima (min)<input id="s-lead" type="number" min="0" /></label>
+            <label>Duração do Reels (s)<input id="s-reel" type="number" min="10" max="90" /></label>
+          </div>
+          <h3>Pastas</h3>
+          <label><span class="lbl">Pasta de entrada <span class="hint">(jogue beat + capa aqui e o app importa sozinho)</span></span></label>
+          <div class="row"><input id="s-inbox" readonly placeholder="Não definida" /><button id="s-inbox-pick" class="ghost small">Escolher</button></div>
+          <label>Pasta dos vídeos prontos</label>
+          <div class="row"><input id="s-out" readonly /><button id="s-out-pick" class="ghost small">Escolher</button><button id="s-out-open" class="ghost small">Abrir</button></div>
+          <label class="switch inline"><input type="checkbox" id="s-background" /><span></span>Continuar rodando na bandeja ao fechar a janela</label>
+          <button id="s-save" class="primary">Salvar</button>
+        </div>
+
+        <div class="col">
+          <div class="card form">
+            <h3><span class="dot" id="yt-dot"></span>YouTube</h3>
+            <p class="muted small" id="yt-status">Não conectado.</p>
+            <label>Client ID<input id="yt-id" placeholder="…apps.googleusercontent.com" /></label>
+            <label>Client Secret<input id="yt-secret" type="password" placeholder="(guardado)" /></label>
+            <div class="row"><button id="yt-connect" class="primary">Conectar YouTube</button><button id="yt-disconnect" class="ghost">Desconectar</button></div>
+            <details>
+              <summary>Como conseguir o Client ID (uma vez só, ~10 min)</summary>
+              <ol>
+                <li>Entre em <a href="https://console.cloud.google.com/" data-ext>console.cloud.google.com</a> e crie um projeto (ex.: “ISLAND27 Launcher”).</li>
+                <li>Em <b>APIs e serviços → Biblioteca</b>, ative a <b>YouTube Data API v3</b>.</li>
+                <li>Em <b>Tela de consentimento OAuth</b>: tipo <b>Externo</b>, preencha nome e e-mail e adicione o seu e-mail como usuário de teste.</li>
+                <li>Em <b>Credenciais → Criar credenciais → ID do cliente OAuth</b>, escolha <b>App para computador</b>. Copie o Client ID e o Secret para cá.</li>
+                <li>Clique em <b>Conectar YouTube</b> e autorize no navegador com a conta do canal.</li>
+              </ol>
+              <p class="warn">⚠ Enquanto o projeto estiver em “Teste”, o Google pede para reconectar a cada 7 dias. Para não expirar, clique em <b>Publicar app</b> na tela de consentimento (aparece um aviso de “app não verificado”, é só continuar).</p>
+              <p class="warn">⚠ Projetos novos enviam vídeos como <b>privados</b> até passar pela auditoria gratuita do YouTube (formulário “YouTube API Services - Audit and Quota Extension”). Enquanto isso, o vídeo sobe e você só muda para público no YouTube Studio.</p>
+            </details>
+          </div>
+
+          <div class="card form">
+            <h3><span class="dot" id="ig-dot"></span>Instagram</h3>
+            <p class="muted small" id="ig-status">Não conectado.</p>
+            <label>Tipo de login
+              <select id="ig-login">
+                <option value="instagram">Login do Instagram (mais simples)</option>
+                <option value="facebook">Login do Facebook (conta ligada a uma Página)</option>
+              </select>
+            </label>
+            <label>ID da conta do Instagram<input id="ig-user" placeholder="Ex.: 17841400000000000" /></label>
+            <label>Token de acesso<input id="ig-token" type="password" placeholder="(guardado)" /></label>
+            <div class="row"><button id="ig-save" class="primary">Salvar e testar</button><button id="ig-disconnect" class="ghost">Desconectar</button></div>
+            <details>
+              <summary>Como conseguir o token (uma vez só)</summary>
+              <ol>
+                <li>Passe o Instagram para conta <b>Profissional</b> (Criador ou Empresa) no app do Instagram.</li>
+                <li>Em <a href="https://developers.facebook.com/apps" data-ext>developers.facebook.com/apps</a>, crie um app do tipo <b>Empresa</b> e adicione o produto <b>Instagram</b> → <b>API com login do Instagram</b>.</li>
+                <li>Em <b>Gerar tokens de acesso</b>, adicione a sua conta, autorize e copie o <b>token</b> e o <b>ID</b> que aparecem.</li>
+                <li>Cole aqui e clique em <b>Salvar e testar</b>. O app renova o token sozinho antes de vencer (60 dias).</li>
+              </ol>
+              <p class="warn">⚠ O Instagram não aceita agendamento pela API: o Reels sai quando o app está aberto (ou na bandeja) na hora marcada. Se o PC estiver desligado, ele publica assim que você abrir.</p>
+            </details>
+          </div>
+
+          <div class="card form">
+            <h3>Textos automáticos</h3>
+            <p class="muted small">Use {nome}, {artista}, {genero}, {bpm}, {tom}, {ano}, {loja}, {whatsapp}, {download}, {instagram}, {gancho}, {hashtags_yt}, {hashtags_ig}. “{artista|genero}” usa o primeiro preenchido. Linhas com campo vazio somem sozinhas.</p>
+            <label>Título do YouTube<input id="t-ytTitle" class="mono" /></label>
+            <label>Descrição do YouTube<textarea id="t-ytDescription" rows="10" class="mono"></textarea></label>
+            <label>Legenda do Instagram<textarea id="t-igCaption" rows="8" class="mono"></textarea></label>
+            <label>Chamada no vídeo do Reels<input id="t-cta" /></label>
+            <div class="row"><button id="t-save" class="primary">Salvar textos</button><button id="t-reset" class="ghost">Voltar ao padrão</button></div>
+          </div>
+
+          <div class="card">
+            <h3>Registro</h3>
+            <pre id="log" class="log"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- detalhe do beat -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="close" id="m-close">×</button>
+      <div class="m-head">
+        <img id="m-cover" alt="" />
+        <div>
+          <p class="eyebrow" id="m-sub"></p>
+          <h2 id="m-title"></h2>
+          <div class="m-badges" id="m-badges"></div>
+        </div>
+      </div>
+      <div class="m-grid">
+        <div class="m-videos">
+          <div><p class="label">YouTube (beat completo)</p><video id="m-yt" controls preload="metadata"></video></div>
+          <div class="reels-wrap"><p class="label">Reels (o drop)</p><video id="m-reels" controls preload="metadata"></video></div>
+          <div><p class="label">Miniatura</p><img id="m-thumb" alt="" /></div>
+          <div id="m-norender" class="empty small-empty hidden"><span class="muted">Os vídeos aparecem aqui quando ficarem prontos.</span></div>
+        </div>
+        <div class="form">
+          <div class="row">
+            <label>Nome<input id="m-nome" /></label>
+            <label>Artista ref.<input id="m-artista" /></label>
+          </div>
+          <div class="row">
+            <label>Gênero<select id="m-genero"></select></label>
+            <label>BPM<input id="m-bpm" type="number" /></label>
+            <label>Tom<input id="m-tom" /></label>
+          </div>
+          <div class="row">
+            <label>Horário<input id="m-when" type="datetime-local" /></label>
+            <label class="check"><input type="checkbox" id="m-pyt" />YouTube</label>
+            <label class="check"><input type="checkbox" id="m-pig" />Instagram</label>
+          </div>
+          <label><span class="lbl">Título do YouTube <button class="link" data-copy="m-ytTitle">copiar</button></span><input id="m-ytTitle" class="mono" /></label>
+          <label><span class="lbl">Descrição <button class="link" data-copy="m-ytDescription">copiar</button></span><textarea id="m-ytDescription" rows="7" class="mono"></textarea></label>
+          <label><span class="lbl">Tags <button class="link" data-copy="m-ytTags">copiar</button></span><input id="m-ytTags" class="mono" /></label>
+          <label><span class="lbl">Legenda do Instagram <button class="link" data-copy="m-igCaption">copiar</button></span><textarea id="m-igCaption" rows="7" class="mono"></textarea></label>
+          <div class="row wrap">
+            <button id="m-save" class="primary">Salvar</button>
+            <button id="m-regen" class="ghost">Refazer textos</button>
+            <button id="m-rerender" class="ghost">Gerar vídeos de novo</button>
+            <button id="m-folder" class="ghost">Abrir pasta</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

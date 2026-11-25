@@ -1,0 +1,80 @@
+name: ISLAND27 Beat Launcher - instaladores
+
+# Gera o executável do Beat Launcher para Windows, macOS e Linux.
+# - Manualmente: aba Actions > "ISLAND27 Beat Launcher - instaladores" > Run workflow (baixe em "Artifacts").
+# - Publicação: crie uma tag "launcher-v1.0.0" e os instaladores vão para a página de Releases.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['launcher-v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            args: --win --x64
+          - name: macos-apple-silicon
+            os: macos-14
+            args: --mac --arm64
+          - name: macos-intel
+            os: macos-14
+            args: --mac --x64
+            arch: x64
+          - name: linux
+            os: ubuntu-latest
+            args: --linux --x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: beat-launcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: beat-launcher/package-lock.json
+      - name: Instalar dependências
+        timeout-minutes: 10
+        run: npm ci
+        env:
+          # Baixa o FFmpeg e o resvg da arquitetura certa (ex.: Intel num Mac Apple Silicon).
+          npm_config_arch: ${{ matrix.arch }}
+      - name: Testes
+        if: matrix.name != 'macos-intel'
+        timeout-minutes: 15
+        run: npm test
+      - name: Gerar instalador
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ISLAND27-Beat-Launcher-${{ matrix.name }}
+          path: |
+            beat-launcher/dist/*.exe
+            beat-launcher/dist/*.dmg
+            beat-launcher/dist/*.AppImage
+            beat-launcher/dist/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: always() && startsWith(github.ref, 'refs/tags/launcher-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: instaladores
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ISLAND27 Beat Launcher ${{ github.ref_name }}
+          files: instaladores/*

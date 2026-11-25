@@ -1,0 +1,81 @@
+# ISLAND27 Beat Launcher
+
+Você manda o **beat**, a **capa** e o **nome**. O Launcher faz o resto:
+
+| O que ele gera | Como fica |
+|---|---|
+| **Vídeo do YouTube** | 1920x1080, beat completo, capa animada no ritmo, nome, “type beat”, BPM/tom, forma de onda e barra de progresso |
+| **Reels do Instagram** | 1080x1920, só o **drop** (ele acha sozinho a parte mais forte), frase de gancho no topo, capa pulsando na batida e “COMENTA "BEAT"” |
+| **Miniatura** | 1280x720 com “GRÁTIS”, nome grande e capa |
+| **Textos** | Título no padrão “type beat” (até 100 caracteres), descrição com links de compra, tags (até 500 caracteres) e legenda com até 5 hashtags |
+| **Loop da capa** | Clipe de 5 a 15 s que emenda sem pulo (respirar, pulso na batida ou deriva) em 9:16, 1:1, 4:5 ou 16:9 |
+
+Tudo nas cores e fontes do site da ISLAND27 (azul `#7FE3FF` / `#2AA9E0` sobre preto, Space Grotesk + IBM Plex Sans).
+
+## Como funciona o lançamento automático
+
+1. **Entrada:** arraste os arquivos na tela ou jogue na **pasta de entrada**. Beat e capa com o mesmo nome viram um lançamento (`Noite.mp3` + `Noite.jpg`). Um `Noite.txt` opcional com `artista: Veigh`, `genero: Trap`, `bpm: 140` e `tom: Cm` preenche o resto. Um vídeo com o mesmo nome (`Noite.mp4`) vira o fundo.
+2. **Geração:** o app analisa o beat (BPM e drop) e gera os vídeos, a miniatura e os textos.
+3. **Horários:** cada beat ganha o próximo horário livre (padrão 12:00, 18:00 e 21:00, um beat por horário). Com o **Piloto automático** ligado, isso acontece sozinho.
+4. **YouTube:** o vídeo sobe na hora, já **agendado** no próprio YouTube (sai no horário mesmo com o PC desligado).
+5. **Instagram:** o Reels é publicado quando chega o horário. A API do Instagram não aceita agendamento, então o app precisa estar aberto ou na bandeja (ele fica lá quando você fecha a janela).
+
+O **Modo teste** vem ligado: faz tudo, menos publicar de verdade. Desligue quando conectar as contas.
+
+## Conectar as contas (uma vez só)
+
+**YouTube:** crie um projeto em console.cloud.google.com, ative a *YouTube Data API v3*, configure a tela de consentimento (tipo Externo) e crie um *ID do cliente OAuth* do tipo **App para computador**. Cole o Client ID e o Secret no app e clique em *Conectar*. O passo a passo também está dentro do app, em Configurações.
+
+- Enquanto o projeto do Google estiver em “Teste”, a conexão vence a cada 7 dias. Clique em *Publicar app* na tela de consentimento para não vencer.
+- Projetos novos sobem vídeos como **privados** até passar pela auditoria gratuita do YouTube. Até lá, o vídeo sobe com tudo pronto e você só muda para público no YouTube Studio.
+
+**Instagram:** conta **Profissional** (Criador ou Empresa) + um app em developers.facebook.com com *Instagram → API com login do Instagram*. Gere o token, cole com o ID da conta e clique em *Salvar e testar*. O app renova o token sozinho antes de vencer.
+
+## Rodar sem janela (linha de comando)
+
+```bash
+cd beat-launcher
+npm install
+
+# um beat
+node src/cli.js gerar --beat noite.mp3 --capa noite.jpg --nome "Noite" --artista Veigh --genero Trap --tom Cm
+
+# uma pasta inteira (pares com o mesmo nome)
+node src/cli.js pasta ./meus-beats --saida ./prontos
+
+# loop da capa
+node src/cli.js loop --imagem capa.jpg --formato 9:16 --segundos 8 --estilo pulso --bpm 140
+```
+
+Os vídeos e um `textos.txt` (título, descrição, tags e legenda) vão para a pasta de saída.
+
+## Desenvolvimento
+
+Requer Node.js 20 ou mais recente.
+
+```bash
+npm install
+npm start      # abre o app
+npm test       # testes (FFmpeg de verdade + servidores falsos do YouTube e do Instagram)
+npm run dist   # gera o instalador do sistema atual em dist/
+```
+
+Para gerar os executáveis de Windows, macOS e Linux de uma vez, rode o workflow **ISLAND27 Beat Launcher - instaladores** na aba *Actions* do GitHub (ou crie uma tag `launcher-v1.0.0`).
+
+### Estrutura
+
+```
+src/shared/texts.js      títulos, descrições, tags, legendas e hashtags
+src/shared/schedule.js   distribuição nos horários do dia
+src/main/ffmpeg.js       análise do beat (BPM, batida, drop) e montagem dos vídeos (mesma base do ISLAND27 Editor)
+src/main/design.js       artes em SVG -> PNG (resvg) com as fontes e cores da ISLAND27
+src/main/pipeline.js     do beat aos arquivos prontos; loop da capa
+src/main/engine.js       fila, pasta de entrada, piloto automático e publicação
+src/main/youtube.js      login OAuth, envio retomável com agendamento e miniatura
+src/main/instagram.js    publicação de Reels com upload direto do computador
+src/main/main.js         app Electron: janela, bandeja, notificações
+src/renderer/            interface
+src/cli.js               linha de comando
+```
+
+Fontes: Space Grotesk e IBM Plex Sans, licença SIL Open Font License (arquivos em `assets/fonts`).
