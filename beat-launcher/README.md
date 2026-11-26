@@ -34,6 +34,22 @@ node src/cli.js semana --inicio 2026-11-27 --numero 0 --artista foto.jpg --ilha 
 
 `--numero 0` é a semana de lançamento do perfil; 1, 2, 3… são semanas normais (dicas em rodízio).
 
+## IA (modo teste)
+
+Em **Configurações → IA**, conecte a sua API: **DeepSeek** (padrão: `https://api.deepseek.com`, modelo `deepseek-v4-flash`) ou qualquer API compatível com o formato OpenAI (`/chat/completions`). Ela começa **desligada**.
+
+Ligada, a IA:
+- sugere **título, descrição, legenda e frase do Reels** de cada beat (no detalhe do beat: "Pedir sugestão à IA" → "Usar a sugestão");
+- **reescreve legendas** dos posts (aba Marketing → "✦ Reescrever com IA");
+- dá **ideias de conteúdo** (aba Marketing → "Pedir 5 ideias").
+
+As sugestões só entram quando você aprova, a não ser que ligue "aplicar sozinho". O app confere os limites de qualquer jeito: título com até 100 caracteres, links da descrição preservados e no máximo 5 hashtags. A chave fica criptografada no computador.
+
+## Visual dos vídeos e miniaturas
+
+- **Visualizador:** "Onda" (forma de onda) ou "Barras" (espectro de frequências), em Configurações → Vídeos.
+- **Miniatura B:** versão minimalista (capa grande e até 3 palavras), gerada junto da principal, para usar no **"Testar e comparar"** do YouTube Studio.
+
 ## Como funciona o lançamento automático
 
 1. **Entrada:** arraste os arquivos na tela ou jogue na **pasta de entrada**. Beat e capa com o mesmo nome viram um lançamento (`Noite.mp3` + `Noite.jpg`). Um `Noite.txt` opcional com `artista: Veigh`, `genero: Trap`, `bpm: 140` e `tom: Cm` preenche o resto. Um vídeo com o mesmo nome (`Noite.mp4`) vira o fundo.
@@ -97,6 +113,7 @@ src/main/youtube.js      login OAuth, envio retomável com agendamento e miniatu
 src/main/instagram.js    publicação de Reels e Stories em vídeo com upload direto do computador
 src/main/posts.js        modelos de post (feed 4:5, stories 9:16, Destaques) e carrossel em vídeo
 src/main/marketing.js    gera a semana/vitrine em pastas + CALENDARIO.md
+src/main/ai.js           IA em modo teste (DeepSeek/OpenAI): sugestões, legendas e ideias
 src/shared/plan.js       plano de conteúdo: semana de lançamento, semanas normais, Destaques e textos da marca
 src/main/main.js         app Electron: janela, bandeja, notificações
 src/renderer/            interface
