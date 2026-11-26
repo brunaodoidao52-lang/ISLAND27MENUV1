@@ -280,4 +280,8 @@ function loopLayer(format, coverPng, { brand = true } = {}) {
   return render(svg);
 }
 
-module.exports = { C, YT, REELS, LOOP_FORMATS, youtubeLayer, reelsLayer, thumbnail, loopLayer, loopGeometry, fitText, measure, render };
+module.exports = {
+  C, YT, REELS, LOOP_FORMATS, HEAD, BODY, FONTS,
+  youtubeLayer, reelsLayer, thumbnail, loopLayer, loopGeometry,
+  fitText, measure, render, textBlock, chip, chipsRow, imageHref, esc, defs, background, coverHalo, coverBorder,
+};

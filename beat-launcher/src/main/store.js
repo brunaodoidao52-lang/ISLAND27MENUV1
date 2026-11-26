@@ -10,7 +10,7 @@ const SECRET_PATHS = [
 
 function defaultSettings() {
   return {
-    links: { loja: '', whatsapp: '', download: '', instagram: '' },
+    links: { loja: 'https://www.soundx.com.br/u/island27_beats', whatsapp: '', download: '', instagram: '@__island27' },
     templates: {},
     slots: ['12:00', '18:00', '21:00'],
     days: [0, 1, 2, 3, 4, 5, 6],
@@ -23,6 +23,7 @@ function defaultSettings() {
     outDir: '',
     platforms: { youtube: true, instagram: true },
     youtube: { clientId: '', clientSecret: '', tokens: null, channel: null },
+    marketing: { handle: '@__island27', autoPublish: true, times: { feed: '12:00', reels: '18:30', story: '20:00' }, photos: {}, licencas: null },
     instagram: { login: 'instagram', userId: '', token: '', username: '', version: 'v23.0', tokenSavedAt: 0 },
   };
 }
@@ -36,7 +37,7 @@ function merge(base, extra) {
 }
 
 function createStore(file, { encrypt, decrypt } = {}) {
-  let data = { items: [], settings: defaultSettings() };
+  let data = { items: [], posts: [], settings: defaultSettings() };
   if (fs.existsSync(file)) {
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -50,7 +51,7 @@ function createStore(file, { encrypt, decrypt } = {}) {
           }
         }
       }
-      data = { items: raw.items || [], settings: merge(defaultSettings(), raw.settings) };
+      data = { items: raw.items || [], posts: raw.posts || [], settings: merge(defaultSettings(), raw.settings) };
     } catch {
       // arquivo corrompido: guarda uma cópia e começa do zero
       fs.copyFileSync(file, `${file}.corrompido-${Date.now()}`);
@@ -83,6 +84,26 @@ function createStore(file, { encrypt, decrypt } = {}) {
     },
     get settings() {
       return data.settings;
+    },
+    get posts() {
+      return data.posts;
+    },
+    post: (id) => data.posts.find((p) => p.id === id),
+    addPosts(list) {
+      const ids = new Set(list.map((p) => p.id));
+      data.posts = [...data.posts.filter((p) => !ids.has(p.id)), ...list].sort((a, b) => new Date(a.date) - new Date(b.date));
+      save();
+    },
+    updatePost(id, patch) {
+      const p = data.posts.find((x) => x.id === id);
+      if (!p) return null;
+      Object.assign(p, patch);
+      save();
+      return p;
+    },
+    removePost(id) {
+      data.posts = data.posts.filter((p) => p.id !== id);
+      save();
     },
     setSettings(patch) {
       data.settings = merge(data.settings, patch);

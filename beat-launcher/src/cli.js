@@ -111,6 +111,54 @@ async function main() {
       fs.rmSync(workDir, { recursive: true, force: true });
     }
     console.log(`\n✔ ${out}`);
+  } else if (cmd === 'semana') {
+    // node src/cli.js semana --inicio 2026-11-27 [--numero 0] --artista foto.jpg --ilha foto.jpg --banner banner.png [--saida pasta]
+    const { buildWeek } = require('./shared/plan');
+    const { renderWeek } = require('./main/marketing');
+    const inicio = args.inicio ? new Date(`${args.inicio}T00:00:00`) : new Date(Date.now() + 86400000);
+    const photos = {};
+    for (const k of ['artista', 'artista2', 'ilha', 'banner', 'flyer']) if (args[k]) photos[k] = path.resolve(args[k]);
+    const marketing = { ...(settings.marketing || {}), photos: { ...((settings.marketing || {}).photos || {}), ...photos } };
+    if (args.handle) marketing.handle = args.handle;
+    const posts = buildWeek(inicio, { ...settings, marketing }, [], Number(args.numero) || 0);
+    const outDir = path.resolve(args.saida || path.join(process.cwd(), `marketing-${inicio.toISOString().slice(0, 10)}`));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'island27-'));
+    try {
+      const r = await renderWeek(posts, {
+        outDir, workDir, brand: { handle: marketing.handle || '@__island27' },
+        title: `ISLAND27 · Semana de ${inicio.toLocaleDateString('pt-BR')}`,
+        onProgress: (p, i, n) => console.log(`[${i + 1}/${n}] ${p.titulo}`),
+      });
+      console.log(`\n✔ ${r.length} posts em ${outDir} (veja o CALENDARIO.md)`);
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  } else if (cmd === 'vitrine') {
+    // Destaques do perfil (Beats, Serviços, Cursos, Sobre, Contato) + carrossel fixado de serviços.
+    // node src/cli.js vitrine --artista foto.jpg --artista2 foto.jpg --ilha foto.jpg --banner banner.png [--saida pasta]
+    const { highlights, servicesCarousel } = require('./shared/plan');
+    const { renderOne } = require('./main/marketing');
+    const photos = {};
+    for (const k of ['artista', 'artista2', 'ilha', 'banner', 'flyer']) if (args[k]) photos[k] = path.resolve(args[k]);
+    const st = { ...settings, marketing: { ...(settings.marketing || {}), photos: { ...((settings.marketing || {}).photos || {}), ...photos } } };
+    const brand = { handle: (st.marketing && st.marketing.handle) || '@__island27' };
+    const outDir = path.resolve(args.saida || path.join(process.cwd(), 'vitrine'));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'island27-'));
+    const list = [servicesCarousel(st), ...highlights(st)];
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const post = { ...list[i], date: new Date().toISOString() };
+        const dir = path.join(outDir, `${String(i + 1).padStart(2, '0')}-${post.titulo.replace(/^[^:]+:\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-').toLowerCase().slice(0, 40)}`);
+        const { renderPost } = require('./main/posts');
+        fs.mkdirSync(dir, { recursive: true });
+        await renderPost(post, { outDir: dir, workDir, brand });
+        if (post.notes) fs.writeFileSync(path.join(dir, 'como-postar.txt'), post.notes);
+        console.log(`[${i + 1}/${list.length}] ${post.titulo}`);
+      }
+      console.log(`\n✔ Vitrine em ${outDir}`);
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
   } else if (cmd === 'textos') {
     const t = texts.generate(meta, settings);
     console.log(`${t.ytTitle}\n\n${t.ytDescription}\n\nTags: ${t.ytTags.join(', ')}\n\n---\n${t.igCaption}`);

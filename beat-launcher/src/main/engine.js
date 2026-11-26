@@ -7,6 +7,8 @@ const ff = require('./ffmpeg');
 const { renderBeat, safeName } = require('./pipeline');
 const texts = require('../shared/texts');
 const schedule = require('../shared/schedule');
+const plan = require('../shared/plan');
+const marketing = require('./marketing');
 
 const META_FIELDS = ['nome', 'artista', 'genero', 'bpm', 'tom'];
 const VISUAL_FIELDS = ['nome', 'artista', 'genero', 'bpm', 'tom', 'coverPath', 'bgPath', 'motion', 'audioPath'];
@@ -30,12 +32,11 @@ function simulated(kind) {
       },
     };
   }
-  return {
-    async publishReel(_file, _caption, { onProgress } = {}) {
-      await fake(onProgress);
-      return { id: `TESTE-${newId()}`, permalink: '(modo teste)', simulated: true };
-    },
+  const publishVideo = async (_file, _caption, { onProgress } = {}) => {
+    await fake(onProgress);
+    return { id: `TESTE-${newId()}`, permalink: '(modo teste)', simulated: true };
   };
+  return { publishReel: publishVideo, publishVideo };
 }
 
 /** Junta beats e capas pelo nome do arquivo ("Noite.mp3" + "Noite.jpg"). Um .txt com o mesmo nome traz artista/gênero/bpm/tom. */
@@ -80,7 +81,7 @@ class Engine extends EventEmitter {
     this.now = now;
     this.log = log;
     this.rendering = null;
-    this.busy = { youtube: false, instagram: false };
+    this.busy = { youtube: false, instagram: false, marketing: false };
     this.timers = [];
   }
 
@@ -99,6 +100,11 @@ class Engine extends EventEmitter {
       if (it.yt && it.yt.status === 'enviando') this.store.update(it.id, { yt: { status: 'pendente', progress: 0 } });
       if (it.ig && it.ig.status === 'enviando') this.store.update(it.id, { ig: { status: 'pendente', progress: 0 } });
     }
+    for (const p of this.store.posts) {
+      if (p.status === 'gerando') this.store.updatePost(p.id, { status: 'planejado' });
+      if (p.status === 'enviando') this.store.updatePost(p.id, { status: 'pronto' });
+    }
+    this.kickPosts();
     this.timers.push(setInterval(() => this.tick(), tickMs));
     this.timers.push(setInterval(() => this.scanInbox().catch((e) => this.log(`Pasta de entrada: ${e.message}`)), inboxMs));
     this.kick();
@@ -315,6 +321,7 @@ class Engine extends EventEmitter {
       // Instagram: a API não agenda; publica quando chega a hora (o app precisa estar aberto).
       if (it.ig.status === 'pendente' && when <= now && !this.busy.instagram) this.sendInstagram(it);
     }
+    this.tickPosts();
     this.changed();
   }
 
@@ -380,6 +387,140 @@ class Engine extends EventEmitter {
       this.busy.instagram = false;
       this.changed();
       setImmediate(() => this.tick());
+    }
+  }
+
+  // ---------- marketing (posts do Instagram) ----------
+
+  /** Beats ainda não lançados, na ordem dos horários (usados no plano da semana). */
+  upcomingBeats() {
+    return this.store.items
+      .filter((i) => i.ig.status !== 'publicado' || i.yt.status !== 'publicado')
+      .sort((a, b) => (a.when ? new Date(a.when) : Infinity) - (b.when ? new Date(b.when) : Infinity));
+  }
+
+  marketingDir(post) {
+    return path.join(this.dirs.outDir(), 'Marketing', post.id.slice(0, 10));
+  }
+
+  /** Monta a semana (weekIndex 0 = semana de lançamento do perfil) e gera as artes. */
+  planWeek(start, weekIndex = 0) {
+    const posts = plan.buildWeek(start, this.settings, this.upcomingBeats(), weekIndex);
+    for (const p of posts) {
+      p.status = 'planejado';
+      if (p.kind === 'reels-beat' || p.kind === 'reels-gravar') p.status = p.kind === 'reels-beat' ? 'automatico' : 'pronto';
+    }
+    this.store.addPosts(posts);
+    this.log(`Semana planejada: ${posts.length} posts a partir de ${new Date(start).toLocaleDateString('pt-BR')}.`);
+    this.changed();
+    this.kickPosts();
+    return posts;
+  }
+
+  updatePost(id, patch) {
+    const p = this.store.post(id);
+    if (!p) throw new Error('Post não encontrado.');
+    const next = { ...patch };
+    if (next.date) next.date = new Date(next.date).toISOString();
+    if (next.caption !== undefined && p.files && p.files.dir) fs.writeFileSync(path.join(p.files.dir, 'legenda.txt'), next.caption);
+    if (next.slides) next.status = 'planejado';
+    if (next.date && ['hora-de-postar', 'erro'].includes(p.status) && new Date(next.date) > this.now()) next.status = p.files ? 'pronto' : 'planejado';
+    this.store.updatePost(id, next);
+    this.changed();
+    this.kickPosts();
+    return this.store.post(id);
+  }
+
+  removePost(id) {
+    this.store.removePost(id);
+    this.changed();
+  }
+
+  markPosted(id) {
+    this.store.updatePost(id, { status: 'postado', postedAt: this.now().toISOString() });
+    this.changed();
+  }
+
+  rerenderPost(id) {
+    this.store.updatePost(id, { status: 'planejado', error: null });
+    this.changed();
+    this.kickPosts();
+  }
+
+  /** Gera as artes dos posts planejados, um de cada vez. */
+  kickPosts() {
+    if (this.busy.marketing) return;
+    const all = this.store.posts;
+    const p = all.find((x) => x.status === 'planejado');
+    if (!p) return;
+    this.busy.marketing = true;
+    this.store.updatePost(p.id, { status: 'gerando' });
+    this.changed();
+    const sameWeek = all.filter((x) => x.id.slice(0, 10) === p.id.slice(0, 10));
+    const index = sameWeek.indexOf(p);
+    // o Reels de carrossel usa o primeiro beat da fila como trilha, se houver
+    if (p.kind === 'reels-carrossel' && !p.audio) {
+      const b = this.upcomingBeats().find((i) => i.audioPath && fs.existsSync(i.audioPath));
+      if (b) Object.assign(p, { audio: b.audioPath, audioStart: b.analysis ? b.analysis.dropStart : 0 });
+    }
+    marketing
+      .renderOne(p, index, { outDir: this.marketingDir(p), workDir: this.dirs.workDir, brand: { handle: this.settings.marketing.handle } })
+      .then((files) => {
+        if (this.store.post(p.id)) this.store.updatePost(p.id, { status: 'pronto', files, error: null });
+      })
+      .catch((e) => {
+        if (this.store.post(p.id)) this.store.updatePost(p.id, { status: 'erro', error: e.message });
+        this.log(`Erro ao gerar o post “${p.titulo}”: ${e.message}`);
+      })
+      .finally(() => {
+        this.busy.marketing = false;
+        this.changed();
+        setImmediate(() => {
+          this.kickPosts();
+          this.tickPosts();
+        });
+      });
+  }
+
+  /**
+   * Na hora de cada post: Reels de carrossel sai sozinho pela API; carrossel, story (precisa de sticker)
+   * e Reels gravado viram "hora de postar" (o app avisa e deixa tudo pronto para copiar).
+   */
+  tickPosts() {
+    const now = this.now().getTime();
+    for (const p of this.store.posts) {
+      if (p.status !== 'pronto' || new Date(p.date).getTime() > now) continue;
+      const auto = p.kind === 'reels-carrossel' && p.files && p.files.video && this.settings.marketing.autoPublish !== false;
+      const pub = auto ? this.publisher('instagram') : null;
+      if (auto && pub && !this.busy.instagram) this.sendPost(p, pub);
+      else if (!auto || !pub) {
+        this.store.updatePost(p.id, { status: 'hora-de-postar' });
+        this.emit('due', p);
+        this.log(`Hora de postar: ${p.titulo}`);
+      }
+    }
+  }
+
+  async sendPost(p, pub) {
+    this.busy.instagram = true;
+    this.store.updatePost(p.id, { status: 'enviando', progress: 0 });
+    this.changed();
+    try {
+      const r = await pub.publishVideo(p.files.video, p.caption, {
+        mediaType: 'REELS',
+        onProgress: (x) => {
+          this.store.updatePost(p.id, { progress: x });
+          this.changed();
+        },
+      });
+      this.store.updatePost(p.id, { status: 'postado', url: r.permalink, postedAt: this.now().toISOString(), simulated: !!r.simulated });
+      this.log(`Instagram: publicado “${p.titulo}”${r.simulated ? ' (modo teste)' : ''}.`);
+    } catch (e) {
+      this.store.updatePost(p.id, { status: 'erro', error: e.message });
+      this.log(`Erro ao publicar “${p.titulo}”: ${e.message}`);
+    } finally {
+      this.busy.instagram = false;
+      this.changed();
     }
   }
 

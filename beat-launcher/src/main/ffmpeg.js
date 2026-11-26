@@ -402,6 +402,6 @@ function compose(spec, onProgress) {
 }
 
 module.exports = {
-  ffmpegPath, run, probe, kindOf, squareCover, toJpeg, analyze, estimateTempo, findDrop,
+  ffmpegPath, run, runOk, probe, kindOf, squareCover, toJpeg, analyze, estimateTempo, findDrop,
   motionExpr, buildComposeArgs, compose, AUDIO_EXT, IMAGE_EXT, VIDEO_EXT,
 };

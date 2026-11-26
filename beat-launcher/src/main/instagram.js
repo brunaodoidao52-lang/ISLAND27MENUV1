@@ -22,20 +22,17 @@ function client(cfg) {
   }
 
   /** Publica um Reels. Retorna { id, permalink }. */
-  async function publishReel(file, caption, { onProgress, shareToFeed = true, thumbOffsetMs = 1500, pollMs = 5000, timeoutMs = 15 * 60000 } = {}) {
+  function publishReel(file, caption, opts = {}) {
+    return publishVideo(file, caption, { ...opts, mediaType: 'REELS' });
+  }
+
+  /** Publica um vídeo como Reels ou Story (mediaType 'REELS' | 'STORIES'). */
+  async function publishVideo(file, caption, { mediaType = 'REELS', onProgress, shareToFeed = true, thumbOffsetMs = 1500, pollMs = 5000, timeoutMs = 15 * 60000 } = {}) {
     need();
     const size = fs.statSync(file).size;
-    const { data: container } = await json(`${base()}/${c.userId}/media`, {
-      method: 'POST',
-      form: {
-        media_type: 'REELS',
-        upload_type: 'resumable',
-        caption,
-        share_to_feed: shareToFeed ? 'true' : 'false',
-        thumb_offset: thumbOffsetMs,
-        access_token: c.token,
-      },
-    });
+    const form = { media_type: mediaType, upload_type: 'resumable', access_token: c.token };
+    if (mediaType === 'REELS') Object.assign(form, { caption, share_to_feed: shareToFeed ? 'true' : 'false', thumb_offset: thumbOffsetMs });
+    const { data: container } = await json(`${base()}/${c.userId}/media`, { method: 'POST', form });
     if (!container.id) throw new Error('O Instagram não criou o post.');
     const uploadUrl = container.uri || `${c.rupload}/ig-api-upload/${c.version}/${container.id}`;
     const r = await sendFile(uploadUrl, file, {
@@ -74,7 +71,7 @@ function client(cfg) {
     return data.access_token ? { token: data.access_token, expiresAt: Date.now() + (data.expires_in || 5184000) * 1000 } : null;
   }
 
-  return { account, publishReel, refreshToken };
+  return { account, publishReel, publishVideo, refreshToken };
 }
 
 module.exports = { client, HOSTS, DEFAULTS };
