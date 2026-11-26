@@ -20,7 +20,7 @@ async function makeBeat(out, { bpm = 140, intro = 16, total = 56 } = {}) {
 
 async function makeCover(out) {
   if (fs.existsSync(out)) return out;
-  const r = await ff.run(['-y', '-hide_banner', '-f', 'lavfi', '-i', 'gradients=s=900x1100:c0=0x2AA9E0:c1=0x08090c:c2=0x7FE3FF:n=3:speed=0:d=1', '-frames:v', '1', out]);
+  const r = await ff.run(['-y', '-hide_banner', '-f', 'lavfi', '-i', 'gradients=s=900x1100:c0=0x2AA9E0:c1=0x08090c:c2=0x7FE3FF:n=3:speed=0.00001:d=1', '-frames:v', '1', out]);
   if (r.code !== 0) throw new Error(r.stderr.slice(-800));
   return out;
 }
