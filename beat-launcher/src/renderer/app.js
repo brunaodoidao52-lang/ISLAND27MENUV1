@@ -75,6 +75,7 @@ function render() {
   $('count-fila').classList.toggle('hidden', !pending);
   renderQueue();
   renderNextSlots();
+  renderMarketing();
   if (openId) fillModalStatus();
 }
 function setConn(id, on, test) {
@@ -359,11 +360,12 @@ function setVideos(it) {
   if (key === shownUrls) return;
   shownUrls = key;
   $('m-norender').classList.toggle('hidden', !!u);
-  ['m-yt', 'm-reels', 'm-thumb'].forEach((id) => $(id).parentElement.classList.toggle('hidden', !u));
+  ['m-yt', 'm-reels', 'm-thumb', 'm-thumbB'].forEach((id) => $(id).parentElement.classList.toggle('hidden', !u || (id === 'm-thumbB' && !u.thumbB)));
   if (u) {
     $('m-yt').src = u.youtube || '';
     $('m-reels').src = u.reels || '';
     $('m-thumb').src = u.thumb || '';
+    if (u.thumbB) $('m-thumbB').src = u.thumbB;
   }
 }
 function fillModalStatus() {
@@ -373,7 +375,25 @@ function fillModalStatus() {
   $('m-badges').innerHTML = [statusChip('', it.render.status, it.render.progress, 'render', it.id), statusChip('YouTube', it.yt.status, it.yt.progress, 'youtube', it.id), statusChip('Instagram', it.ig.status, it.ig.progress, 'instagram', it.id)].join('');
   setVideos(it);
   $('m-folder').disabled = !it.folder;
+  fillModalAI(it);
 }
+function fillModalAI(it) {
+  const on = state.settings.ai && state.settings.ai.enabled;
+  $('m-ai').classList.toggle('hidden', !on);
+  if (!on) return;
+  const a = it.ai || {};
+  const st = { pensando: 'pensando…', sugestao: 'sugestão pronta', aplicada: 'aplicada', erro: `erro: ${a.error || ''}` }[a.status] || '';
+  $('m-ai-status').textContent = st;
+  const sug = a.suggestion;
+  $('m-ai-body').innerHTML = sug ? `<b>Título</b>\n${esc(sug.ytTitle)}\n\n<b>Frase do Reels</b>\n${esc(sug.hook)}\n\n<b>Legenda</b>\n${esc(sug.igCaption)}\n\n<b>Descrição</b>\n${esc(sug.ytDescription)}` : '<span class="muted">Peça uma sugestão para comparar com os textos atuais.</span>';
+  $('m-ai-use').disabled = !sug || a.status === 'aplicada';
+  $('m-ai-ask').disabled = a.status === 'pensando';
+}
+$('m-ai-ask').onclick = () => safe(() => api.aiSuggestBeat(openId), 'Sugestão da IA pronta.');
+$('m-ai-use').onclick = async () => {
+  await safe(() => api.aiApplyBeat(openId), 'Textos da IA aplicados (você ainda pode editar).');
+  setTimeout(() => current() && fillTexts(current()), 250);
+};
 function closeModal() {
   openId = null;
   shownUrls = '';
@@ -486,6 +506,7 @@ function fillSettings() {
   $('s-days').innerHTML = WEEK.map((d, i) => `<label><input type="checkbox" value="${i}"${(s.days || []).includes(i) ? ' checked' : ''} />${d}</label>`).join('');
   $('s-lead').value = s.leadMinutes ?? 30;
   $('s-reel').value = s.reelLength ?? 30;
+  $('s-visual').value = s.visual || 'onda';
   $('s-inbox').value = s.inbox || '';
   $('s-out').value = state.outDir;
   $('s-background').checked = !!s.background;
@@ -502,7 +523,48 @@ function fillSettings() {
   $('ig-status').textContent = igOn ? `Conectado${s.instagram.username ? ` como @${s.instagram.username}` : ''}.` : 'Não conectado.';
   $('ig-dot').className = `dot${igOn ? ' on' : ''}`;
   fillGeneros($('f-genero'), $('f-genero').value);
+  fillAI();
 }
+function fillAI() {
+  const a = state.settings.ai || {};
+  const provs = state.aiProviders || {};
+  $('ai-provider').innerHTML = Object.entries(provs).map(([k, v]) => `<option value="${k}"${(a.provider || 'deepseek') === k ? ' selected' : ''}>${esc(v.label)}</option>`).join('');
+  const p = provs[a.provider || 'deepseek'] || {};
+  $('ai-enabled').checked = !!a.enabled;
+  $('ai-auto').checked = !!a.autoApply;
+  $('ai-base').value = a.baseUrl || '';
+  $('ai-base').placeholder = p.baseUrl || 'https://…';
+  $('ai-model').value = a.model || '';
+  $('ai-model').placeholder = p.model || 'nome-do-modelo';
+  $('ai-models').innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join('');
+  $('ai-key').placeholder = a.hasKey ? '(guardada)' : 'sk-…';
+  $('ai-dot').className = `dot${a.enabled && a.hasKey ? ' on' : a.enabled ? ' test' : ''}`;
+  $('ai-status').textContent = !a.enabled ? 'Desligada.' : a.hasKey ? 'Ligada (modo teste).' : 'Ligada, mas falta a chave.';
+}
+$('ai-provider').onchange = () => {
+  const p = (state.aiProviders || {})[$('ai-provider').value] || {};
+  $('ai-base').placeholder = p.baseUrl || 'https://…';
+  $('ai-model').placeholder = p.model || 'nome-do-modelo';
+  $('ai-models').innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join('');
+};
+function aiForm() {
+  return { enabled: $('ai-enabled').checked, autoApply: $('ai-auto').checked, provider: $('ai-provider').value, baseUrl: $('ai-base').value, model: $('ai-model').value, apiKey: $('ai-key').value };
+}
+$('ai-save').onclick = async () => {
+  await safe(() => api.saveAI(aiForm()), 'Configuração da IA salva.');
+  $('ai-key').value = '';
+  setTimeout(fillAI, 200);
+};
+$('ai-test').onclick = async () => {
+  await safe(() => api.saveAI(aiForm()));
+  $('ai-key').value = '';
+  $('ai-test').disabled = true;
+  $('ai-status').textContent = 'Testando…';
+  const r = await safe(() => api.testAI(), (x) => `IA respondeu (${x.model}).`);
+  $('ai-test').disabled = false;
+  $('ai-status').textContent = r ? `Conectada: o modelo ${r.model} respondeu “${r.reply}”.` : 'Falhou. Veja a mensagem de erro.';
+};
+$('ai-clear').onclick = () => confirm('Apagar a chave da IA deste computador?') && safe(() => api.clearAIKey(), 'Chave apagada e IA desligada.').then(() => setTimeout(fillAI, 200));
 document.querySelector('nav button[data-page="config"]').addEventListener('click', fillSettings);
 
 $('s-save').onclick = () => {
@@ -516,6 +578,7 @@ $('s-save').onclick = () => {
         leadMinutes: Number($('s-lead').value) || 0,
         reelLength: Math.max(10, Math.min(90, Number($('s-reel').value) || 30)),
         background: $('s-background').checked,
+        visual: $('s-visual').value,
       }),
     'Configurações salvas.',
   ).then(() => setTimeout(fillSettings, 200));
@@ -560,6 +623,189 @@ $('ig-save').onclick = async () => {
   setTimeout(fillSettings, 200);
 };
 $('ig-disconnect').onclick = () => safe(() => api.disconnectInstagram(), 'Instagram desconectado.').then(() => setTimeout(fillSettings, 200));
+
+// ---------- marketing ----------
+const PHOTO_SLOTS = [
+  ['artista', 'Bruninn (1)'],
+  ['artista2', 'Bruninn (2)'],
+  ['ilha', 'Ilha / lugar'],
+  ['banner', 'Banner da marca'],
+];
+const MK_STATUS = {
+  planejado: ['Na fila para gerar', 'wait'],
+  gerando: ['Gerando artes', 'run'],
+  pronto: ['Pronto (aguardando a hora)', 'ok'],
+  'hora-de-postar': ['Hora de postar!', 'err'],
+  enviando: ['Publicando', 'run'],
+  postado: ['Postado', 'ok'],
+  automatico: ['Sai pela fila de beats', 'wait'],
+  erro: ['Erro', 'err'],
+};
+
+function fillMarketingSettings() {
+  const m = { ...state.defaultMarketing, ...(state.settings.marketing || {}) };
+  const photos = m.photos || {};
+  $('mk-photos').innerHTML = PHOTO_SLOTS.map(([k, label]) => {
+    const url = (state.marketingPhotoUrls || {})[k];
+    return `<button class="photo-btn" data-photo="${k}">${url ? `<img src="${esc(url)}" alt="" />` : '<span class="ph">＋</span>'}${esc(label)}</button>`;
+  }).join('');
+  $('mk-handle').value = m.handle || '';
+  const lic = m.licencas || state.defaultMarketing.licencas;
+  $('mk-lic').innerHTML = lic
+    .map((r, i) => `<div class="row" data-lic="${i}"><label>Nome<input data-k="nome" value="${esc(r.nome)}" /></label><label>Descrição<input data-k="desc" value="${esc(r.desc)}" /></label><label>Preço<input data-k="preco" value="${esc(r.preco)}" /></label></div>`)
+    .join('');
+  const t = m.times || {};
+  $('mk-t-feed').value = t.feed || '';
+  $('mk-t-reels').value = t.reels || '';
+  $('mk-t-story').value = t.story || '';
+  $('mk-auto').checked = m.autoPublish !== false;
+  if (!$('mk-start').value) {
+    const d = new Date(Date.now() + 86400000);
+    $('mk-start').value = toLocalInput(d.toISOString()).slice(0, 10);
+  }
+}
+document.querySelector('nav button[data-page="marketing"]').addEventListener('click', () => {
+  fillMarketingSettings();
+  renderMarketing(true);
+});
+$('mk-photos').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-photo]');
+  if (!b) return;
+  const f = await safe(() => api.pickMarketingPhoto(b.dataset.photo));
+  if (f) setTimeout(fillMarketingSettings, 200);
+});
+$('mk-save').onclick = () => {
+  const licencas = [...$('mk-lic').querySelectorAll('[data-lic]')].map((row) => {
+    const o = {};
+    row.querySelectorAll('input').forEach((i) => (o[i.dataset.k] = i.value.trim()));
+    if (row.dataset.lic === '1') o.destaque = true;
+    return o;
+  });
+  safe(
+    () => api.saveMarketing({ handle: $('mk-handle').value.trim() || '@__island27', licencas, times: { feed: $('mk-t-feed').value.trim() || '12:00', reels: $('mk-t-reels').value.trim() || '18:30', story: $('mk-t-story').value.trim() || '20:00' } }),
+    'Salvo. Os próximos posts gerados já usam esses dados (use “Gerar de novo” nos que já existem).',
+  );
+};
+$('mk-auto').addEventListener('change', (e) => safe(() => api.saveMarketing({ autoPublish: e.target.checked })));
+$('mk-week').onclick = () => {
+  const v = $('mk-start').value;
+  if (!v) return toast('Escolha o dia de início.', true);
+  safe(() => api.planWeek(`${v}T00:00:00`, Number($('mk-type').value)), (n) => `${n} posts planejados. Gerando as artes…`);
+};
+$('mk-vitrine').onclick = () => safe(() => api.planVitrine(), (n) => `${n} peças da vitrine. Gerando as artes…`);
+$('mk-ai-go').onclick = async () => {
+  $('mk-ai-go').disabled = true;
+  $('mk-ai-out').innerHTML = '<span class="muted">Pensando…</span>';
+  const list = await safe(() => api.aiIdeas(5, $('mk-ai-foco').value.trim()));
+  $('mk-ai-go').disabled = false;
+  $('mk-ai-out').innerHTML = (list || []).map((i) => `<div class="idea"><b>${esc(i.titulo)}</b>${esc(i.formato || '')}${i.gancho ? ` · gancho: ${esc(i.gancho)}` : ''}\n\n${esc(i.roteiro || '')}</div>`).join('') || '<span class="muted">Sem ideias. Veja o erro acima.</span>';
+};
+$('mk-clear').onclick = () => safe(() => api.clearPosted(), 'Lista limpa.');
+
+function mkItemHtml(p) {
+  const [label, cls] = MK_STATUS[p.status] || [p.status, ''];
+  const kind = (state.kindLabels || {})[p.kind] || p.kind;
+  const when = p.vitrine ? 'Vitrine (sem data)' : fmtWhen(p.date);
+  const thumbs = (p.imageUrls || []).map((u, i) => `<img src="${esc(u)}" data-view="${esc(u)}" alt="${i + 1}" />`).join('');
+  const video = p.videoUrl ? `<video src="${esc(p.videoUrl)}" controls muted preload="metadata"></video>` : '';
+  const roteiro = p.roteiro ? `<div class="mk-roteiro"><b>Roteiro para gravar</b>\n${esc(p.roteiro.join('\n'))}</div>` : '';
+  const canPost = !['postado', 'automatico'].includes(p.status);
+  return `<div class="mk-item${p.status === 'hora-de-postar' ? ' due' : ''}" data-id="${esc(p.id)}">
+    <div>
+      <h4>${esc(p.titulo)}</h4>
+      <div class="mk-meta">
+        <span class="st ${cls}">${esc(label)}${p.status === 'enviando' ? `<span class="bar"><i style="width:${Math.round((p.progress || 0) * 100)}%"></i></span>` : ''}</span>
+        <span class="st when">🕒 ${esc(when)}</span>
+        <span class="st">${esc(kind)}</span>
+        ${p.pilar ? `<span class="st">${esc(p.pilar)}</span>` : ''}
+        ${p.url && /^https?:/.test(p.url) ? `<span class="st ok" data-url="${esc(p.url)}">▶ ver no Instagram</span>` : ''}
+      </div>
+      ${p.error ? `<div class="qerr">${esc(p.error)}</div>` : ''}
+      ${p.notes ? `<div class="mk-notes">📱 ${esc(p.notes)}</div>` : ''}
+      ${thumbs || video ? `<div class="mk-thumbs">${video}${thumbs}</div>` : ''}
+      ${roteiro}
+    </div>
+    <div class="mk-side">
+      ${p.kind === 'destaque' ? '<p class="muted small">Destaque: poste os stories na ordem (a 1ª imagem é a capa da bolinha).</p>' : p.kind === 'story' ? '<p class="muted small">Story: sem legenda. Veja o sticker indicado ao lado.</p>' : `<textarea data-caption>${esc(p.caption || '')}</textarea>`}
+      <div class="row wrap">
+        ${!['destaque', 'story'].includes(p.kind) ? `<button class="ghost small" data-act="copy">Copiar legenda</button><button class="ghost small" data-act="save">Salvar legenda</button>${state.settings.ai && state.settings.ai.enabled ? '<button class="ghost small" data-act="ai">✦ Reescrever com IA</button>' : ''}` : ''}
+        ${p.files && p.files.dir ? '<button class="ghost small" data-act="folder">Abrir pasta</button>' : ''}
+        ${canPost ? '<button class="primary small" data-act="done">Marcar como postado</button>' : ''}
+        ${p.slides ? '<button class="ghost small" data-act="rerender">Gerar de novo</button>' : ''}
+        <button class="ghost small danger" data-act="remove">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+let mkPending = false;
+function renderMarketing(force) {
+  if (!state || !state.posts) return;
+  $('mk-ai').classList.toggle('hidden', !(state.settings.ai && state.settings.ai.enabled));
+  const due = state.posts.filter((p) => p.status === 'hora-de-postar').length;
+  $('count-mkt').textContent = due;
+  $('count-mkt').classList.toggle('hidden', !due);
+  if (document.getElementById('page-marketing').classList.contains('hidden') && !force) return;
+  // não redesenha enquanto você edita uma legenda
+  if (!force && document.activeElement && document.activeElement.closest && document.activeElement.closest('#mk-list')) {
+    mkPending = true;
+    return;
+  }
+  mkPending = false;
+  const posts = [...state.posts].sort((a, b) => (a.vitrine === b.vitrine ? new Date(a.date) - new Date(b.date) : a.vitrine ? -1 : 1));
+  let html = '';
+  let lastDay = '';
+  for (const p of posts) {
+    const day = p.vitrine ? 'Vitrine do perfil' : new Date(p.date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+    if (day !== lastDay) {
+      html += `<div class="mk-day">${esc(day)}</div>`;
+      lastDay = day;
+    }
+    html += mkItemHtml(p);
+  }
+  $('mk-list').innerHTML = html;
+  $('mk-empty').classList.toggle('hidden', posts.length > 0);
+}
+document.addEventListener('focusout', () => mkPending && setTimeout(() => renderMarketing(), 50));
+$('mk-list').addEventListener('click', (e) => {
+  const v = e.target.closest('[data-view]');
+  if (v) {
+    const w = document.createElement('div');
+    w.className = 'viewer';
+    w.innerHTML = `<img src="${esc(v.dataset.view)}" alt="" />`;
+    w.onclick = () => w.remove();
+    document.body.appendChild(w);
+    return;
+  }
+  const u = e.target.closest('[data-url]');
+  if (u) return api.openUrl(u.dataset.url);
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const item = b.closest('[data-id]');
+  const id = item.dataset.id;
+  const p = state.posts.find((x) => x.id === id);
+  const caption = item.querySelector('[data-caption]');
+  const act = b.dataset.act;
+  if (act === 'copy') safe(() => api.copy(caption.value), 'Legenda copiada!');
+  else if (act === 'save') safe(() => api.updatePost(id, { caption: caption.value }), 'Legenda salva.');
+  else if (act === 'folder') api.openPath(p.files.dir);
+  else if (act === 'done') safe(() => api.markPosted(id), 'Marcado como postado.');
+  else if (act === 'rerender') safe(() => api.rerenderPost(id), 'Gerando de novo…');
+  else if (act === 'ai') {
+    b.disabled = true;
+    b.textContent = 'Pensando…';
+    safe(() => api.aiRewritePost(id)).then((txt) => {
+      b.disabled = false;
+      b.textContent = '✦ Reescrever com IA';
+      if (txt) {
+        caption.value = txt;
+        caption.focus();
+        toast('Legenda nova da IA no campo. Clique em “Salvar legenda” se gostar.');
+      }
+    });
+  }
+  else if (act === 'remove' && confirm('Tirar este post da lista? (os arquivos continuam na pasta)')) safe(() => api.removePost(id));
+});
 
 // ---------- início ----------
 (async () => {

@@ -12,6 +12,7 @@
     <nav>
       <button data-page="novo" class="active"><i>＋</i>Novo lançamento</button>
       <button data-page="fila"><i>☰</i>Fila <b id="count-fila" class="badge hidden">0</b></button>
+      <button data-page="marketing"><i>✦</i>Marketing <b id="count-mkt" class="badge hidden">0</b></button>
       <button data-page="loop"><i>↻</i>Loop da capa</button>
       <button data-page="config"><i>⚙</i>Configurações</button>
     </nav>
@@ -118,6 +119,71 @@
       </div>
     </section>
 
+    <!-- MARKETING -->
+    <section id="page-marketing" class="page hidden">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Instagram</p>
+          <h1>Marketing do perfil</h1>
+          <p class="muted">Gera a vitrine (Destaques + carrossel fixado) e a semana de posts com a identidade da ISLAND27. Nada é publicado sem você: o Reels de carrossel pode sair sozinho (se ligado); o resto o app avisa na hora, com legenda e arquivos prontos.</p>
+        </div>
+      </header>
+
+      <div class="grid-2">
+        <div class="card form">
+          <h3>Gerar conteúdo</h3>
+          <div class="row">
+            <label>Início da semana<input id="mk-start" type="date" /></label>
+            <label>Tipo
+              <select id="mk-type">
+                <option value="0">Semana de lançamento do perfil</option>
+                <option value="1">Semana normal (dica 2)</option>
+                <option value="2">Semana normal (dica 3)</option>
+                <option value="3">Semana normal (dica 4)</option>
+              </select>
+            </label>
+          </div>
+          <div class="row wrap">
+            <button id="mk-week" class="primary">Planejar a semana</button>
+            <button id="mk-vitrine" class="ghost">Gerar vitrine (Destaques + carrossel fixado)</button>
+          </div>
+          <label class="switch inline"><input type="checkbox" id="mk-auto" /><span></span>Publicar sozinho os Reels de carrossel (pela API do Instagram)</label>
+          <p class="muted small">Os Stories com enquete/contagem/link e os posts de imagem precisam ser postados pelo app do Instagram (a API não aceita stickers nem foto direto do computador). Na hora certa o app avisa.</p>
+        </div>
+
+        <div class="card form">
+          <h3>Fotos e preços usados nas artes</h3>
+          <div class="photos" id="mk-photos"></div>
+          <label>@ do perfil<input id="mk-handle" placeholder="@__island27" /></label>
+          <p class="label">Licenças (confira com os preços reais da SoundX)</p>
+          <div id="mk-lic" class="lic"></div>
+          <div class="row">
+            <label>Feed<input id="mk-t-feed" placeholder="12:00" /></label>
+            <label>Reels<input id="mk-t-reels" placeholder="18:30" /></label>
+            <label>Stories<input id="mk-t-story" placeholder="20:00" /></label>
+          </div>
+          <button id="mk-save" class="primary">Salvar</button>
+        </div>
+      </div>
+
+      <div class="card form ai-ideas hidden" id="mk-ai">
+        <h3>✦ Ideias de conteúdo da IA <span class="tag-test">MODO TESTE</span></h3>
+        <div class="row"><label>Foco<input id="mk-ai-foco" value="vender beats e serviços de produção" /></label><button id="mk-ai-go" class="ghost">Pedir 5 ideias</button></div>
+        <div id="mk-ai-out" class="ideas"></div>
+      </div>
+
+      <div class="page-head mk-list-head">
+        <h2>Posts</h2>
+        <button id="mk-clear" class="ghost small">Tirar da lista os já postados</button>
+      </div>
+      <div id="mk-list" class="mk-list"></div>
+      <div id="mk-empty" class="empty hidden">
+        <div class="drop-icon">✦</div>
+        <b>Nenhum post planejado.</b>
+        <span class="muted">Escolha as fotos, confira os preços e clique em “Planejar a semana” ou “Gerar vitrine”.</span>
+      </div>
+    </section>
+
     <!-- LOOP -->
     <section id="page-loop" class="page hidden">
       <header class="page-head">
@@ -199,6 +265,13 @@
             <label>Folga mínima (min)<input id="s-lead" type="number" min="0" /></label>
             <label>Duração do Reels (s)<input id="s-reel" type="number" min="10" max="90" /></label>
           </div>
+          <h3>Vídeos</h3>
+          <label>Visualizador do áudio
+            <select id="s-visual">
+              <option value="onda">Onda (forma de onda preenchida)</option>
+              <option value="barras">Barras (espectro de frequências)</option>
+            </select>
+          </label>
           <h3>Pastas</h3>
           <label><span class="lbl">Pasta de entrada <span class="hint">(jogue beat + capa aqui e o app importa sozinho)</span></span></label>
           <div class="row"><input id="s-inbox" readonly placeholder="Não definida" /><button id="s-inbox-pick" class="ghost small">Escolher</button></div>
@@ -254,6 +327,31 @@
           </div>
 
           <div class="card form">
+            <h3><span class="dot" id="ai-dot"></span>IA <span class="tag-test">MODO TESTE</span></h3>
+            <p class="muted small">Conecte a sua API (DeepSeek ou outra compatível com OpenAI) para a IA sugerir títulos, descrições, legendas e ideias de conteúdo. Fica <b>desligada</b> até você ativar; as sugestões só são usadas quando você aprova (a não ser que ligue “aplicar sozinho”).</p>
+            <label class="switch inline"><input type="checkbox" id="ai-enabled" /><span></span>Ativar a IA (modo teste)</label>
+            <label>Provedor
+              <select id="ai-provider"></select>
+            </label>
+            <label>Endereço da API (base URL)<input id="ai-base" placeholder="https://api.deepseek.com" /></label>
+            <label>Modelo<input id="ai-model" list="ai-models" placeholder="deepseek-v4-flash" /><datalist id="ai-models"></datalist></label>
+            <label>Chave da API<input id="ai-key" type="password" placeholder="sk-…" /></label>
+            <label class="switch inline"><input type="checkbox" id="ai-auto" /><span></span>Aplicar as sugestões sozinho (só em beats ainda não enviados)</label>
+            <div class="row wrap"><button id="ai-save" class="primary">Salvar</button><button id="ai-test" class="ghost">Testar conexão</button><button id="ai-clear" class="ghost danger">Apagar chave</button></div>
+            <p class="muted small" id="ai-status"></p>
+            <details>
+              <summary>Como pegar a chave da DeepSeek</summary>
+              <ol>
+                <li>Entre em <a href="https://platform.deepseek.com/" data-ext>platform.deepseek.com</a> e faça login.</li>
+                <li>Em <b>API Keys</b>, crie uma chave e copie (ela só aparece uma vez).</li>
+                <li>Coloque saldo na conta (a API cobra por uso; cada sugestão custa centavos).</li>
+                <li>Cole aqui, confira o nome do modelo no painel e clique em <b>Testar conexão</b>.</li>
+              </ol>
+              <p class="warn">A chave fica guardada criptografada neste computador e só é enviada para o endereço da API que você colocou.</p>
+            </details>
+          </div>
+
+          <div class="card form">
             <h3>Textos automáticos</h3>
             <p class="muted small">Use {nome}, {artista}, {genero}, {bpm}, {tom}, {ano}, {loja}, {whatsapp}, {download}, {instagram}, {gancho}, {hashtags_yt}, {hashtags_ig}. “{artista|genero}” usa o primeiro preenchido. Linhas com campo vazio somem sozinhas.</p>
             <label>Título do YouTube<input id="t-ytTitle" class="mono" /></label>
@@ -288,7 +386,8 @@
         <div class="m-videos">
           <div><p class="label">YouTube (beat completo)</p><video id="m-yt" controls preload="metadata"></video></div>
           <div class="reels-wrap"><p class="label">Reels (o drop)</p><video id="m-reels" controls preload="metadata"></video></div>
-          <div><p class="label">Miniatura</p><img id="m-thumb" alt="" /></div>
+          <div><p class="label">Miniatura (A)</p><img id="m-thumb" alt="" /></div>
+          <div><p class="label">Miniatura B · para o “Testar e comparar” do YouTube Studio</p><img id="m-thumbB" alt="" /></div>
           <div id="m-norender" class="empty small-empty hidden"><span class="muted">Os vídeos aparecem aqui quando ficarem prontos.</span></div>
         </div>
         <div class="form">
@@ -310,6 +409,11 @@
           <label><span class="lbl">Descrição <button class="link" data-copy="m-ytDescription">copiar</button></span><textarea id="m-ytDescription" rows="7" class="mono"></textarea></label>
           <label><span class="lbl">Tags <button class="link" data-copy="m-ytTags">copiar</button></span><input id="m-ytTags" class="mono" /></label>
           <label><span class="lbl">Legenda do Instagram <button class="link" data-copy="m-igCaption">copiar</button></span><textarea id="m-igCaption" rows="7" class="mono"></textarea></label>
+          <div id="m-ai" class="ai-box hidden">
+            <div class="row"><b>✦ Sugestão da IA</b><span class="muted small" id="m-ai-status"></span></div>
+            <div id="m-ai-body" class="ai-sug"></div>
+            <div class="row wrap"><button id="m-ai-ask" class="ghost small">Pedir sugestão à IA</button><button id="m-ai-use" class="primary small">Usar a sugestão</button></div>
+          </div>
           <div class="row wrap">
             <button id="m-save" class="primary">Salvar</button>
             <button id="m-regen" class="ghost">Refazer textos</button>

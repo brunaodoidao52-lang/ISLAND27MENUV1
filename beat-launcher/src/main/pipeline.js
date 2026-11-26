@@ -32,7 +32,9 @@ async function renderBeat(beat, opts) {
     youtube: path.join(outDir, `${safeName(beat.nome)}-YouTube.mp4`),
     reels: path.join(outDir, `${safeName(beat.nome)}-Reels.mp4`),
     thumb: path.join(outDir, `${safeName(beat.nome)}-miniatura.jpg`),
+    thumbB: path.join(outDir, `${safeName(beat.nome)}-miniatura-B.jpg`),
   };
+  const visual = settings.visual === 'barras' ? 'barras' : 'onda';
   const tmp = [cover];
   const layerFile = (name, png) => {
     const f = path.join(workDir, `${name}-${stamp}.png`);
@@ -45,6 +47,8 @@ async function renderBeat(beat, opts) {
     // miniatura
     const thumbPng = layerFile('mini', design.thumbnail(info, cover));
     await ff.toJpeg(thumbPng, files.thumb);
+    // versão B (minimalista) para o "Testar e comparar" do YouTube Studio
+    await ff.toJpeg(layerFile('miniB', design.thumbnailB(info, cover)), files.thumbB);
 
     const pulse = info.bpm ? { type: 'pulse', bpm: info.bpm, phase: analysis.phase, amount: 0.045 } : { type: 'breath', period: 4 };
     const motion = beat.motion && beat.motion !== 'auto' ? { type: beat.motion, period: 8, bpm: info.bpm, phase: analysis.phase } : null;
@@ -57,7 +61,7 @@ async function renderBeat(beat, opts) {
       layer: layerFile('reels', design.reelsLayer(info, cover, t, { videoBg: !!bgVideo })),
       bgVideo,
       audio: { path: beat.audioPath, start: analysis.dropStart, fadeIn: 0.05, fadeOut: 1.5, bitrate: '256k' },
-      wave: design.REELS.wave, bar: design.REELS.bar, crf: 19, preset: 'veryfast',
+      wave: { ...design.REELS.wave, style: visual }, bar: design.REELS.bar, crf: 19, preset: 'veryfast',
     };
     let job = ff.compose(reelsSpec, (p) => onProgress('Gerando o Reels', 0.05 + p * 0.3));
     onCancelable(job.cancel);
@@ -70,7 +74,7 @@ async function renderBeat(beat, opts) {
       layer: layerFile('yt', design.youtubeLayer(info, cover, { videoBg: !!bgVideo })),
       bgVideo,
       audio: { path: beat.audioPath, start: 0, fadeIn: 0, fadeOut: 0, bitrate: '320k' },
-      wave: design.YT.wave, bar: design.YT.bar, crf: 21, preset: 'veryfast',
+      wave: { ...design.YT.wave, style: visual }, bar: design.YT.bar, crf: 21, preset: 'veryfast',
     };
     job = ff.compose(ytSpec, (p) => onProgress('Gerando o vídeo do YouTube', 0.35 + p * 0.65));
     onCancelable(job.cancel);

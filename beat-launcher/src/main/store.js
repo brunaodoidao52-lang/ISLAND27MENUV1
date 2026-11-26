@@ -6,6 +6,7 @@ const SECRET_PATHS = [
   ['youtube', 'clientSecret'],
   ['youtube', 'tokens'],
   ['instagram', 'token'],
+  ['ai', 'apiKey'],
 ];
 
 function defaultSettings() {
@@ -16,6 +17,7 @@ function defaultSettings() {
     days: [0, 1, 2, 3, 4, 5, 6],
     leadMinutes: 30,
     reelLength: 30,
+    visual: 'onda',
     autopilot: false,
     simulation: true,
     background: true,
@@ -23,6 +25,7 @@ function defaultSettings() {
     outDir: '',
     platforms: { youtube: true, instagram: true },
     youtube: { clientId: '', clientSecret: '', tokens: null, channel: null },
+    ai: { enabled: false, autoApply: false, provider: 'deepseek', baseUrl: '', model: '', apiKey: '', temperature: 0.8 },
     marketing: { handle: '@__island27', autoPublish: true, times: { feed: '12:00', reels: '18:30', story: '20:00' }, photos: {}, licencas: null },
     instagram: { login: 'instagram', userId: '', token: '', username: '', version: 'v23.0', tokenSavedAt: 0 },
   };

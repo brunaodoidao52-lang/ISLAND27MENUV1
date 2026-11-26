@@ -9,6 +9,7 @@ const texts = require('../shared/texts');
 const schedule = require('../shared/schedule');
 const plan = require('../shared/plan');
 const marketing = require('./marketing');
+const ai = require('./ai');
 
 const META_FIELDS = ['nome', 'artista', 'genero', 'bpm', 'tom'];
 const VISUAL_FIELDS = ['nome', 'artista', 'genero', 'bpm', 'tom', 'coverPath', 'bgPath', 'motion', 'audioPath'];
@@ -293,6 +294,7 @@ class Engine extends EventEmitter {
       this.store.update(it.id, patch);
       if (!cur.textsEdited) this.store.update(it.id, { texts: r.texts });
       this.log(`Vídeos prontos: ${cur.nome}`);
+      if (ai.cfgOf(this.settings).enabled) this.aiSuggestBeat(it.id).catch(() => {});
       if (this.settings.autopilot && !cur.when) this.distribute();
     } catch (e) {
       if (this.store.item(it.id)) this.store.update(it.id, { render: { status: 'erro', error: e.message } });
@@ -390,6 +392,55 @@ class Engine extends EventEmitter {
     }
   }
 
+  // ---------- IA (modo teste) ----------
+
+  aiClient() {
+    const c = ai.cfgOf(this.settings);
+    if (!c.enabled) throw new Error('A IA está desligada. Ligue em Configurações → IA (modo teste).');
+    return (this.clients.ai || ai.client)(c);
+  }
+
+  /** Pede à IA textos melhores para um beat. Guarda como sugestão (ou aplica, se "aplicar sozinho"). */
+  async aiSuggestBeat(id) {
+    const it = this.store.item(id);
+    if (!it) throw new Error('Beat não encontrado.');
+    this.store.update(id, { ai: { status: 'pensando', error: null } });
+    this.changed();
+    try {
+      const sug = await this.aiClient().suggestBeatTexts(it, it.texts);
+      const cur = this.store.item(id);
+      if (!cur) return null;
+      const auto = ai.cfgOf(this.settings).autoApply && !cur.textsEdited && cur.yt.status === 'pendente';
+      this.store.update(id, { ai: { status: auto ? 'aplicada' : 'sugestao', suggestion: sug, at: this.now().toISOString() }, ...(auto ? { texts: sug } : {}) });
+      this.log(`IA: ${auto ? 'textos aplicados' : 'sugestão pronta'} para ${cur.nome}.`);
+      return sug;
+    } catch (e) {
+      if (this.store.item(id)) this.store.update(id, { ai: { status: 'erro', error: e.message } });
+      this.log(`IA: ${e.message}`);
+      throw e;
+    } finally {
+      this.changed();
+    }
+  }
+
+  /** Usa a sugestão da IA guardada como textos do beat. */
+  aiApplyBeat(id) {
+    const it = this.store.item(id);
+    if (!it || !it.ai || !it.ai.suggestion) throw new Error('Não há sugestão da IA para este beat.');
+    this.store.update(id, { texts: { ...it.texts, ...it.ai.suggestion }, textsEdited: true, ai: { status: 'aplicada' } });
+    this.changed();
+  }
+
+  async aiRewritePost(id) {
+    const p = this.store.post(id);
+    if (!p) throw new Error('Post não encontrado.');
+    return this.aiClient().rewriteCaption(p);
+  }
+
+  async aiIdeas(count, foco) {
+    return this.aiClient().ideas(count, foco);
+  }
+
   // ---------- marketing (posts do Instagram) ----------
 
   /** Beats ainda não lançados, na ordem dos horários (usados no plano da semana). */
@@ -400,7 +451,7 @@ class Engine extends EventEmitter {
   }
 
   marketingDir(post) {
-    return path.join(this.dirs.outDir(), 'Marketing', post.id.slice(0, 10));
+    return path.join(this.dirs.outDir(), 'Marketing', post.vitrine ? `Vitrine-${post.id.slice(0, 10)}` : `Semana-${post.id.slice(0, 10)}`);
   }
 
   /** Monta a semana (weekIndex 0 = semana de lançamento do perfil) e gera as artes. */
@@ -415,6 +466,23 @@ class Engine extends EventEmitter {
     this.changed();
     this.kickPosts();
     return posts;
+  }
+
+  /** Vitrine do perfil: carrossel fixado de serviços + 5 Destaques (para postar quando quiser). */
+  planVitrine() {
+    const stamp = this.now().toISOString().slice(0, 10);
+    const list = [plan.servicesCarousel(this.settings), ...plan.highlights(this.settings)].map((p, i) => ({
+      ...p,
+      id: `${stamp}-vitrine-${String(i + 1).padStart(2, '0')}`,
+      date: this.now().toISOString(),
+      status: 'planejado',
+      vitrine: true,
+    }));
+    this.store.addPosts(list);
+    this.log(`Vitrine planejada: ${list.length} peças (carrossel fixado + Destaques).`);
+    this.changed();
+    this.kickPosts();
+    return list;
   }
 
   updatePost(id, patch) {
@@ -489,7 +557,7 @@ class Engine extends EventEmitter {
   tickPosts() {
     const now = this.now().getTime();
     for (const p of this.store.posts) {
-      if (p.status !== 'pronto' || new Date(p.date).getTime() > now) continue;
+      if (p.status !== 'pronto' || new Date(p.date).getTime() > now || p.vitrine) continue;
       const auto = p.kind === 'reels-carrossel' && p.files && p.files.video && this.settings.marketing.autoPublish !== false;
       const pub = auto ? this.publisher('instagram') : null;
       if (auto && pub && !this.busy.instagram) this.sendPost(p, pub);

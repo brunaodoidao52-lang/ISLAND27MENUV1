@@ -87,3 +87,41 @@ test('loop da capa emenda sem pulo', { timeout: 120000 }, async () => {
   assert.deepStrictEqual([info.width, info.height], [1080, 1920]);
   assert.ok(Math.abs(info.duration - 3) < 0.1);
 });
+
+test('marketing: planeja a semana, gera as artes, avisa a hora e publica o Reels de carrossel', { timeout: 300000 }, async () => {
+  const img = await makeCover(path.join(tmp, 'foto.png'));
+  let clock = new Date('2026-11-27T08:00:00');
+  const store = createStore(path.join(tmp, 'mkt.json'));
+  store.setSettings({ simulation: true, marketing: { photos: { artista: img, ilha: img, banner: img } } });
+  const engine = new Engine({ store, dirs: { workDir: path.join(tmp, 'work2'), outDir: () => path.join(tmp, 'saida2') }, now: () => clock });
+  const due = [];
+  engine.on('due', (p) => due.push(p.id));
+
+  const posts = engine.planWeek(new Date('2026-11-27T00:00:00'), 0);
+  assert.strictEqual(posts.length, 13);
+  const vit = engine.planVitrine();
+  assert.strictEqual(vit.length, 6);
+  await waitFor(() => !store.posts.some((p) => ['planejado', 'gerando'].includes(p.status)));
+  assert.ok(!store.posts.some((p) => p.status === 'erro'), JSON.stringify(store.posts.filter((p) => p.error).map((p) => p.error)));
+
+  const first = store.posts.find((p) => p.titulo.startsWith('Carrossel: Da Ilha'));
+  assert.strictEqual(first.files.images.length, 6);
+  assert.ok(fs.existsSync(path.join(first.files.dir, 'legenda.txt')));
+  const reels = store.posts.find((p) => p.kind === 'reels-carrossel');
+  assert.ok(fs.statSync(reels.files.video).size > 10000);
+
+  // 12:00 de sexta: o carrossel vira "hora de postar"; a vitrine não entra no relógio
+  clock = new Date('2026-11-27T12:00:10');
+  engine.tick();
+  assert.strictEqual(store.post(first.id).status, 'hora-de-postar');
+  assert.ok(due.includes(first.id));
+  assert.ok(store.posts.filter((p) => p.vitrine).every((p) => p.status === 'pronto'));
+
+  // domingo 18:30: o Reels de carrossel sai sozinho (modo teste)
+  clock = new Date('2026-11-29T18:31:00');
+  engine.tick();
+  await waitFor(() => store.post(reels.id).status === 'postado');
+  engine.markPosted(first.id);
+  assert.strictEqual(store.post(first.id).status, 'postado');
+  engine.stop();
+});

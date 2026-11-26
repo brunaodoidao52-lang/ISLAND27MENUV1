@@ -2,7 +2,7 @@
   "name": "island27-beat-launcher",
   "productName": "ISLAND27 Beat Launcher",
   "version": "1.0.0",
-  "description": "Lança beats no automático: você manda beat, capa e nome; ele cria o vídeo do YouTube, o Reels do Instagram, a miniatura e os textos, e publica nos horários do dia.",
+  "description": "Lança beats e faz o marketing do Instagram da ISLAND27: vídeo do YouTube, Reels, miniatura, textos, Destaques, carrosséis e a semana de posts.",
   "author": "ISLAND27",
   "license": "MIT",
   "main": "src/main/main.js",

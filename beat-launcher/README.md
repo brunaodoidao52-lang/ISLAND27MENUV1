@@ -12,6 +12,28 @@ Você manda o **beat**, a **capa** e o **nome**. O Launcher faz o resto:
 
 Tudo nas cores e fontes do site da ISLAND27 (azul `#7FE3FF` / `#2AA9E0` sobre preto, Space Grotesk + IBM Plex Sans).
 
+## Marketing do Instagram (aba Marketing)
+
+| O que ele gera | Como fica |
+|---|---|
+| **Vitrine do perfil** | Carrossel de serviços para fixar no topo + 5 **Destaques** (Beats, Serviços, Cursos, Sobre, Contato) com capa (bolinha) e stories |
+| **Semana de posts** | Carrosséis (apresentação, dicas, licenças, produção), Reels de carrossel em vídeo, Stories (enquete, contagem, lançamento), roteiros de Reels para gravar e o Reels do beat da fila |
+| **Legendas** | Prontas, com no máximo 5 hashtags |
+
+Na aba **Marketing** você escolhe as fotos (Bruninn, lugar, banner), confere os **preços das licenças** e clica em **Planejar a semana** ou **Gerar vitrine**. Cada post ganha uma pasta com as imagens, a legenda e as instruções.
+
+- O **Reels de carrossel** pode sair sozinho pela API do Instagram (opção na aba).
+- **Stories com sticker** (enquete, contagem, link) e **posts de imagem** precisam ser postados pelo app do Instagram: a API não aceita stickers nem foto enviada direto do computador. Na hora marcada o app avisa ("Hora de postar!") com a legenda pronta para copiar.
+
+Pela linha de comando:
+
+```bash
+node src/cli.js vitrine --artista foto.jpg --artista2 foto2.jpg --ilha lugar.jpg --banner banner.png --saida ./vitrine
+node src/cli.js semana --inicio 2026-11-27 --numero 0 --artista foto.jpg --ilha lugar.jpg --banner banner.png --saida ./semana
+```
+
+`--numero 0` é a semana de lançamento do perfil; 1, 2, 3… são semanas normais (dicas em rodízio).
+
 ## Como funciona o lançamento automático
 
 1. **Entrada:** arraste os arquivos na tela ou jogue na **pasta de entrada**. Beat e capa com o mesmo nome viram um lançamento (`Noite.mp3` + `Noite.jpg`). Um `Noite.txt` opcional com `artista: Veigh`, `genero: Trap`, `bpm: 140` e `tom: Cm` preenche o resto. Um vídeo com o mesmo nome (`Noite.mp4`) vira o fundo.
@@ -72,7 +94,10 @@ src/main/design.js       artes em SVG -> PNG (resvg) com as fontes e cores da IS
 src/main/pipeline.js     do beat aos arquivos prontos; loop da capa
 src/main/engine.js       fila, pasta de entrada, piloto automático e publicação
 src/main/youtube.js      login OAuth, envio retomável com agendamento e miniatura
-src/main/instagram.js    publicação de Reels com upload direto do computador
+src/main/instagram.js    publicação de Reels e Stories em vídeo com upload direto do computador
+src/main/posts.js        modelos de post (feed 4:5, stories 9:16, Destaques) e carrossel em vídeo
+src/main/marketing.js    gera a semana/vitrine em pastas + CALENDARIO.md
+src/shared/plan.js       plano de conteúdo: semana de lançamento, semanas normais, Destaques e textos da marca
 src/main/main.js         app Electron: janela, bandeja, notificações
 src/renderer/            interface
 src/cli.js               linha de comando

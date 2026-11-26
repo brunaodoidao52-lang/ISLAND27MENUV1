@@ -231,6 +231,8 @@ async function analyze(file, { reelLength = 30 } = {}) {
 }
 
 const fx = (v) => Number(v).toFixed(3);
+/** Componente (0..1) de uma cor hex "RRGGBB", para tingir branco na cor da marca. */
+const tint = (hex, i) => (parseInt(String(hex).slice(i * 2, i * 2 + 2), 16) / 255).toFixed(3);
 
 /** Expressões de zoom da capa (zoompan): respirar, pulso na batida ou deriva. */
 function motionExpr(motion, fps) {
@@ -325,8 +327,13 @@ function buildComposeArgs(spec) {
     if (spec.wave) {
       g.push(`[${n}:a]${af.join(',')},asplit=2[aout][awav]`);
       const w = spec.wave;
+      const size = `${Math.round(w.w / 2) * 2}x${Math.round(w.h / 2) * 2}`;
+      const color = (w.color || '#7FE3FF').replace('#', '');
+      // "barras": espectro de frequências (graves à esquerda); "onda": forma de onda preenchida
       g.push(
-        `[awav]showwaves=s=${Math.round(w.w / 2) * 2}x${Math.round(w.h / 2) * 2}:mode=cline:rate=${fps}:scale=sqrt:draw=full:colors=0x${(w.color || '#7FE3FF').replace('#', '')},format=rgba[wav]`,
+        w.style === 'barras'
+          ? `[awav]aresample=16000,showfreqs=s=${size}:mode=bar:fscale=log:ascale=sqrt:win_size=2048:averaging=2:rate=${fps}:colors=white,format=rgba,colorchannelmixer=rr=${tint(color, 0)}:gg=${tint(color, 1)}:bb=${tint(color, 2)}[wav]`
+          : `[awav]showwaves=s=${size}:mode=cline:rate=${fps}:scale=sqrt:draw=full:colors=0x${color},format=rgba[wav]`,
       );
       g.push(`[${cur}][wav]overlay=${Math.round(w.x)}:${Math.round(w.y)}:format=auto[withwav]`);
       cur = 'withwav';

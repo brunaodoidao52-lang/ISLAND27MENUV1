@@ -10,6 +10,8 @@ const D = require('./design');
 const { C, HEAD, BODY, esc, measure, render, imageHref } = D;
 const FORMATS = { feed: { W: 1080, H: 1350 }, story: { W: 1080, H: 1920 } };
 const M = 84; // margem lateral
+const BODYC = '#E8EBF1'; // texto de apoio: quase branco, para ler bem no celular
+const NOTEC = '#C9CED8'; // notas e rodapés
 
 // ---------- texto ----------
 
@@ -143,12 +145,12 @@ function logo(x, y, size = 34, anchor = 'start') {
 function topBar(W, brand, { index, total } = {}) {
   const right = total > 1 ? `${index + 1}/${total}` : brand.handle || '';
   return `${logo(M, 104)}
-  <text x="${W - M}" y="102" text-anchor="end" font-family="${BODY}" font-weight="600" font-size="24" letter-spacing="3" fill="${C.muted}">${esc(right)}</text>`;
+  <text x="${W - M}" y="102" text-anchor="end" font-family="${BODY}" font-weight="600" font-size="27" letter-spacing="3" fill="${NOTEC}">${esc(right)}</text>`;
 }
 
 function eyebrow(text, x, y, anchor = 'start') {
   if (!text) return '';
-  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${BODY}" font-weight="600" font-size="26" letter-spacing="7" fill="${C.accent}">${esc(String(text).toUpperCase())}</text>`;
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${BODY}" font-weight="600" font-size="29" letter-spacing="7" fill="${C.accent}">${esc(String(text).toUpperCase())}</text>`;
 }
 
 /** Ícones simples em linha (cor da marca), centralizados em (cx, cy) com tamanho s. */
@@ -208,7 +210,7 @@ function pill(cx, y, label, { size = 30, solid = true, padX = 46, h = 82 } = {})
   <text x="${cx}" y="${y + h / 2 + size * 0.36}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="${size}" letter-spacing="2" fill="${solid ? C.primaryText : C.accent}">${esc(label)}</text>`;
 }
 
-function chipsWrap(x, y, labels, maxW, { size = 26, h = 60, gap = 14 } = {}) {
+function chipsWrap(x, y, labels, maxW, { size = 28, h = 64, gap = 14 } = {}) {
   let cx = x;
   let cy = y;
   let out = '';
@@ -233,9 +235,9 @@ const LAYOUTS = {
     const maxW = W - 2 * M;
     const cardH = card ? Math.round(maxW / (s.cardRatio || 16 / 9)) : 0;
     const t = fit(s.title, maxW, { max: s.titleMax || 118, min: 64, maxLines: 5 });
-    const sub = s.subtitle ? wrap(s.subtitle, 36, maxW, { family: BODY, weight: 400 }) : [];
+    const sub = s.subtitle ? wrap(s.subtitle, 42, maxW, { family: BODY, weight: 400 }) : [];
     const bottom = H - (total > 1 ? 130 : 110);
-    const subH = sub.length ? blockHeight(sub, 36, 1.3) + 34 : 0;
+    const subH = sub.length ? blockHeight(sub, 42, 1.3) + 34 : 0;
     const titleTop = bottom - subH - blockHeight(t.lines, t.size, 1.02);
     return `${bg(W, H, photo)}
     ${card ? cardImage(card, M, 170, maxW, cardH) : ''}
@@ -243,7 +245,7 @@ const LAYOUTS = {
     ${eyebrow(s.eyebrow, M, titleTop - 58)}
     ${accentLine(M, titleTop - 34, 120)}
     ${rich(t.lines, { x: M, y: titleTop + t.size * 0.82, size: t.size, lh: 1.02 })}
-    ${sub.length ? rich(sub, { x: M, y: bottom - subH + 34 + 36 * 0.8, size: 36, lh: 1.3, family: BODY, weight: 400, fill: C.soft }) : ''}
+    ${sub.length ? rich(sub, { x: M, y: bottom - subH + 34 + 42 * 0.8, size: 42, lh: 1.3, family: BODY, weight: 400, fill: BODYC }) : ''}
     ${total > 1 ? swipe(W, H) + dots(W, H, index, total) : ''}`;
   },
 
@@ -251,7 +253,7 @@ const LAYOUTS = {
   texto(s, { W, H, brand, index, total, photo }) {
     const maxW = W - 2 * M;
     const t = fit(s.title, maxW, { max: 76, min: 48, maxLines: 3 });
-    const body = fit(s.body || '', maxW, { max: 40, min: 30, maxLines: 11, family: BODY, weight: 400 });
+    const body = fit(s.body || '', maxW, { max: 46, min: 34, maxLines: 11, family: BODY, weight: 400 });
     const contentH = 40 + blockHeight(t.lines, t.size, 1.04) + 54 + blockHeight(body.lines, body.size, 1.42);
     const y0 = photo ? 300 : Math.max(300, Math.round((H - contentH) / 2) - 20);
     const tY = y0 + 40 + t.size * 0.82;
@@ -262,7 +264,7 @@ const LAYOUTS = {
     ${s.num ? `<text x="${M}" y="${y0 - 26}" font-family="${HEAD}" font-weight="700" font-size="40" fill="${C.accent}">${esc(s.num)}</text>` : eyebrow(s.eyebrow, M, y0 - 26)}
     ${accentLine(M, y0, 120)}
     ${rich(t.lines, { x: M, y: tY, size: t.size, lh: 1.04 })}
-    ${rich(body.lines, { x: M, y: bY, size: body.size, lh: 1.42, family: BODY, weight: 400, fill: C.soft, accent: C.accent })}
+    ${rich(body.lines, { x: M, y: bY, size: body.size, lh: 1.42, family: BODY, weight: 400, fill: BODYC, accent: C.accent })}
     ${dots(W, H, index, total)}`;
   },
 
@@ -270,7 +272,7 @@ const LAYOUTS = {
   lista(s, { W, H, brand, index, total, photo }) {
     const maxW = W - 2 * M;
     const t = fit(s.title, maxW, { max: 78, min: 48, maxLines: 3 });
-    const IS = (s.items || []).length > 4 ? 38 : 44;
+    const IS = (s.items || []).length > 4 ? 42 : 48;
     const wrapped = (s.items || []).map((it) => wrap(it, IS, maxW - 80, { family: BODY, weight: 400 }));
     const itemsH = wrapped.reduce((a, l) => a + blockHeight(l, IS, 1.3) + 56, -56);
     const contentH = 40 + blockHeight(t.lines, t.size, 1.04) + 80 + itemsH;
@@ -302,7 +304,7 @@ const LAYOUTS = {
     ${topBar(W, brand, { index, total })}
     <text x="${M - 8}" y="${top - 30}" font-family="${HEAD}" font-weight="700" font-size="220" fill="${C.accent}" fill-opacity="0.85">“</text>
     ${rich(q.lines, { x: M, y: top + q.size * 0.82 + 40, size: q.size, lh: 1.12 })}
-    ${s.author ? `${accentLine(M, top + qh + 100, 70)}<text x="${M + 92}" y="${top + qh + 110}" font-family="${BODY}" font-weight="600" font-size="30" letter-spacing="4" fill="${C.soft}">${esc(s.author.toUpperCase())}</text>` : ''}
+    ${s.author ? `${accentLine(M, top + qh + 100, 70)}<text x="${M + 92}" y="${top + qh + 110}" font-family="${BODY}" font-weight="600" font-size="34" letter-spacing="4" fill="${BODYC}">${esc(s.author.toUpperCase())}</text>` : ''}
     ${dots(W, H, index, total)}`;
   },
 
@@ -311,20 +313,20 @@ const LAYOUTS = {
     const maxW = W - 2 * M;
     const t = fit(s.title, maxW, { max: 92, min: 54, maxLines: 4, });
     const tH = blockHeight(t.lines, t.size, 1.04);
-    const body = s.body ? wrap(s.body, 36, maxW, { family: BODY, weight: 400 }) : [];
+    const body = s.body ? wrap(s.body, 42, maxW, { family: BODY, weight: 400 }) : [];
     const top = H * 0.30;
     const bodyY = top + tH + 60;
-    const chipsY = bodyY + blockHeight(body, 36, 1.35) + 56;
+    const chipsY = bodyY + blockHeight(body, 42, 1.35) + 56;
     const chips = s.chips ? chipsWrap(M, chipsY, s.chips, maxW) : { svg: '', bottom: chipsY - 40 };
     return `${bg(W, H, photo, { dim: 'full' })}
     ${topBar(W, brand, { index, total })}
     ${eyebrow(s.eyebrow, M, top - 50)}
     ${rich(t.lines, { x: M, y: top + t.size * 0.82, size: t.size, lh: 1.04 })}
-    ${body.length ? rich(body, { x: M, y: bodyY + 36 * 0.8, size: 36, lh: 1.35, family: BODY, weight: 400, fill: C.soft }) : ''}
+    ${body.length ? rich(body, { x: M, y: bodyY + 42 * 0.8, size: 42, lh: 1.35, family: BODY, weight: 400, fill: BODYC }) : ''}
     ${chips.svg}
     ${s.button ? pill(W / 2, Math.min(H - 250, chips.bottom + 90), s.button) : ''}
     ${logo(W / 2, H - 170, 30, 'middle')}
-    <text x="${W / 2}" y="${H - 128}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="24" letter-spacing="3" fill="${C.muted}">${esc(brand.handle || '')}</text>
+    <text x="${W / 2}" y="${H - 128}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="27" letter-spacing="3" fill="${NOTEC}">${esc(brand.handle || '')}</text>
     ${dots(W, H, index, total)}`;
   },
 
@@ -364,19 +366,19 @@ const LAYOUTS = {
       const hl = !!r.destaque;
       rows += `<rect x="${M}" y="${y}" width="${maxW}" height="${rowH - 20}" rx="24" fill="${hl ? C.primary : '#fff'}" fill-opacity="${hl ? 0.16 : 0.04}" stroke="${hl ? C.accent : '#fff'}" stroke-opacity="${hl ? 0.6 : 0.1}" stroke-width="2"/>
       <text x="${M + 36}" y="${y + 58}" font-family="${HEAD}" font-weight="700" font-size="40" fill="${C.text}">${esc(r.nome)}</text>
-      <text x="${M + 36}" y="${y + 100}" font-family="${BODY}" font-weight="400" font-size="26" fill="${C.muted}">${esc(r.desc || '')}</text>
+      <text x="${M + 36}" y="${y + 100}" font-family="${BODY}" font-weight="400" font-size="30" fill="${NOTEC}">${esc(r.desc || '')}</text>
       <text x="${W - M - 36}" y="${y + 80}" text-anchor="end" font-family="${HEAD}" font-weight="700" font-size="${String(r.preco).length > 9 ? 34 : 46}" fill="${hl ? C.accent : C.text}">${esc(r.preco)}</text>
       ${hl ? `<text x="${W - M - 36}" y="${y + 32}" text-anchor="end" font-family="${BODY}" font-weight="600" font-size="18" letter-spacing="3" fill="${C.accent}">MAIS ESCOLHIDA</text>` : ''}`;
       y += rowH;
     }
-    const note = s.note ? wrap(s.note, 28, maxW, { family: BODY, weight: 400 }) : [];
+    const note = s.note ? wrap(s.note, 32, maxW, { family: BODY, weight: 400 }) : [];
     return `${bg(W, H, null)}
     ${topBar(W, brand, { index, total })}
     ${eyebrow(s.eyebrow, M, 274)}
     ${accentLine(M, 300, 120)}
     ${rich(t.lines, { x: M, y: 340 + t.size * 0.82, size: t.size, lh: 1.04 })}
     ${rows}
-    ${note.length ? rich(note, { x: M, y: y + 30, size: 28, lh: 1.35, family: BODY, weight: 400, fill: C.muted }) : ''}
+    ${note.length ? rich(note, { x: M, y: y + 34, size: 32, lh: 1.35, family: BODY, weight: 400, fill: NOTEC }) : ''}
     ${dots(W, H, index, total)}`;
   },
 
@@ -399,7 +401,7 @@ const LAYOUTS = {
   servico(s, { W, H, photo }) {
     const maxW = W - 2 * M;
     const t = fit(s.title, maxW, { max: 104, min: 60, maxLines: 3 });
-    const body = s.body ? fit(s.body, maxW, { max: 40, min: 32, maxLines: 7, family: BODY, weight: 400 }) : { lines: [], size: 38 };
+    const body = s.body ? fit(s.body, maxW, { max: 46, min: 36, maxLines: 7, family: BODY, weight: 400 }) : { lines: [], size: 44 };
     let y = 520;
     let out = `${bg(W, H, photo, { dim: 'full' })}
     ${logo(W / 2, 200, 36, 'middle')}
@@ -408,18 +410,18 @@ const LAYOUTS = {
     out += rich(t.lines, { x: M, y: y + 40 + t.size * 0.82, size: t.size, lh: 1.04 });
     y += 40 + blockHeight(t.lines, t.size, 1.04) + 50;
     if (body.lines.length) {
-      out += rich(body.lines, { x: M, y: y + body.size * 0.8, size: body.size, lh: 1.4, family: BODY, weight: 400, fill: C.soft });
-      y += blockHeight(body.lines, body.size, 1.4) + 60;
+      out += rich(body.lines, { x: M, y: y + body.size * 0.8, size: body.size, lh: 1.4, family: BODY, weight: 400, fill: BODYC });
+      y += blockHeight(body.lines, body.size, 1.4) + 100;
     }
     for (const it of s.items || []) {
-      const lines = wrap(it, 38, maxW - 70, { family: BODY, weight: 400 });
+      const lines = wrap(it, 44, maxW - 70, { family: BODY, weight: 400 });
       out += `<path d="M ${M + 4} ${y - 14} l 12 12 l 22 -26" fill="none" stroke="${C.accent}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
-      out += rich(lines, { x: M + 64, y, size: 38, lh: 1.3, family: BODY, weight: 400, fill: C.text });
-      y += blockHeight(lines, 38, 1.3) + 34;
+      out += rich(lines, { x: M + 64, y, size: 44, lh: 1.3, family: BODY, weight: 400, fill: C.text });
+      y += blockHeight(lines, 44, 1.3) + 36;
     }
     if (s.price) out += `<text x="${M}" y="${y + 70}" font-family="${HEAD}" font-weight="700" font-size="56" fill="${C.accent}">${esc(s.price)}</text>`;
     if (s.button) out += pill(W / 2, H - 470, s.button);
-    if (s.footer) out += `<text x="${W / 2}" y="${H - 340}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="28" letter-spacing="4" fill="${C.muted}">${esc(s.footer)}</text>`;
+    if (s.footer) out += `<text x="${W / 2}" y="${H - 340}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="32" letter-spacing="4" fill="${NOTEC}">${esc(s.footer)}</text>`;
     return out;
   },
 
@@ -428,28 +430,28 @@ const LAYOUTS = {
     const maxW = W - 2 * M;
     const t = fit(s.title, maxW, { max: 112, min: 56, maxLines: 5 });
     const top = 360;
-    const body = s.body ? wrap(s.body, 38, maxW, { family: BODY, weight: 400 }) : [];
+    const body = s.body ? wrap(s.body, 44, maxW, { family: BODY, weight: 400 }) : [];
     const bodyY = top + blockHeight(t.lines, t.size, 1.04) + 60;
     let mid = '';
     if (cover) {
       const size = 620;
       const x = (W - size) / 2;
-      const y = Math.max(bodyY + blockHeight(body, 38, 1.35) + 60, 860);
+      const y = Math.max(bodyY + blockHeight(body, 44, 1.35) + 60, 860);
       mid = `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="30" fill="${C.primary}" opacity="0.55" filter="url(#soft)"/>
       <clipPath id="sc"><rect x="${x}" y="${y}" width="${size}" height="${size}" rx="30"/></clipPath>
       <image href="${imageHref(cover)}" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice" clip-path="url(#sc)"/>`;
     } else if (card) {
       const ch = Math.round(maxW / (s.cardRatio || 16 / 9));
-      mid = cardImage(card, M, Math.max(bodyY + blockHeight(body, 38, 1.35) + 80, 900), maxW, ch);
+      mid = cardImage(card, M, Math.max(bodyY + blockHeight(body, 44, 1.35) + 80, 900), maxW, ch);
     }
     return `${bg(W, H, photo, { dim: s.dim || 'full' })}
     ${logo(W / 2, 200, 36, 'middle')}
     ${eyebrow(s.eyebrow, W / 2, top - 60, 'middle')}
     ${rich(t.lines, { x: W / 2, y: top + t.size * 0.82, size: t.size, lh: 1.04, anchor: 'middle' })}
-    ${body.length ? rich(body, { x: W / 2, y: bodyY + 38 * 0.8, size: 38, lh: 1.35, anchor: 'middle', family: BODY, weight: 400, fill: C.soft }) : ''}
+    ${body.length ? rich(body, { x: W / 2, y: bodyY + 44 * 0.8, size: 44, lh: 1.35, anchor: 'middle', family: BODY, weight: 400, fill: BODYC }) : ''}
     ${mid}
     ${s.button ? pill(W / 2, H - 420, s.button) : ''}
-    ${s.footer ? `<text x="${W / 2}" y="${H - 300}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="28" letter-spacing="4" fill="${C.muted}">${esc(s.footer)}</text>` : ''}`;
+    ${s.footer ? `<text x="${W / 2}" y="${H - 300}" text-anchor="middle" font-family="${BODY}" font-weight="600" font-size="32" letter-spacing="4" fill="${NOTEC}">${esc(s.footer)}</text>` : ''}`;
   },
 };
 

@@ -11,6 +11,8 @@ const youtube = require('./youtube');
 const instagram = require('./instagram');
 const texts = require('../shared/texts');
 const schedule = require('../shared/schedule');
+const plan = require('../shared/plan');
+const ai = require('./ai');
 
 const AUDIO = [...ff.AUDIO_EXT].map((e) => e.slice(1));
 const IMAGE = [...ff.IMAGE_EXT].map((e) => e.slice(1));
@@ -67,14 +69,24 @@ function publicState() {
     items: store.items.map((it) => ({
       ...it,
       coverUrl: fileUrl(it.coverPath),
-      urls: it.outputs ? { youtube: fileUrl(it.outputs.youtube), reels: fileUrl(it.outputs.reels), thumb: fileUrl(it.outputs.thumb) } : null,
+      urls: it.outputs ? { youtube: fileUrl(it.outputs.youtube), reels: fileUrl(it.outputs.reels), thumb: fileUrl(it.outputs.thumb), thumbB: fileUrl(it.outputs.thumbB) } : null,
       folder: it.outputs ? path.dirname(it.outputs.youtube) : null,
     })),
     settings: {
       ...s,
       youtube: { clientId: s.youtube.clientId, hasSecret: !!s.youtube.clientSecret, connected: !!(s.youtube.tokens && s.youtube.tokens.refresh), channel: s.youtube.channel },
       instagram: { ...s.instagram, token: undefined, hasToken: !!s.instagram.token },
+      ai: { ...s.ai, apiKey: undefined, hasKey: !!(s.ai && s.ai.apiKey) },
     },
+    posts: store.posts.map((p) => ({
+      ...p,
+      imageUrls: p.files && p.files.images ? p.files.images.map(fileUrl) : [],
+      videoUrl: p.files && p.files.video ? fileUrl(p.files.video) : null,
+    })),
+    kindLabels: plan.KIND_LABEL,
+    aiProviders: ai.PROVIDERS,
+    marketingPhotoUrls: Object.fromEntries(Object.entries((s.marketing && s.marketing.photos) || {}).map(([k, v]) => [k, fileUrl(v)])),
+    defaultMarketing: plan.DEFAULT_MARKETING,
     outDir: outDir(),
     encryption: canEncrypt(),
     generos: texts.GENEROS,
@@ -209,6 +221,7 @@ app.whenReady().then(() => {
       if ((it.yt.status === 'erro' && py !== 'erro') || (it.ig.status === 'erro' && pi !== 'erro')) notify('Beat Launcher', `Erro ao publicar ${it.nome}. Abra o app para ver.`);
     }
   });
+  engine.on('due', (p) => notify('Hora de postar', `${p.titulo}. Abra a aba Marketing para copiar a legenda e os arquivos.`));
   createWindow();
   createTray();
   engine.start();
@@ -345,3 +358,49 @@ handle('folder:ensure', (p) => {
   fs.mkdirSync(p, { recursive: true });
   return p;
 });
+
+// ---------- marketing ----------
+handle('marketing:week', (start, weekIndex) => engine.planWeek(new Date(start), Number(weekIndex) || 0).length);
+handle('marketing:vitrine', () => engine.planVitrine().length);
+handle('marketing:update', (id, patch) => {
+  engine.updatePost(id, patch);
+});
+handle('marketing:remove', (id) => engine.removePost(id));
+handle('marketing:done', (id) => engine.markPosted(id));
+handle('marketing:rerender', (id) => engine.rerenderPost(id));
+handle('marketing:clearDone', () => {
+  for (const p of [...store.posts]) if (p.status === 'postado') store.removePost(p.id);
+  pushState();
+});
+handle('marketing:photo', async (key) => {
+  const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Foto', extensions: IMAGE }] });
+  if (r.canceled) return null;
+  store.setSettings({ marketing: { photos: { [key]: r.filePaths[0] } } });
+  pushState();
+  return r.filePaths[0];
+});
+handle('marketing:settings', (patch) => {
+  store.setSettings({ marketing: patch });
+  pushState();
+});
+
+// ---------- IA (modo teste) ----------
+handle('ai:save', (cfg) => {
+  const patch = { enabled: !!cfg.enabled, autoApply: !!cfg.autoApply, provider: cfg.provider || 'deepseek', baseUrl: (cfg.baseUrl || '').trim(), model: (cfg.model || '').trim() };
+  if (cfg.apiKey) patch.apiKey = cfg.apiKey.trim();
+  store.setSettings({ ai: patch });
+  pushState();
+});
+handle('ai:clearKey', () => {
+  store.setSettings({ ai: { apiKey: '', enabled: false } });
+  pushState();
+});
+handle('ai:test', async () => {
+  const r = await ai.client(ai.cfgOf(store.settings)).test();
+  log(`IA conectada (${r.model}): “${r.reply}”.`);
+  return r;
+});
+handle('ai:suggestBeat', (id) => engine.aiSuggestBeat(id));
+handle('ai:applyBeat', (id) => engine.aiApplyBeat(id));
+handle('ai:rewritePost', (id) => engine.aiRewritePost(id));
+handle('ai:ideas', (count, foco) => engine.aiIdeas(count, foco));

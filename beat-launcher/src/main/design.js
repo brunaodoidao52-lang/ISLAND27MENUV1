@@ -245,6 +245,29 @@ function thumbnail(beat, coverPng) {
   return render(svg);
 }
 
+/**
+ * Miniatura B: minimalista (a capa ocupa tudo, poucas palavras grandes). Boa para o teste A/B do YouTube,
+ * que mostra cada versão para parte do público e escolhe a que dá mais cliques.
+ */
+function thumbnailB(beat, coverPng) {
+  const W = 1280;
+  const H = 720;
+  const href = imageHref(coverPng);
+  const words = String(beat.nome || '').toUpperCase().split(/\s+/).filter(Boolean);
+  const short = words.slice(0, 3).join(' ');
+  const name = fitText(short, 620, { max: 150, min: 70, maxLines: 2 });
+  const nameY = H - 110 - (name.lines.length - 1) * name.size * 0.98;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+  <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.bg}" stop-opacity="0.92"/><stop offset="0.55" stop-color="${C.bg}" stop-opacity="0.35"/><stop offset="1" stop-color="${C.bg}" stop-opacity="0"/></linearGradient></defs>
+  <image href="${href}" x="${W - 820}" y="-50" width="820" height="820" preserveAspectRatio="xMidYMid slice"/>
+  <rect width="${W}" height="${H}" fill="url(#lg)"/>
+  <rect x="60" y="${nameY - name.size - 40}" width="140" height="8" rx="4" fill="${C.accent}"/>
+  ${textBlock(name.lines, { x: 60, y: nameY, size: name.size, lineHeight: 0.98, fill: C.text, extra: 'stroke="#08090c" stroke-width="3"' })}
+  ${textBlock(['TYPE BEAT'], { x: 64, y: H - 56, size: 40, family: HEAD, weight: 700, fill: C.accent, spacing: 6 })}
+</svg>`;
+  return render(svg);
+}
+
 // ---------- Loop animado da capa ----------
 const LOOP_FORMATS = {
   '1:1': { W: 1080, H: 1080 },
@@ -282,6 +305,6 @@ function loopLayer(format, coverPng, { brand = true } = {}) {
 
 module.exports = {
   C, YT, REELS, LOOP_FORMATS, HEAD, BODY, FONTS,
-  youtubeLayer, reelsLayer, thumbnail, loopLayer, loopGeometry,
+  youtubeLayer, reelsLayer, thumbnail, thumbnailB, loopLayer, loopGeometry,
   fitText, measure, render, textBlock, chip, chipsRow, imageHref, esc, defs, background, coverHalo, coverBorder,
 };
