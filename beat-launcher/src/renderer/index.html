@@ -327,6 +327,23 @@
           </div>
 
           <div class="card form">
+            <h3><span class="dot" id="cl-dot"></span>Conectar ao Claude</h3>
+            <p class="muted small">Deixa o Claude (no app Claude / Cowork do computador) controlar o Beat Launcher: ver a fila, lançar beats, escrever e melhorar textos (inclusive pedindo à sua IA configurada abaixo), planejar a semana. Funciona só neste computador, com o app aberto.</p>
+            <label class="switch inline"><input type="checkbox" id="cl-on" /><span></span>Permitir que o Claude controle o app</label>
+            <p class="muted small" id="cl-status"></p>
+            <div class="row wrap"><button id="cl-install" class="primary">Instalar no app Claude</button><button id="cl-copy" class="ghost">Copiar configuração</button><button id="cl-copy-code" class="ghost">Copiar comando (Claude Code)</button></div>
+            <details>
+              <summary>Como usar</summary>
+              <ol>
+                <li>Clique em <b>Instalar no app Claude</b> (ou cole a configuração em Configurações → Desenvolvedor → Editar configuração do app Claude).</li>
+                <li><b>Feche e abra o app Claude.</b> O conector “island27-beat-launcher” aparece nas ferramentas.</li>
+                <li>Deixe o Beat Launcher aberto e peça ao Claude, por exemplo: “lança o beat C:\Beats\Noite.mp3 com a capa Noite.jpg e melhora os textos usando a minha IA”.</li>
+              </ol>
+              <p class="warn">A conexão é local (127.0.0.1) e usa uma senha nova a cada vez que o app abre. O Claude não vê as suas chaves: ele usa a IA pelo próprio app.</p>
+            </details>
+          </div>
+
+          <div class="card form">
             <h3><span class="dot" id="ai-dot"></span>IA <span class="tag-test">MODO TESTE</span></h3>
             <p class="muted small">Conecte a sua API (DeepSeek ou outra compatível com OpenAI) para a IA sugerir títulos, descrições, legendas e ideias de conteúdo. Fica <b>desligada</b> até você ativar; as sugestões só são usadas quando você aprova (a não ser que ligue “aplicar sozinho”).</p>
             <label class="switch inline"><input type="checkbox" id="ai-enabled" /><span></span>Ativar a IA (modo teste)</label>

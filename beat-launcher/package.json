@@ -12,6 +12,7 @@
   "scripts": {
     "start": "electron .",
     "gerar": "node src/cli.js",
+    "mcp": "node src/mcp/server.js",
     "test": "node --test \"test/*.test.js\"",
     "dist": "electron-builder --publish never",
     "dist:win": "electron-builder --win --publish never",
@@ -19,8 +20,10 @@
     "dist:linux": "electron-builder --linux --publish never"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@resvg/resvg-js": "^2.6.2",
-    "ffmpeg-static": "^5.2.0"
+    "ffmpeg-static": "^5.2.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "electron": "^33.4.11",

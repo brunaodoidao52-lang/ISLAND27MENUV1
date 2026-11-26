@@ -34,6 +34,22 @@ node src/cli.js semana --inicio 2026-11-27 --numero 0 --artista foto.jpg --ilha 
 
 `--numero 0` é a semana de lançamento do perfil; 1, 2, 3… são semanas normais (dicas em rodízio).
 
+## Conectar ao Claude (o Claude controla o app)
+
+Em **Configurações → Conectar ao Claude**:
+1. Deixe ligado **"Permitir que o Claude controle o app"**.
+2. Clique em **Instalar no app Claude** (ou **Copiar configuração** e cole em Configurações → Desenvolvedor → Editar configuração do app Claude). Para o Claude Code: **Copiar comando**.
+3. **Feche e abra o app Claude.** O conector **island27-beat-launcher** aparece nas ferramentas (também no Cowork).
+
+Com o Beat Launcher aberto, é só pedir ao Claude, por exemplo:
+- "Lança o beat `C:\Beats\Noite.mp3` com a capa `Noite.jpg`, artista Veigh, trap."
+- "Melhora os textos do Noite: escreve a sua versão, pede uma à minha IA e fica com a melhor."
+- "Distribui os beats nos horários" · "Planeja a semana que começa dia 7" · "O que tem pra postar hoje?"
+
+**Ferramentas (26):** ver_status, listar_fila, detalhe_beat, adicionar_beat, importar_arquivos, editar_beat, escrever_textos, ia_sugerir_textos, ia_aplicar_sugestao, ia_testar, ia_ideias, distribuir_horarios, publicar_agora, refazer_videos, tentar_de_novo, remover_beat, analisar_bpm, listar_posts, ver_post, planejar_semana, gerar_vitrine, editar_legenda_post, ia_reescrever_legenda, marcar_postado, gerar_loop, ajustar_configuracoes.
+
+**Segurança:** a porta de controle só aceita conexões do próprio computador (127.0.0.1), usa uma senha nova a cada vez que o app abre e só permite as ações da lista. O Claude não vê as chaves: as ferramentas `ia_*` usam a IA configurada no app, com a sua chave. Desligar o modo teste pelo Claude exige confirmação explícita.
+
 ## IA (modo teste)
 
 Em **Configurações → IA**, conecte a sua API: **DeepSeek** (padrão: `https://api.deepseek.com`, modelo `deepseek-v4-flash`) ou qualquer API compatível com o formato OpenAI (`/chat/completions`). Ela começa **desligada**.
@@ -114,6 +130,8 @@ src/main/instagram.js    publicação de Reels e Stories em vídeo com upload di
 src/main/posts.js        modelos de post (feed 4:5, stories 9:16, Destaques) e carrossel em vídeo
 src/main/marketing.js    gera a semana/vitrine em pastas + CALENDARIO.md
 src/main/ai.js           IA em modo teste (DeepSeek/OpenAI): sugestões, legendas e ideias
+src/main/control.js      porta de controle local para o Claude
+src/mcp/server.js        conector do Claude (MCP) com as 26 ferramentas
 src/shared/plan.js       plano de conteúdo: semana de lançamento, semanas normais, Destaques e textos da marca
 src/main/main.js         app Electron: janela, bandeja, notificações
 src/renderer/            interface

@@ -524,7 +524,27 @@ function fillSettings() {
   $('ig-dot').className = `dot${igOn ? ' on' : ''}`;
   fillGeneros($('f-genero'), $('f-genero').value);
   fillAI();
+  fillClaude();
 }
+let claudeInfo = null;
+async function fillClaude() {
+  claudeInfo = await safe(() => api.claudeInfo());
+  if (!claudeInfo) return;
+  $('cl-on').checked = claudeInfo.enabled;
+  $('cl-dot').className = `dot${claudeInfo.running && claudeInfo.installed ? ' on' : claudeInfo.running ? ' test' : ''}`;
+  $('cl-status').textContent = !claudeInfo.enabled ? 'Desligado.' : `${claudeInfo.running ? 'Porta de controle ligada.' : 'Porta de controle desligada.'} ${claudeInfo.installed ? 'Conector instalado no app Claude.' : 'Conector ainda não instalado no app Claude.'}`;
+}
+$('cl-on').addEventListener('change', async (e) => {
+  await safe(() => api.claudeToggle(e.target.checked), e.target.checked ? 'Claude pode controlar o app.' : 'Controle pelo Claude desligado.');
+  fillClaude();
+});
+$('cl-install').onclick = async () => {
+  const f = await safe(() => api.claudeInstall(), (file) => `Instalado em ${file}. Feche e abra o app Claude.`);
+  if (f) fillClaude();
+};
+$('cl-copy').onclick = async () => { if (!claudeInfo) await fillClaude(); if (claudeInfo) safe(() => api.copy(claudeInfo.json), 'Configuração copiada.'); };
+$('cl-copy-code').onclick = async () => { if (!claudeInfo) await fillClaude(); if (claudeInfo) safe(() => api.copy(claudeInfo.claudeCode), 'Comando copiado.'); };
+
 function fillAI() {
   const a = state.settings.ai || {};
   const provs = state.aiProviders || {};

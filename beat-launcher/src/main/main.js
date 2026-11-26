@@ -13,6 +13,8 @@ const texts = require('../shared/texts');
 const schedule = require('../shared/schedule');
 const plan = require('../shared/plan');
 const ai = require('./ai');
+const { startControl } = require('./control');
+const os = require('os');
 
 const AUDIO = [...ff.AUDIO_EXT].map((e) => e.slice(1));
 const IMAGE = [...ff.IMAGE_EXT].map((e) => e.slice(1));
@@ -21,6 +23,7 @@ const VIDEO = [...ff.VIDEO_EXT].map((e) => e.slice(1));
 let win = null;
 let tray = null;
 let quitting = false;
+let control = null;
 const logLines = [];
 
 // Pasta de dados separada (útil para testes): ISLAND27_DATA_DIR=/caminho
@@ -225,6 +228,10 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   engine.start();
+  // porta de controle para o Claude (conector MCP)
+  if (store.settings.claudeControl !== false) {
+    control = startControl({ dir: userData, actions, version: app.getVersion(), onCall: (n) => n !== 'state:get' && log(`Claude: ${n}`) });
+  }
   // impede o PC de "dormir" enquanto o app roda (para não perder horários do Instagram)
   powerSaveBlocker.start('prevent-app-suspension');
   refreshInstagramToken();
@@ -236,13 +243,17 @@ app.on('before-quit', () => {
   quitting = true;
   if (engine) engine.stop();
   if (store) store.flush();
+  if (control) control.close();
 });
 app.on('window-all-closed', () => {
   if (quitting || !store || !store.settings.background) app.quit();
 });
 
 // ---------- IPC ----------
-const handle = (name, fn) =>
+// Toda ação da tela também fica registrada em "actions", para a porta de controle do Claude (control.js).
+const actions = {};
+const handle = (name, fn) => {
+  actions[name] = fn;
   ipcMain.handle(name, async (_e, ...args) => {
     try {
       return { ok: true, value: await fn(...args) };
@@ -250,6 +261,7 @@ const handle = (name, fn) =>
       return { ok: false, error: e.message };
     }
   });
+};
 
 handle('state:get', () => ({ ...publicState(), log: logLines }));
 
@@ -404,3 +416,64 @@ handle('ai:suggestBeat', (id) => engine.aiSuggestBeat(id));
 handle('ai:applyBeat', (id) => engine.aiApplyBeat(id));
 handle('ai:rewritePost', (id) => engine.aiRewritePost(id));
 handle('ai:ideas', (count, foco) => engine.aiIdeas(count, foco));
+
+// ---------- conector do Claude (MCP) ----------
+function claudeConfig() {
+  const serverPath = path.join(__dirname, '..', 'mcp', 'server.js');
+  return {
+    command: process.execPath,
+    args: [serverPath],
+    env: { ELECTRON_RUN_AS_NODE: '1', ISLAND27_DATA_DIR: userData },
+  };
+}
+function claudeDesktopConfigPath() {
+  if (process.platform === 'win32') return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json');
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+  return path.join(os.homedir(), '.config', 'Claude', 'claude_desktop_config.json');
+}
+handle('claude:info', () => {
+  const cfg = claudeConfig();
+  const file = claudeDesktopConfigPath();
+  let installed = false;
+  try {
+    installed = !!JSON.parse(fs.readFileSync(file, 'utf8')).mcpServers?.['island27-beat-launcher'];
+  } catch {
+    /* sem arquivo ainda */
+  }
+  return {
+    enabled: store.settings.claudeControl !== false,
+    running: !!control,
+    installed,
+    desktopConfigPath: file,
+    json: JSON.stringify({ mcpServers: { 'island27-beat-launcher': cfg } }, null, 2),
+    claudeCode: `claude mcp add island27-beat-launcher --env ELECTRON_RUN_AS_NODE=1 --env ISLAND27_DATA_DIR="${userData}" -- "${cfg.command}" "${cfg.args[0]}"`,
+  };
+});
+// Adiciona o conector no app Claude para computador (guarda uma cópia do arquivo antes de mudar).
+handle('claude:install', () => {
+  const file = claudeDesktopConfigPath();
+  let conf = {};
+  if (fs.existsSync(file)) {
+    const raw = fs.readFileSync(file, 'utf8');
+    try {
+      conf = JSON.parse(raw || '{}');
+    } catch {
+      throw new Error(`Não consegui ler ${file}. Use "Copiar configuração" e cole manualmente.`);
+    }
+    fs.writeFileSync(`${file}.antes-island27-${Date.now()}.bak`, raw);
+  }
+  conf.mcpServers = { ...(conf.mcpServers || {}), 'island27-beat-launcher': claudeConfig() };
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(conf, null, 2));
+  log('Conector do Claude instalado. Feche e abra o app Claude para ele aparecer.');
+  return file;
+});
+handle('claude:toggle', (on) => {
+  store.setSettings({ claudeControl: !!on });
+  if (on && !control) control = startControl({ dir: userData, actions, version: app.getVersion(), onCall: (n) => n !== 'state:get' && log(`Claude: ${n}`) });
+  if (!on && control) {
+    control.close();
+    control = null;
+  }
+  pushState();
+});

@@ -18,6 +18,7 @@ function defaultSettings() {
     leadMinutes: 30,
     reelLength: 30,
     visual: 'onda',
+    claudeControl: true,
     autopilot: false,
     simulation: true,
     background: true,
